@@ -105,20 +105,20 @@
   .card p{margin:4px 0;font-size:13px;color:#5d4520}
   .card table{width:100%;font-size:12px;color:#5d4520;border-collapse:collapse;margin-top:6px}
   .card td,.card th{padding:3px 0;border-bottom:1px dashed #d5c096;text-align:left}
-  .card .dim{font-size:11px;color:#a08a5e;margin-top:8px}
-  .card .x,.recpanel .x,.quizpanel .x{position:absolute;top:8px;right:12px;cursor:pointer;color:#a08a5e;font-size:16px;z-index:2}
+  .card .dim{font-size:11px;color:#7d6536;margin-top:8px}
+  .card .x,.recpanel .x,.quizpanel .x{position:absolute;top:8px;right:12px;cursor:pointer;color:#7d6536;font-size:16px;z-index:2}
   .recpanel .x:hover,.quizpanel .x:hover,.card .x:hover{color:#8c2f1b}
 
   @keyframes cardIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
   .recpanel{animation:cardIn .5s cubic-bezier(.22,1,.36,1);position:absolute;right:20px;top:84px;z-index:6;width:240px;display:none;
     background:rgba(252,246,230,.97);border:1px solid #c5ab7c;border-radius:10px;padding:14px 16px;box-shadow:0 6px 20px rgba(80,55,20,.3)}
   .recpanel h3{margin:0 0 4px;font:600 16px "Kaiti SC","STKaiti","KaiTi",serif;color:#4a3414;letter-spacing:2px}
-  .recpanel .sub{font-size:12px;color:#a08a5e;margin:0 0 10px}
+  .recpanel .sub{font-size:12px;color:#7d6536;margin:0 0 10px}
   .recrow{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px dashed #e0d0aa;font-size:13px;color:#5d4520;cursor:pointer}
   .recrow:hover{color:#8c2f1b}
   .rb{font-size:11px;padding:1px 7px;border-radius:4px;color:#fff;flex-shrink:0}
   .rb.冲{background:#d85a30}.rb.稳{background:#e0a32e}.rb.保{background:#1d9e75}
-  .recrow .pr{margin-left:auto;font-size:12px;color:#a08a5e}
+  .recrow .pr{margin-left:auto;font-size:12px;color:#7d6536}
   .tourbtn{margin-top:12px;width:100%;padding:9px 0;border:none;border-radius:8px;background:#8c2f1b;color:#f7e8d6;
     font:500 14px "Kaiti SC","STKaiti","KaiTi",serif;letter-spacing:3px;cursor:pointer}
   .tourbtn:hover{background:#a13a22}
@@ -133,7 +133,7 @@
   .rfsel label{display:flex;align-items:center;gap:2px;cursor:pointer}
   .recgroup{font:600 13px "Kaiti SC","STKaiti",serif;letter-spacing:2px;margin:8px 0 2px}
   .recgroup.冲{color:#d85a30}.recgroup.稳{color:#b8860b}.recgroup.保{color:#1d9e75}
-  .recrow small{color:#a08a5e;margin-left:4px}
+  .recrow small{color:#7d6536;margin-left:4px}
   #recpanel{max-height:72vh;overflow-y:auto;width:262px}
   .quizpanel{animation:cardIn .5s cubic-bezier(.22,1,.36,1);position:absolute;left:20px;top:84px;z-index:6;width:280px;display:none;
     max-height:78vh;overflow-y:auto;background:rgba(252,246,230,.97);border:1px solid #c5ab7c;border-radius:10px;
@@ -146,7 +146,7 @@
   .qz-opts button{padding:8px;border:1px solid #c5ab7c;border-radius:7px;background:#fdf8ea;color:#5d4520;
     font:500 13px "Kaiti SC","STKaiti",serif;cursor:pointer;transition:all .15s}
   .qz-opts button:hover{background:#8c2f1b;color:#f7e8d6}
-  .qz-back{margin-top:8px;background:none;border:none;color:#a08a5e;font-size:12px;cursor:pointer}
+  .qz-back{margin-top:8px;background:none;border:none;color:#7d6536;font-size:12px;cursor:pointer}
   .qz-dim{display:flex;align-items:center;gap:6px;font-size:12px;color:#5d4520;margin:3px 0}
   .qz-dim b{width:58px;font-weight:500}
   .qz-bar{flex:1;height:8px;background:#ede0c2;border-radius:4px;overflow:hidden}
@@ -168,7 +168,7 @@
   #search-input{flex:1;min-width:0;border:none;background:none;outline:none;
     font:500 14px "Kaiti SC","STKaiti","KaiTi",serif;color:#4a3414;letter-spacing:1px}
   #search-input::placeholder{color:#b29b6e}
-  #search-clear{cursor:pointer;color:#b09a6c;font-size:13px;display:none}
+  #search-clear{cursor:pointer;color:#b09a6c;font-size:13px;display:none;background:none;border:0;padding:0;line-height:1}
   #search-box.has-val #search-clear{display:block}
   #search-hint{text-align:center;margin-top:6px;font:500 12px "Kaiti SC","STKaiti",serif;color:#9b8154;
     letter-spacing:1px;transition:opacity .4s;text-shadow:0 1px 2px rgba(247,238,216,.8)}
@@ -181,13 +181,13 @@
   .sr-item:hover,.sr-item.on{background:#f3e7cb}
   .sr-item img,.sr-item svg{flex:0 0 auto}
   .sr-item .nm{font:500 14px "Kaiti SC","STKaiti",serif;color:#4a3414;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .sr-item .meta{margin-left:auto;font-size:11px;color:#a08a5e;flex:0 0 auto}
+  .sr-item .meta{margin-left:auto;font-size:11px;color:#7d6536;flex:0 0 auto}
   .sr-badge{font-size:10px;padding:1px 6px;border-radius:4px;color:#fff;flex:0 0 auto}
   .sr-badge.t985{background:#8c2f1b}.sr-badge.t211{background:#96660f}.sr-badge.tdfc{background:#564a85}.sr-badge.tben{background:#9a8757}
   .sr-badge.sr-cbadge{background:#4f6457}
   .sr-pin{width:26px;height:26px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;color:#9c2f1b}
   .sr-pin svg{width:20px;height:20px}
-  .sr-empty{padding:12px;text-align:center;font-size:12px;color:#a08a5e}
+  .sr-empty{padding:12px;text-align:center;font-size:12px;color:#7d6536}
   .favbtn{position:absolute;right:18px;bottom:20px;z-index:8;cursor:pointer;border:1px solid #c5ab7c;
     background:rgba(252,246,230,.95);color:#8c2f1b;border-radius:999px;padding:9px 16px;
     font:600 14px "Kaiti SC","STKaiti",serif;letter-spacing:1px;box-shadow:0 3px 12px rgba(80,55,20,.2);
@@ -202,7 +202,7 @@
   .fav-row:hover .fav-nm{color:#8c2f1b}
   .fav-meta{display:flex;flex-direction:column;min-width:0}
   .fav-nm{font:500 13px "Kaiti SC","STKaiti",serif;color:#4a3414;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .fav-mj{font-size:11px;color:#a08a5e}
+  .fav-mj{font-size:11px;color:#7d6536}
   .fav-x{margin-left:auto;color:#c0a877;cursor:pointer;font-size:12px;flex:0 0 auto;padding:0 2px}
   .fav-x:hover{color:#8c2f1b}
   .fav-actions{display:flex;gap:8px;margin-top:10px}
@@ -293,6 +293,17 @@
   .actbtn:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(156,47,27,.4),0 0 0 1px rgba(216,192,138,.55) inset}
   .actbtn:active{transform:scale(.95)}
   .actbtn.on{background:linear-gradient(180deg,#7a2417,#5f1c11)}
+  /* ===== 无障碍:可见焦点 (WCAG 2.4.7) + 尊重 prefers-reduced-motion (2.3.3) ===== */
+  :focus-visible{outline:2.5px solid var(--zhu);outline-offset:2px}
+  .tbtn:focus-visible,.seg-i:focus-visible{outline:none;box-shadow:0 0 0 2.5px var(--zhu) inset}
+  .tbtn.on:focus-visible,.seg-i.on:focus-visible{box-shadow:0 0 0 2.5px #f7e8d6 inset}
+  .actbtn:focus-visible{outline-color:var(--gold)}
+  .x{border-radius:50%}
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;
+      transition-duration:.001ms!important;scroll-behavior:auto!important}
+    .petals{display:none!important}
+  }
   .cfgbtn{display:none;position:absolute;top:14px;left:14px;z-index:11;width:40px;height:40px;
     align-items:center;justify-content:center;border:1px solid #c5ab7c;border-radius:10px;
     background:rgba(252,246,230,.95);color:#6b5226;font-size:19px;cursor:pointer;box-shadow:0 2px 6px rgba(80,55,20,.2)}
@@ -324,20 +335,21 @@
 <div class="paper"></div>
 <div class="vignette"></div>
 <div class="toolbar" id="toolbar">
-  <button class="tbtn" id="stylebtn" title="画风:山形符号 — 点按切换水彩浮雕"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><path d="M3 18 L8.5 8 L12 13.5 L15 9 L21 18 Z"/><circle cx="16.7" cy="6.3" r="1.5"/></svg></button>
-  <button class="tbtn" id="rotbtn" title="视角:平移 — 点按切旋转模式(旋转模式下按住左键拖动转方位 / 俯仰)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 8"/><path d="M20 3.5V8h-4.5"/><path d="M20 12a8 8 0 0 1-13.7 5.6L4 16"/><path d="M4 20.5V16h4.5"/></svg></button>
-  <button class="tbtn on" id="wxbtn" title="天气:江南烟雨 — 点按关闭分区天气"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14.5a3.4 3.4 0 0 1 .4-6.8 4.5 4.5 0 0 1 8.7 1.2A3 3 0 0 1 16 14.5Z"/><path d="M8 17.5l-1 2.6M12 17.5l-1 2.6M16 17.5l-1 2.6"/></svg></button>
-  <button class="tbtn" id="t3dbtn" title="地形:平面(超流畅)— 点按切换立体 3D"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3 21 7.5 12 12 3 7.5Z"/><path d="M3 12 12 16.5 21 12"/><path d="M3 16.5 12 21 21 16.5"/></svg></button>
+  <button class="tbtn" id="stylebtn" aria-label="切换画风:山形符号 / 水彩浮雕" title="画风:山形符号 — 点按切换水彩浮雕"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><path d="M3 18 L8.5 8 L12 13.5 L15 9 L21 18 Z"/><circle cx="16.7" cy="6.3" r="1.5"/></svg></button>
+  <button class="tbtn" id="rotbtn" aria-label="视角模式:平移 / 旋转" title="视角:平移 — 点按切旋转模式(旋转模式下按住左键拖动转方位 / 俯仰)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 8"/><path d="M20 3.5V8h-4.5"/><path d="M20 12a8 8 0 0 1-13.7 5.6L4 16"/><path d="M4 20.5V16h4.5"/></svg></button>
+  <button class="tbtn on" id="wxbtn" aria-label="分区天气开关" title="天气:江南烟雨 — 点按关闭分区天气"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14.5a3.4 3.4 0 0 1 .4-6.8 4.5 4.5 0 0 1 8.7 1.2A3 3 0 0 1 16 14.5Z"/><path d="M8 17.5l-1 2.6M12 17.5l-1 2.6M16 17.5l-1 2.6"/></svg></button>
+  <button class="tbtn" id="t3dbtn" aria-label="地形:平面 / 立体 3D" title="地形:平面(超流畅)— 点按切换立体 3D"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3 21 7.5 12 12 3 7.5Z"/><path d="M3 12 12 16.5 21 12"/><path d="M3 16.5 12 21 21 16.5"/></svg></button>
 </div>
-<button id="cfgbtn" class="cfgbtn" title="画风/视角/天气/地形">⚙</button>
+<button id="cfgbtn" class="cfgbtn" aria-label="设置:画风 / 视角 / 天气 / 地形" title="画风/视角/天气/地形">⚙</button>
 <div id="search">
   <div id="search-box">
     <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.6" cy="6.6" r="4.8" fill="none" stroke="#8a6a45" stroke-width="1.5"/><path d="M10.3 10.3 L14.5 14.5" stroke="#8a6a45" stroke-width="1.6" stroke-linecap="round"/></svg>
-    <input id="search-input" type="text" placeholder="搜索学校 · 城市" autocomplete="off" spellcheck="false">
-    <span id="search-clear">✕</span>
+    <input id="search-input" type="text" placeholder="搜索学校 · 城市" autocomplete="off" spellcheck="false"
+      role="combobox" aria-expanded="false" aria-controls="search-results" aria-autocomplete="list" aria-label="搜索学校或城市">
+    <button id="search-clear" aria-label="清除搜索">✕</button>
   </div>
-  <div id="search-hint">输入校名 / 城市,或点 <b id="hint-quiz">专业测评</b> 找方向</div>
-  <div id="search-results"></div>
+  <div id="search-hint">输入校名 / 城市,或点 <b id="hint-quiz" role="button" tabindex="0">专业测评</b> 找方向</div>
+  <div id="search-results" role="listbox" aria-label="搜索结果"></div>
 </div>
 <div class="loading" id="loading">正在铺开山河画卷⋯</div>
 <div class="titlebar">
@@ -346,7 +358,7 @@
 </div>
 <div class="card" id="card"></div>
 <div class="recpanel" id="recpanel">
-  <span class="x" onclick="document.getElementById('recpanel').style.display='none';document.getElementById('act-rec').classList.remove('on')">✕</span>
+  <span class="x" role="button" tabindex="0" aria-label="关闭推荐面板" onclick="document.getElementById('recpanel').style.display='none';document.getElementById('act-rec').classList.remove('on')">✕</span>
   <h3>我的推荐</h3>
   <div class="recform">
     <div class="rfrow"><select id="rp-prov"></select><select id="rp-subj"></select></div>
@@ -364,7 +376,7 @@
   <p class="dim" style="margin:8px 0 0">数据来自各省考试院等公开信息整理,仅供参考</p>
 </div>
 <div class="quizpanel" id="quizpanel">
-  <span class="x" onclick="document.getElementById('quizpanel').style.display='none';document.getElementById('act-quiz').classList.remove('on')">✕</span>
+  <span class="x" role="button" tabindex="0" aria-label="关闭测评面板" onclick="document.getElementById('quizpanel').style.display='none';document.getElementById('act-quiz').classList.remove('on')">✕</span>
   <h3>专业测评 <span class="dim" style="font-weight:400">RIASEC</span></h3>
   <div id="qz-body"><p class="sub">24 道小题,约 3 分钟。凭直觉选,没有对错。</p>
     <button class="tourbtn" id="qz-start">开 始 测 评</button></div>
@@ -394,11 +406,15 @@
 let UNIS=[],DOTS=[],CITYIDX=[];
 // 由各校所在城市聚合出"城市"索引(质心坐标 + 院校数),供搜索把城市作为独立结果
 function buildCityIndex(){
-  const g={};
+  const MUNI=new Set(["北京","上海","天津","重庆"]),g={};
+  const add=(key,prov,u)=>{const o=g[key]=g[key]||{n:key,p:prov,sx:0,sy:0,cnt:0,isCity:true};
+    o.cnt++;o.sx+=u.ll[0];o.sy+=u.ll[1];};
   for(const u of UNIS.concat(DOTS)){
-    const c=u.c||u.p;if(!c||!u.ll||!u.ll[0])continue;
-    (g[c]=g[c]||{n:c,p:u.p,sx:0,sy:0,cnt:0,isCity:true}).cnt++;
-    g[c].sx+=u.ll[0];g[c].sy+=u.ll[1];
+    if(!u.ll||!u.ll[0])continue;
+    const c=u.c||u.p;if(c)add(c,u.p,u);
+    // 直辖市的 c 多为区(海淀区/宝山区),额外按"北京市/上海市/天津市/重庆市"整体聚合
+    const pb=String(u.p||"").replace(/[省市]$/,"");
+    if(MUNI.has(pb)){const canon=pb+"市";if(c!==canon)add(canon,u.p,u);}
   }
   CITYIDX=Object.values(g).map(o=>({n:o.n,p:o.p,cnt:o.cnt,isCity:true,
     ll:[o.sx/o.cnt,o.sy/o.cnt]})).sort((a,b)=>b.cnt-a.cnt);
@@ -447,6 +463,14 @@ const map=new maplibregl.Map({
   renderWorldCopies:false,attributionControl:false
 });
 map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),"top-right");
+// 无障碍:尊重 prefers-reduced-motion——运镜改为瞬移、关花瓣/降级动效(CSS 已配合)
+const RM=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+if(RM){const _fly=map.flyTo.bind(map),_ease=map.easeTo.bind(map);
+  map.flyTo=o=>_fly({...o,duration:0});map.easeTo=o=>_ease({...o,duration:0});}
+// 键盘可达:让 role="button" 的非 button 元素支持 Enter / 空格(WCAG 2.1.1)
+document.addEventListener("keydown",e=>{
+  if((e.key==="Enter"||e.key===" ")&&e.target.matches&&e.target.matches('[role="button"]:not(button)')){
+    e.preventDefault();e.target.click();}});
 ["pointerdown","wheel","touchstart"].forEach(ev=>
   map.getCanvas().addEventListener(ev,()=>{userTouched=true},{passive:true}));
 const markers=[];
@@ -805,7 +829,7 @@ async function loadTrend(name){
 function showCard(u){
   const tierTxt={"985":"985 · 双一流","211":"211 · 双一流",dfc:"双一流",ben:(u.tp||"本科")}[u.t];
   const disc=(u.disc||[]).map(([d,g])=>`<span class="tag">${d} ${g}</span>`).join("");
-  card.innerHTML=`<span class="x" onclick="card.style.display='none'">✕</span>
+  card.innerHTML=`<span class="x" role="button" tabindex="0" aria-label="关闭" onclick="card.style.display='none'">✕</span>
     <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:4px">${badge(u.n,46)}
       <div><h3>${u.n}</h3>
     <div class="tags"><span class="tag">${tierTxt}</span><span class="tag">${u.c||u.p}</span>
@@ -974,7 +998,7 @@ async function showUniCard(name){
     if(u.error)return;
     const ev=(u.eval||[]).map(e=>`<span class="tag">${e.discipline} ${e.grade}</span>`).join("");
     const prov=document.getElementById("rp-prov").value;
-    card.innerHTML=`<span class="x" onclick="card.style.display='none'">✕</span>
+    card.innerHTML=`<span class="x" role="button" tabindex="0" aria-label="关闭" onclick="card.style.display='none'">✕</span>
       <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:4px">${badge(u.name,46)}
         <div><h3>${u.name}</h3>
         <div class="tags"><span class="tag">${u.tier}</span><span class="tag">${u.city||u.province}</span>${u.rank?`<span class="tag">参考排名 #${u.rank}</span>`:""}</div></div></div>
@@ -1065,7 +1089,7 @@ async function qzFinish(){
       html+=`<div class="qz-dim"><b>${k}</b><div class="qz-bar"><i style="width:${v}%"></i></div><span>${v}</span></div>`;
     html+='</div>';
     r.top.slice(0,5).forEach((t,i)=>{
-      html+=`<div class="qz-cls"><h4>${i+1}. ${t.mclass} <small style="color:#a08a5e">契合 ${t.fit}</small></h4>
+      html+=`<div class="qz-cls"><h4>${i+1}. ${t.mclass} <small style="color:#7d6536">契合 ${t.fit}</small></h4>
         ${t.majors?`<p>${t.majors}</p>`:""}</div>`;
     });
     // 第二步:填分数/位次 → 合并冲稳保
@@ -1176,7 +1200,7 @@ let tourTimer=null,touring=false;
 const tourbtn=document.getElementById("tourbtn");
 function stopTour(){touring=false;clearTimeout(tourTimer);tourbtn.textContent="开 始 巡 游";}
 const petals=document.createElement("div");petals.className="petals";document.body.appendChild(petals);
-for(let i=0;i<14;i++){
+for(let i=0;i<(RM?0:14);i++){
   const p=document.createElement("i");
   if(Math.random()<.45)p.className="g";
   p.style.left=Math.random()*100+"vw";
@@ -1241,6 +1265,7 @@ function wxFrame(ts){
   }
 }
 function wxStart(){if(wxOn&&!wxRAF){wxPrev=0;wxRAF=requestAnimationFrame(wxFrame);}}
+if(RM){wxOn=false;const wb=document.getElementById("wxbtn");wb.classList.remove("on");wb.title="天气:已关(已尊重减少动态效果)— 点按开启";}
 wxStart();
 document.getElementById("wxbtn").addEventListener("click",()=>{
   wxOn=!wxOn;
@@ -1263,7 +1288,7 @@ document.addEventListener("visibilitychange",()=>{
     // 城市:命中即作为独立结果,排在同名院校之前
     for(const c of CITYIDX){
       const base=nm(c.n).replace(/(市|地区|自治州|盟|特别行政区)$/,"");let sc=-1;
-      if(base===q||nm(c.n)===q)sc=96;
+      if(base===q||nm(c.n)===q)sc=120;   // 城市精确命中:压过任何院校(校名/简称精确=100+档次)
       else if(base.startsWith(q))sc=90;
       else if(base.includes(q))sc=50;
       if(sc>=0)out.push([sc+Math.min(c.cnt,20)/40,c]);
@@ -1283,21 +1308,21 @@ document.addEventListener("visibilitychange",()=>{
   const tierTxt=t=>t==="985"?"985":t==="211"?"211":t==="dfc"?"双一流":"本科";
   function render(list){
     items=list;sel=-1;
-    if(!inp.value.trim()){res.style.display="none";return;}
-    if(!list.length){res.innerHTML='<div class="sr-empty">没找到「'+inp.value.trim()+'」,换个词试试</div>';res.style.display="block";return;}
+    if(!inp.value.trim()){res.style.display="none";inp.setAttribute("aria-expanded","false");return;}
+    if(!list.length){res.innerHTML='<div class="sr-empty">没找到「'+inp.value.trim()+'」,换个词试试</div>';res.style.display="block";inp.setAttribute("aria-expanded","true");return;}
     res.innerHTML=list.map((u,i)=> u.isCity
-      ? `<div class="sr-item" data-i="${i}"><span class="sr-pin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 21s7-6.4 7-11.5A7 7 0 0 0 5 9.5C5 14.6 12 21 12 21Z"/><circle cx="12" cy="9.3" r="2.4"/></svg></span>
+      ? `<div class="sr-item" role="option" id="sr-opt-${i}" aria-selected="false" data-i="${i}"><span class="sr-pin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 21s7-6.4 7-11.5A7 7 0 0 0 5 9.5C5 14.6 12 21 12 21Z"/><circle cx="12" cy="9.3" r="2.4"/></svg></span>
         <span class="nm">${u.n}</span><span class="sr-badge sr-cbadge">城市</span>
         <span class="meta">${u.cnt} 所院校</span></div>`
-      : `<div class="sr-item" data-i="${i}">${badge(u.n,26)}<span class="nm">${u.n}</span>
+      : `<div class="sr-item" role="option" id="sr-opt-${i}" aria-selected="false" data-i="${i}">${badge(u.n,26)}<span class="nm">${u.n}</span>
         <span class="sr-badge t${u.t}">${tierTxt(u.t)}</span>
         <span class="meta">${u.c||u.p||""}</span></div>`).join("");
-    res.style.display="block";
+    res.style.display="block";inp.setAttribute("aria-expanded","true");
     res.querySelectorAll(".sr-item").forEach(el=>el.addEventListener("click",()=>pick(items[+el.dataset.i])));
   }
   function pick(u){
     if(!u)return;userTouched=true;
-    inp.value=u.n;res.style.display="none";wrap.classList.remove("searching");boxEl.classList.add("has-val");
+    inp.value=u.n;res.style.display="none";inp.setAttribute("aria-expanded","false");wrap.classList.remove("searching");boxEl.classList.add("has-val");
     if(u.isCity){                                  // 城市:飞到质心、铺开该城院校,不弹院校卡
       if(typeof applyFilter==="function")applyFilter("all");
       if(u.ll&&u.ll[0])map.flyTo({center:u.ll,zoom:9.4,pitch:42,bearing:0,duration:2000,curve:1.42});
@@ -1314,16 +1339,17 @@ document.addEventListener("visibilitychange",()=>{
   inp.addEventListener("focus",()=>{if(inp.value)render(doSearch(inp.value));});
   inp.addEventListener("keydown",e=>{
     if(e.key==="Enter"){pick(items[sel>=0?sel:0]);}
-    else if(e.key==="Escape"){res.style.display="none";inp.blur();}
+    else if(e.key==="Escape"){res.style.display="none";inp.setAttribute("aria-expanded","false");inp.blur();}
     else if(e.key==="ArrowDown"||e.key==="ArrowUp"){
       e.preventDefault();if(!items.length)return;
       sel=(sel+(e.key==="ArrowDown"?1:-1)+items.length)%items.length;
-      const els=res.querySelectorAll(".sr-item");els.forEach((el,i)=>el.classList.toggle("on",i===sel));
+      const els=res.querySelectorAll(".sr-item");els.forEach((el,i)=>{const on=i===sel;el.classList.toggle("on",on);el.setAttribute("aria-selected",on);});
+      inp.setAttribute("aria-activedescendant",sel>=0?"sr-opt-"+sel:"");
       if(els[sel])els[sel].scrollIntoView({block:"nearest"});
     }
   });
-  clr.addEventListener("click",()=>{inp.value="";res.style.display="none";wrap.classList.remove("searching");boxEl.classList.remove("has-val");inp.focus();});
-  document.addEventListener("click",e=>{if(!wrap.contains(e.target))res.style.display="none";});
+  clr.addEventListener("click",()=>{inp.value="";res.style.display="none";inp.setAttribute("aria-expanded","false");wrap.classList.remove("searching");boxEl.classList.remove("has-val");inp.focus();});
+  document.addEventListener("click",e=>{if(!wrap.contains(e.target))res.style.display="none";inp.setAttribute("aria-expanded","false");});
   document.getElementById("hint-quiz").addEventListener("click",()=>document.getElementById("act-quiz").click());
 })();
 // ---------- 志愿表 / 收藏(localStorage 持久化)----------
