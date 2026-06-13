@@ -299,6 +299,16 @@
   .actbtn:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(156,47,27,.4),0 0 0 1px rgba(216,192,138,.55) inset}
   .actbtn:active{transform:scale(.95)}
   .actbtn.on{background:linear-gradient(180deg,#7a2417,#5f1c11)}
+  /* 首访配乐引导(默认关 + 按钮藏在工具条里,给一次轻提示) */
+  #bgm-tip{position:absolute;top:198px;left:50%;transform:translateX(-50%);z-index:7;display:none;
+    align-items:center;gap:9px;padding:7px 8px 7px 16px;border-radius:999px;cursor:pointer;
+    background:linear-gradient(180deg,var(--paper-a),var(--paper-b));border:1px solid var(--gold-soft);
+    box-shadow:var(--elev);font:500 13px "Kaiti SC","STKaiti",serif;color:var(--ink);letter-spacing:1px;
+    -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);white-space:nowrap}
+  #bgm-tip.show{display:flex;animation:fadeUp .6s cubic-bezier(.22,1,.36,1)}
+  #bgm-tip .bgm-x{width:22px;height:22px;display:flex;align-items:center;justify-content:center;border:0;
+    border-radius:50%;background:rgba(157,47,27,.1);color:var(--zhu);font-size:11px;cursor:pointer;padding:0}
+  #bgm-tip .bgm-x:hover{background:var(--zhu);color:#fbf0df}
   /* ===== 无障碍:可见焦点 (WCAG 2.4.7) + 尊重 prefers-reduced-motion (2.3.3) ===== */
   :focus-visible{outline:2.5px solid var(--zhu);outline-offset:2px}
   .tbtn:focus-visible,.seg-i:focus-visible{outline:none;box-shadow:0 0 0 2.5px var(--zhu) inset}
@@ -358,6 +368,7 @@
   <div id="search-hint">输入校名 / 城市,或点 <b id="hint-quiz" role="button" tabindex="0">专业测评</b> 找方向</div>
   <div id="search-results" role="listbox" aria-label="搜索结果"></div>
 </div>
+<div id="bgm-tip" role="button" tabindex="0" aria-label="开启古典配乐"><span>🎵 开启古典配乐</span><button class="bgm-x" aria-label="不用了,关闭提示">✕</button></div>
 <div class="loading" id="loading">正在铺开山河画卷⋯</div>
 <div class="titlebar">
   <h1>高考升学地图</h1>
@@ -430,7 +441,11 @@ const REC_MAP={"复旦大学":["冲","35%"],"南京大学":["冲","42%"],"中国
 "厦门大学":["稳","68%"],"武汉大学":["稳","72%"],"华中科技大学":["稳","70%"],
 "中南大学":["保","91%"],"兰州大学":["保","93%"]};
 const PALETTE=["#f3e6c4","#eddcb4","#e8d2a8","#f0e0bd","#e4cfa4"];
-const HOME={center:[105.5,33.5],zoom:3.5,pitch:52,bearing:-10};
+const HOME={center:[110,34],zoom:3.5,pitch:37,bearing:0};      // 后备代表值
+// 开场/复位取景:框"院校密集核心区"(留白的西/北不框),用 fitBounds 自适应竖屏/横屏,
+// 避免固定 center/zoom 在窄窗下把东部沿海甩到海上。pitch 37 保留立体感但不过度倾斜。
+const CHINA=[[97,20.5],[123,45]],HOME_PAD={top:96,bottom:84,left:26,right:26};
+function flyHome(duration){map.fitBounds(CHINA,{pitch:37,bearing:0,padding:HOME_PAD,duration:duration||0});}
 let userTouched=false;
 const STYLES={
   wc:{ramp:["interpolate",["linear"],["elevation"],
@@ -466,7 +481,7 @@ function applyStyle(){
 const map=new maplibregl.Map({
   container:"map",
   style:{version:8,sources:{},layers:[{id:"bg",type:"background",paint:{"background-color":"#ece2c8"}}]},
-  center:[105.5,33.5],zoom:3.5,pitch:52,bearing:-10,minZoom:2.8,maxZoom:12.5,maxPitch:75,
+  center:[110,34],zoom:3.4,pitch:37,bearing:0,minZoom:2.8,maxZoom:12.5,maxPitch:75,
   renderWorldCopies:false,attributionControl:false
 });
 map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),"top-right");
@@ -508,24 +523,19 @@ map.on("load",async()=>{
       "hillshade-highlight-color":STYLES[styleMode].hsHighlight,
       "hillshade-accent-color":STYLES[styleMode].hsAccent,
       "hillshade-exaggeration":STYLES[styleMode].hsEx}});
-    let terrainOn=false,introDone=false;
-    const enableTerrain=()=>{
-      if(terrainOn)return;terrainOn=true;
-      if(terrain3D)map.setTerrain({source:"dem",exaggeration:STYLES[styleMode].terrainEx});
-      map.jumpTo({...HOME,zoom:2.95,pitch:28,bearing:-18});
-      const lo=document.getElementById("loading");
-      lo.style.opacity=0;setTimeout(()=>lo.style.display="none",1000);
-      setTimeout(()=>{
-        map.flyTo({...HOME,duration:3200,curve:1.3,essential:true});
-        map.once("moveend",()=>{introDone=true;});
-      },250);
-    };
+    // 地形只在用户开 3D 时挂载(默认平面);与开场动画解耦——否则地形关时 dem 源不加载,
+    // 开场会一直等到 9 秒兜底,期间卡在初始视角(沿海院校被甩到海上)。
+    let terrainOn=false;
+    const enableTerrain=()=>{if(terrainOn)return;terrainOn=true;
+      if(terrain3D)map.setTerrain({source:"dem",exaggeration:STYLES[styleMode].terrainEx});};
     if(map.isSourceLoaded("dem"))enableTerrain();
     else map.on("sourcedata",e=>{if(!terrainOn&&e.sourceId==="dem"&&e.isSourceLoaded)enableTerrain();});
     setTimeout(enableTerrain,9000);
-    map.on("sourcedata",e=>{
-      if(terrainOn&&introDone&&!userTouched&&/^dem/.test(e.sourceId||""))map.jumpTo(HOME);
-    });
+    // 开场运镜:远景飞入,自适应取景(fitBounds 框核心区,竖屏/横屏都把全国摆正)
+    map.jumpTo({center:[107,33],zoom:2.7,pitch:24,bearing:0});
+    const lo=document.getElementById("loading");
+    lo.style.opacity=0;setTimeout(()=>lo.style.display="none",1000);
+    setTimeout(()=>flyHome(2800),200);
     try{map.setSky({"sky-color":"#e8d9b5","horizon-color":"#f3e8c9","fog-color":"#e3d4ad",
       "sky-horizon-blend":0.6,"horizon-fog-blend":0.6,"fog-ground-blend":0.85});}catch(e){}
     map.addLayer({id:"prov-line",type:"line",source:"china",paint:{
@@ -1353,6 +1363,15 @@ if(localStorage.getItem("gk_bgm")==="1"){               // 记忆上次开启:�
   musbtn.classList.add("on");
   const resume=()=>{setBgm(true);["pointerdown","keydown","touchstart"].forEach(e=>removeEventListener(e,resume));};
   ["pointerdown","keydown","touchstart"].forEach(e=>addEventListener(e,resume,{once:true,passive:true}));}
+// 首访引导:配乐无自动播放且按钮折叠进 ⚙,给一次轻提示(点=开+消失,×=不再提示)
+(function(){const tip=document.getElementById("bgm-tip");
+  if(RM||localStorage.getItem("gk_bgm")!=null||localStorage.getItem("gk_bgm_tip")==="1")return;
+  setTimeout(()=>tip.classList.add("show"),1800);
+  const done=()=>{tip.classList.remove("show");try{localStorage.setItem("gk_bgm_tip","1");}catch(e){}};
+  tip.addEventListener("click",e=>{
+    if(e.target.closest(".bgm-x")){done();try{localStorage.setItem("gk_bgm","0");}catch(e){}return;}
+    setBgm(true);done();});
+  setTimeout(()=>{if(tip.classList.contains("show"))done();},12000);})();
 // ---------- 学校搜索(全 1598 所:校名/简称/城市 即时联想)----------
 (function(){
   const wrap=document.getElementById("search"),inp=document.getElementById("search-input"),
@@ -1507,7 +1526,7 @@ tourbtn.addEventListener("click",()=>{
   const step=()=>{
     if(!touring)return;
     if(i>=RECS.length){
-      map.flyTo({center:[105.5,33.5],zoom:3.5,pitch:52,bearing:-10,duration:2600,curve:1.42});
+      flyHome(2600);
       stopTour();card.style.display="none";return;
     }
     const u=RECS[i];
