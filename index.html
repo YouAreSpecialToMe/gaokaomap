@@ -158,14 +158,32 @@
   .qz-mode button.on{background:#8c2f1b;color:#f7e8d6}
   .qz-rec{border-top:1px dashed #d5c096;margin-top:8px;padding-top:6px}
   .qz-rec .sub{margin:2px 0 6px}
-  #hint{position:absolute;top:88px;left:50%;transform:translateX(-50%);z-index:5;
-    background:rgba(252,246,230,.96);border:1px solid #c5ab7c;border-radius:999px;
-    padding:7px 12px 7px 16px;font:500 13px "Kaiti SC","STKaiti",serif;color:#6b5226;
-    box-shadow:0 3px 12px rgba(80,55,20,.22);display:flex;gap:12px;align-items:center;
-    transition:opacity .5s ease,transform .5s ease;max-width:90vw}
-  #hint b{color:#8c2f1b;cursor:pointer}
-  #hint .hx{cursor:pointer;color:#b09a6c;font-size:15px;line-height:1}
-  #hint.gone{opacity:0;transform:translate(-50%,-8px);pointer-events:none}
+  #search{position:absolute;top:70px;left:50%;transform:translateX(-50%);z-index:7;width:min(360px,86vw);
+    animation:fadeDown 1s .4s cubic-bezier(.22,1,.36,1) backwards}
+  #search-box{display:flex;align-items:center;gap:8px;background:rgba(252,246,230,.97);border:1px solid #c5ab7c;
+    border-radius:999px;padding:8px 14px;box-shadow:0 3px 14px rgba(80,55,20,.2);transition:box-shadow .25s,border-color .25s}
+  #search-box:focus-within{border-color:#8c2f1b;box-shadow:0 5px 20px rgba(140,47,27,.22)}
+  #search-box svg{flex:0 0 auto}
+  #search-input{flex:1;min-width:0;border:none;background:none;outline:none;
+    font:500 14px "Kaiti SC","STKaiti","KaiTi",serif;color:#4a3414;letter-spacing:1px}
+  #search-input::placeholder{color:#b29b6e}
+  #search-clear{cursor:pointer;color:#b09a6c;font-size:13px;display:none}
+  #search-box.has-val #search-clear{display:block}
+  #search-hint{text-align:center;margin-top:6px;font:500 12px "Kaiti SC","STKaiti",serif;color:#9b8154;
+    letter-spacing:1px;transition:opacity .4s;text-shadow:0 1px 2px rgba(247,238,216,.8)}
+  #search-hint b{color:#8c2f1b;cursor:pointer}
+  #search.searching #search-hint{opacity:0;pointer-events:none}
+  #search-results{margin-top:8px;background:rgba(252,246,230,.98);border:1px solid #c5ab7c;border-radius:12px;
+    box-shadow:0 10px 28px rgba(80,55,20,.28);overflow-y:auto;max-height:58vh;display:none}
+  .sr-item{display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;border-bottom:1px solid #ece0c4}
+  .sr-item:last-child{border-bottom:none}
+  .sr-item:hover,.sr-item.on{background:#f3e7cb}
+  .sr-item img,.sr-item svg{flex:0 0 auto}
+  .sr-item .nm{font:500 14px "Kaiti SC","STKaiti",serif;color:#4a3414;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sr-item .meta{margin-left:auto;font-size:11px;color:#a08a5e;flex:0 0 auto}
+  .sr-badge{font-size:10px;padding:1px 6px;border-radius:4px;color:#fff;flex:0 0 auto}
+  .sr-badge.t985{background:#8c2f1b}.sr-badge.t211{background:#96660f}.sr-badge.tdfc{background:#564a85}.sr-badge.tben{background:#9a8757}
+  .sr-empty{padding:12px;text-align:center;font-size:12px;color:#a08a5e}
   .qz-light{font-size:12px;padding:3px 10px;border:1px solid #8c2f1b;border-radius:999px;background:none;color:#8c2f1b;cursor:pointer}
   .qz-light:hover{background:#8c2f1b;color:#f7e8d6}
   .loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:9;
@@ -181,7 +199,15 @@
 <button id="rotbtn" class="stylebtn" style="top:54px" title="切换后按住左键拖动:左右转方位,上下调俯仰">视角:平移</button>
 <button id="wxbtn" class="stylebtn" style="top:94px" title="分区天气:江南细雨连绵、云贵山雾缭绕、巴蜀盆地阴霾">天气:江南烟雨</button>
 <button id="t3dbtn" class="stylebtn" style="top:134px" title="平面=超流畅(默认);立体=真实 3D 起伏,适合静止欣赏,旋转会偏卡">地形:平面</button>
-<div id="hint">不知道学什么?先做 <b id="hint-quiz">专业测评</b> 找方向 · 或直接拖动地图探索<span class="hx" id="hint-x">✕</span></div>
+<div id="search">
+  <div id="search-box">
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.6" cy="6.6" r="4.8" fill="none" stroke="#8a6a45" stroke-width="1.5"/><path d="M10.3 10.3 L14.5 14.5" stroke="#8a6a45" stroke-width="1.6" stroke-linecap="round"/></svg>
+    <input id="search-input" type="text" placeholder="搜索学校 · 城市" autocomplete="off" spellcheck="false">
+    <span id="search-clear">✕</span>
+  </div>
+  <div id="search-hint">输入校名 / 城市,或点 <b id="hint-quiz">专业测评</b> 找方向</div>
+  <div id="search-results"></div>
+</div>
 <div class="loading" id="loading">正在铺开山河画卷⋯</div>
 <div class="titlebar">
   <h1>高考升学地图</h1>
@@ -1030,17 +1056,67 @@ document.getElementById("wxbtn").addEventListener("click",()=>{
   if(wxOn)wxStart();else wctx.clearRect(0,0,innerWidth,innerHeight);});
 document.addEventListener("visibilitychange",()=>{
   if(document.hidden){if(wxRAF){cancelAnimationFrame(wxRAF);wxRAF=0;}}else wxStart();});
-// 顶部轻提示:点「专业测评」开测评;首次与地图交互 / 点✕ / 12s 后隐去
+// ---------- 学校搜索(全 1598 所:校名/简称/城市 即时联想)----------
 (function(){
-  const hint=document.getElementById("hint");if(!hint)return;
-  const gone=()=>hint.classList.add("gone");
-  document.getElementById("hint-x").addEventListener("click",gone);
-  document.getElementById("hint-quiz").addEventListener("click",()=>{
-    const qc=[...document.querySelectorAll(".chip")].find(c=>c.dataset.f==="quiz");
-    if(qc)qc.click();gone();
+  const wrap=document.getElementById("search"),inp=document.getElementById("search-input"),
+        boxEl=document.getElementById("search-box"),res=document.getElementById("search-results"),
+        clr=document.getElementById("search-clear");
+  let items=[],sel=-1;
+  const nm=s=>String(s||"").toLowerCase();
+  const TIER_W={"985":9,"211":6,"dfc":3,"ben":0};
+  function doSearch(q){
+    q=nm(q).trim();if(!q)return[];
+    const pool=UNIS.concat(DOTS),out=[];
+    for(const u of pool){
+      const n=nm(u.n),s=nm(u.s),c=nm(u.c||u.p);let sc=-1;
+      if(n===q||s===q)sc=100;
+      else if(n.startsWith(q)||s.startsWith(q))sc=80;
+      else if(n.includes(q)||s.includes(q))sc=60;
+      else if(c.includes(q))sc=28;
+      if(sc>=0)out.push([sc+(TIER_W[u.t]||0)-(u.rank||1500)/200000,u]);
+    }
+    out.sort((a,b)=>b[0]-a[0]);
+    return out.slice(0,9).map(x=>x[1]);
+  }
+  const tierTxt=t=>t==="985"?"985":t==="211"?"211":t==="dfc"?"双一流":"本科";
+  function render(list){
+    items=list;sel=-1;
+    if(!inp.value.trim()){res.style.display="none";return;}
+    if(!list.length){res.innerHTML='<div class="sr-empty">没找到「'+inp.value.trim()+'」,换个词试试</div>';res.style.display="block";return;}
+    res.innerHTML=list.map((u,i)=>`<div class="sr-item" data-i="${i}">
+      ${badge(u.n,26)}<span class="nm">${u.n}</span>
+      <span class="sr-badge t${u.t}">${tierTxt(u.t)}</span>
+      <span class="meta">${u.c||u.p||""}</span></div>`).join("");
+    res.style.display="block";
+    res.querySelectorAll(".sr-item").forEach(el=>el.addEventListener("click",()=>pick(items[+el.dataset.i])));
+  }
+  function pick(u){
+    if(!u)return;userTouched=true;
+    inp.value=u.n;res.style.display="none";wrap.classList.remove("searching");boxEl.classList.add("has-val");
+    if(u.ll&&u.ll[0])map.flyTo({center:u.ll,zoom:9,pitch:45,bearing:0,duration:2000,curve:1.42});
+    showCard(u);inp.blur();
+  }
+  inp.addEventListener("input",()=>{
+    wrap.classList.toggle("searching",!!inp.value);
+    boxEl.classList.toggle("has-val",!!inp.value);
+    render(doSearch(inp.value));
   });
-  map.getCanvas().addEventListener("pointerdown",gone,{once:true});
-  setTimeout(gone,12000);
+  inp.addEventListener("focus",()=>{if(inp.value)render(doSearch(inp.value));});
+  inp.addEventListener("keydown",e=>{
+    if(e.key==="Enter"){pick(items[sel>=0?sel:0]);}
+    else if(e.key==="Escape"){res.style.display="none";inp.blur();}
+    else if(e.key==="ArrowDown"||e.key==="ArrowUp"){
+      e.preventDefault();if(!items.length)return;
+      sel=(sel+(e.key==="ArrowDown"?1:-1)+items.length)%items.length;
+      const els=res.querySelectorAll(".sr-item");els.forEach((el,i)=>el.classList.toggle("on",i===sel));
+      if(els[sel])els[sel].scrollIntoView({block:"nearest"});
+    }
+  });
+  clr.addEventListener("click",()=>{inp.value="";res.style.display="none";wrap.classList.remove("searching");boxEl.classList.remove("has-val");inp.focus();});
+  document.addEventListener("click",e=>{if(!wrap.contains(e.target))res.style.display="none";});
+  document.getElementById("hint-quiz").addEventListener("click",()=>{
+    const qc=[...document.querySelectorAll(".chip")].find(c=>c.dataset.f==="quiz");if(qc)qc.click();
+  });
 })();
 document.getElementById("t3dbtn").addEventListener("click",()=>{
   userTouched=true;terrain3D=!terrain3D;
