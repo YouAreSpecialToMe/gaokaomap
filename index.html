@@ -231,6 +231,32 @@
   .loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:9;
     font:500 16px "Kaiti SC","STKaiti","KaiTi",serif;color:#7a5f33;letter-spacing:4px;background:#ece2c8;
     transition:opacity .95s ease}
+  /* ===== 国风设计精修:金线镶边 · 宣纸磨砂 · 留白呼吸 · 朱砂题首 ===== */
+  :root{--paper-a:rgba(251,244,228,.95);--paper-b:rgba(243,234,213,.95);
+    --ink:#3f3220;--ink-soft:#6b5630;--zhu:#9c2f1b;--gold:#bd9a55;--gold-soft:#d8c08a;
+    --elev:0 14px 34px -8px rgba(74,52,20,.30),0 0 0 3px rgba(189,154,85,.12),0 1px 0 rgba(255,250,238,.6) inset}
+  .card,.recpanel,.quizpanel,.favpanel{
+    background:linear-gradient(180deg,var(--paper-a),var(--paper-b));
+    border:1px solid var(--gold-soft);border-radius:14px;box-shadow:var(--elev);
+    -webkit-backdrop-filter:blur(10px) saturate(1.04);backdrop-filter:blur(10px) saturate(1.04)}
+  .card{padding:18px 20px}.recpanel,.quizpanel,.favpanel{padding:16px 18px}
+  .card h3,.recpanel h3,.quizpanel h3,.favpanel h3{color:var(--ink);letter-spacing:3px}
+  .recpanel h3,.quizpanel h3,.favpanel h3{display:flex;align-items:center;gap:8px}
+  .recpanel h3::before,.quizpanel h3::before,.favpanel h3::before{
+    content:"";width:3px;height:15px;background:var(--zhu);border-radius:1px;flex:0 0 auto}
+  .card .tag{background:#f0e4c8;border:1px solid var(--gold-soft);color:var(--ink-soft);border-radius:5px}
+  #search-box{border:1px solid var(--gold-soft);box-shadow:0 4px 16px rgba(74,52,20,.16)}
+  #search-box:focus-within{border-color:var(--zhu);box-shadow:0 6px 22px rgba(156,47,27,.2)}
+  .chip,.stylebtn,.favbtn,.cfgbtn{border-color:var(--gold-soft)}
+  .chip{background:rgba(250,243,228,.9);color:var(--ink-soft);box-shadow:0 2px 7px rgba(74,52,20,.14)}
+  .chip:hover{background:#fffaf0;box-shadow:0 6px 14px rgba(74,52,20,.2)}
+  .chip.on{background:#9c2f1b;color:#fbf0df;border-color:var(--gold);
+    box-shadow:0 4px 12px rgba(156,47,27,.32),0 0 0 1px rgba(216,192,138,.5) inset}
+  .favbtn.has{border-color:var(--gold);box-shadow:0 4px 14px rgba(156,47,27,.34),0 0 0 1px rgba(216,192,138,.5) inset}
+  .recform select,.recform input,.fav-actions button{border-color:var(--gold-soft)}
+  .recpanel::-webkit-scrollbar,.quizpanel::-webkit-scrollbar,.favpanel::-webkit-scrollbar,#recpanel::-webkit-scrollbar,#search-results::-webkit-scrollbar{width:6px}
+  .recpanel::-webkit-scrollbar-thumb,.quizpanel::-webkit-scrollbar-thumb,.favpanel::-webkit-scrollbar-thumb,#recpanel::-webkit-scrollbar-thumb,#search-results::-webkit-scrollbar-thumb{background:var(--gold-soft);border-radius:3px}
+  .titlebar h1{text-shadow:0 1px 0 rgba(255,250,238,.5)}
   .cfgbtn{display:none;position:absolute;top:14px;left:14px;z-index:11;width:40px;height:40px;
     align-items:center;justify-content:center;border:1px solid #c5ab7c;border-radius:10px;
     background:rgba(252,246,230,.95);color:#6b5226;font-size:19px;cursor:pointer;box-shadow:0 2px 6px rgba(80,55,20,.2)}
