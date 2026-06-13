@@ -141,11 +141,13 @@ class H(BaseHTTPRequestHandler):
                 return self._send(meta())
             if u.path == "/api/recommend":
                 prov, subj = q.get("prov"), q.get("subj")
-                if not prov or not subj or not q.get("score", "").isdigit():
-                    return self._send({"error": "参数:prov/subj/score 必填"}, 400)
+                rk = q.get("rank", "")
+                if not prov or not subj or not (q.get("score", "").isdigit() or rk.isdigit()):
+                    return self._send({"error": "参数:prov/subj + score 或 rank 必填"}, 400)
                 sel = set(q["sel"].split(",")) if q.get("sel") else None
-                r = engine(prov, subj, int(q["score"]),
-                           int(q.get("year", 2025)), sel)
+                r = engine(prov, subj, int(q.get("score") or 0),
+                           int(q.get("year", 2025)), sel,
+                           rank=int(rk) if rk.isdigit() else None)
                 return self._send(r, 200 if "error" not in r else 422)
             if u.path == "/api/quiz":
                 return self._send({"questions": QZ.QUESTIONS, "scale": QZ.SCALE,
@@ -157,17 +159,20 @@ class H(BaseHTTPRequestHandler):
                 except Exception:
                     return self._send({"error": "scores=R,I,A,S,E,C 六个整数"}, 400)
                 us = dict(zip(QZ.DIMS, vals))
-                mx = max(us.values()) or 1
                 profile = {QZ.DIM_NAMES[d]: round(us[d] * 100 / 12) for d in QZ.DIMS}
-                top = []
-                prov, subj, sc = q.get("prov"), q.get("subj"), q.get("score")
-                for mc, code, fit in QZ.match_classes(us, top=6):
-                    item = {"mclass": mc, "code": code, "fit": fit,
-                            "majors": QZ.SAMPLE_MAJORS.get(mc, "")}
-                    if prov and subj and sc and sc.isdigit():
-                        item["unis"] = quiz_unis(mc, prov, subj, int(sc))
-                    top.append(item)
-                return self._send({"profile": profile, "top": top})
+                top = [{"mclass": mc, "code": code, "fit": fit,
+                        "majors": QZ.SAMPLE_MAJORS.get(mc, "")}
+                       for mc, code, fit in QZ.match_classes(us, top=6)]
+                resp = {"profile": profile, "top": top}
+                prov, subj = q.get("prov"), q.get("subj")
+                sc, rk = q.get("score", ""), q.get("rank", "")
+                if prov and subj and (sc.isdigit() or rk.isdigit()):
+                    mcls = [t["mclass"] for t in top[:3]]      # 取契合度前三的专业类
+                    resp["matchClasses"] = mcls
+                    resp["recommend"] = engine(prov, subj, int(sc) if sc.isdigit() else 0,
+                        int(q.get("year", 2025)), None,
+                        rank=int(rk) if rk.isdigit() else None, mclasses=mcls)
+                return self._send(resp)
             if u.path == "/api/uni":
                 if not q.get("name"):
                     return self._send({"error": "参数:name 必填"}, 400)

@@ -153,6 +153,19 @@
   .qz-cls{border-top:1px dashed #d5c096;padding:8px 0}
   .qz-cls h4{margin:0;font:600 14px "Kaiti SC","STKaiti",serif;color:#8c2f1b}
   .qz-cls p{margin:3px 0;font-size:12px;color:#6b5226}
+  .qz-mode{display:flex;border:1px solid #c5ab7c;border-radius:6px;overflow:hidden;flex:0 0 auto}
+  .qz-mode button{padding:6px 9px;border:none;background:#fdf8ea;color:#6b5226;font:500 12px "Kaiti SC","STKaiti",serif;cursor:pointer}
+  .qz-mode button.on{background:#8c2f1b;color:#f7e8d6}
+  .qz-rec{border-top:1px dashed #d5c096;margin-top:8px;padding-top:6px}
+  .qz-rec .sub{margin:2px 0 6px}
+  #hint{position:absolute;top:88px;left:50%;transform:translateX(-50%);z-index:5;
+    background:rgba(252,246,230,.96);border:1px solid #c5ab7c;border-radius:999px;
+    padding:7px 12px 7px 16px;font:500 13px "Kaiti SC","STKaiti",serif;color:#6b5226;
+    box-shadow:0 3px 12px rgba(80,55,20,.22);display:flex;gap:12px;align-items:center;
+    transition:opacity .5s ease,transform .5s ease;max-width:90vw}
+  #hint b{color:#8c2f1b;cursor:pointer}
+  #hint .hx{cursor:pointer;color:#b09a6c;font-size:15px;line-height:1}
+  #hint.gone{opacity:0;transform:translate(-50%,-8px);pointer-events:none}
   .qz-light{font-size:12px;padding:3px 10px;border:1px solid #8c2f1b;border-radius:999px;background:none;color:#8c2f1b;cursor:pointer}
   .qz-light:hover{background:#8c2f1b;color:#f7e8d6}
   .loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:9;
@@ -168,6 +181,7 @@
 <button id="rotbtn" class="stylebtn" style="top:54px" title="切换后按住左键拖动:左右转方位,上下调俯仰">视角:平移</button>
 <button id="wxbtn" class="stylebtn" style="top:94px" title="分区天气:江南细雨连绵、云贵山雾缭绕、巴蜀盆地阴霾">天气:江南烟雨</button>
 <button id="t3dbtn" class="stylebtn" style="top:134px" title="平面=超流畅(默认);立体=真实 3D 起伏,适合静止欣赏,旋转会偏卡">地形:平面</button>
+<div id="hint">不知道学什么?先做 <b id="hint-quiz">专业测评</b> 找方向 · 或直接拖动地图探索<span class="hx" id="hint-x">✕</span></div>
 <div class="loading" id="loading">正在铺开山河画卷⋯</div>
 <div class="titlebar">
   <h1>高考升学地图</h1>
@@ -642,19 +656,26 @@ function clearRec(){
   document.body.classList.remove("rec-mode");declutterFlags();
 }
 function buildRecs(){}
+let META=null;
+function fillProvSubj(ps,ss,onSubjChange){
+  const provs=META||[{province:"浙江",subjects:["综合"]}];
+  ps.innerHTML=provs.map(p=>`<option>${p.province}</option>`).join("");
+  const upd=()=>{
+    const p=provs.find(x=>x.province===ps.value);
+    ss.innerHTML=(p?p.subjects:["综合"]).map(x=>`<option>${x}</option>`).join("");
+    if(onSubjChange)onSubjChange();
+  };
+  ps.addEventListener("change",upd);ss.addEventListener("change",()=>onSubjChange&&onSubjChange());
+  ps.value="浙江";upd();
+}
 async function loadMeta(){
   try{
     const m=await (await fetch(API+"/api/meta")).json();
-    const ps=document.getElementById("rp-prov"),ss=document.getElementById("rp-subj");
-    ps.innerHTML=m.provinces.map(p=>`<option>${p.province}</option>`).join("");
-    const upd=()=>{
-      const p=m.provinces.find(x=>x.province===ps.value);
-      ss.innerHTML=(p?p.subjects:["综合"]).map(x=>`<option>${x}</option>`).join("");
+    META=m.provinces;
+    fillProvSubj(document.getElementById("rp-prov"),document.getElementById("rp-subj"),()=>{
       document.getElementById("rp-sel").style.display=
-        ["物理","历史","综合"].includes(ss.value)?"flex":"none";
-    };
-    ps.addEventListener("change",upd);ss.addEventListener("change",upd);
-    ps.value="浙江";upd();
+        ["物理","历史","综合"].includes(document.getElementById("rp-subj").value)?"flex":"none";
+    });
   }catch(e){document.getElementById("rp-status").textContent="⚠️ 推荐服务未启动(8787)";}
 }
 loadMeta();
@@ -763,28 +784,32 @@ async function runRecommend(){
     const r=await (await fetch(`${API}/api/recommend?prov=${encodeURIComponent(prov)}&subj=${encodeURIComponent(subj)}&score=${score}${sel?"&sel="+sel:""}`)).json();
     if(r.error){st.textContent="⚠️ "+r.error;document.getElementById("reclist").innerHTML="";return;}
     st.textContent=`位次约 ${r.rank.toLocaleString()}(${prov}·${subj})${r.notes.length?" · "+r.notes[0]:""}`;
-    RECS=[];
-    let html="";
-    for(const b of ["冲","稳","保"]){
-      html+=`<div class="recgroup ${b}">${b}</div>`;
-      r.bands[b].slice(0,8).forEach(it=>{
-        RECS.push({n:it.uni,ll:it.ll,band:b});
-        html+=`<div class="recrow" data-uni="${it.uni}" data-ll="${it.ll||''}">
-          <span class="rb ${b}">${b}</span>${it.uni.slice(0,9)}·${it.major.slice(0,8)}
-          <span class="pr">${it.minRank.toLocaleString()}${it.note?`<small>${it.note}</small>`:""}</span></div>`;
-      });
-    }
-    document.getElementById("reclist").innerHTML=html;
+    renderRecResult(r,document.getElementById("reclist"));
     document.getElementById("tourbtn").style.display=RECS.length?"block":"none";
-    document.querySelectorAll("#reclist .recrow").forEach(row=>row.addEventListener("click",()=>{
-      userTouched=true;
-      const ll=row.dataset.ll?row.dataset.ll.split(",").map(Number):null;
-      if(ll&&ll[0])map.flyTo({center:ll,zoom:8.5,pitch:55,bearing:10,duration:2000,curve:1.42});
-      showUniCard(row.dataset.uni);
-    }));
-    applyRecToMap(r.bands);
     map.flyTo({center:[112,32],zoom:4.3,pitch:50,bearing:-8,duration:1600,curve:1.42});
   }catch(e){st.textContent="⚠️ 无法连接推荐服务";}
+}
+// 渲染冲稳保列表(我的推荐 与 测评合并结果 共用),设置 RECS、点亮地图、行点击飞行
+function renderRecResult(r,listEl){
+  RECS=[];let html="";
+  for(const b of ["冲","稳","保"]){
+    if(!r.bands[b]||!r.bands[b].length)continue;
+    html+=`<div class="recgroup ${b}">${b}</div>`;
+    r.bands[b].slice(0,8).forEach(it=>{
+      RECS.push({n:it.uni,ll:it.ll,band:b});
+      html+=`<div class="recrow" data-uni="${it.uni}" data-ll="${it.ll||''}">
+        <span class="rb ${b}">${b}</span>${it.uni.slice(0,9)}·${it.major.slice(0,8)}
+        <span class="pr">${it.minRank.toLocaleString()}${it.note?`<small>${it.note}</small>`:""}</span></div>`;
+    });
+  }
+  listEl.innerHTML=html;
+  listEl.querySelectorAll(".recrow").forEach(row=>row.addEventListener("click",()=>{
+    userTouched=true;
+    const ll=row.dataset.ll?row.dataset.ll.split(",").map(Number):null;
+    if(ll&&ll[0])map.flyTo({center:ll,zoom:8.5,pitch:55,bearing:10,duration:2000,curve:1.42});
+    showUniCard(row.dataset.uni);
+  }));
+  applyRecToMap(r.bands);
 }
 // ---------- 专业测评 ----------
 let QZ={qs:null,idx:0,ans:[]};
@@ -809,49 +834,69 @@ function qzRender(){
   const bk=document.getElementById("qz-back");
   if(bk)bk.addEventListener("click",()=>{QZ.idx--;qzRender();});
 }
+let qzMode="score";
 async function qzFinish(){
   const sums={R:0,I:0,A:0,S:0,E:0,C:0};
   QZ.ans.forEach(a=>sums[a.dim]+=a.v);
-  const prov=document.getElementById("rp-prov").value,
-        subj=document.getElementById("rp-subj").value,
-        score=document.getElementById("rp-score").value;
-  const qs=`scores=${["R","I","A","S","E","C"].map(d=>sums[d]).join(",")}`+
-    (score?`&prov=${encodeURIComponent(prov)}&subj=${encodeURIComponent(subj)}&score=${score}`:"");
+  QZ.sums=sums;
   const b=document.getElementById("qz-body");
   b.innerHTML='<p class="sub">分析中…</p>';
   try{
+    const qs=`scores=${["R","I","A","S","E","C"].map(d=>sums[d]).join(",")}`;
     const r=await (await fetch(`${API}/api/quiz/match?${qs}`)).json();
     let html='<div style="margin-bottom:6px">';
     for(const[k,v]of Object.entries(r.profile))
       html+=`<div class="qz-dim"><b>${k}</b><div class="qz-bar"><i style="width:${v}%"></i></div><span>${v}</span></div>`;
     html+='</div>';
-    r.top.forEach((t,i)=>{
-      html+=`<div class="qz-cls"><h4>${i+1}. ${t.mclass} <small style="color:#a08a5e">${t.code} · 契合 ${t.fit}</small></h4>
-        ${t.majors?`<p>${t.majors}</p>`:""}
-        ${t.unis&&t.unis.length?`<p>${t.unis.slice(0,3).map(u=>u.uni).join(" / ")}</p>
-          <button class="qz-light" data-i="${i}">在地图点亮可达院校</button>`:
-          (score?"":'<p class="dim">在「我的推荐」填分数后可点亮可达院校</p>')}</div>`;
+    r.top.slice(0,5).forEach((t,i)=>{
+      html+=`<div class="qz-cls"><h4>${i+1}. ${t.mclass} <small style="color:#a08a5e">契合 ${t.fit}</small></h4>
+        ${t.majors?`<p>${t.majors}</p>`:""}</div>`;
     });
-    html+='<button class="tourbtn" id="qz-redo" style="margin-top:10px">重 新 测 评</button>';
+    // 第二步:填分数/位次 → 合并冲稳保
+    html+=`<div class="qz-rec recform">
+      <p class="sub">填高考分数或位次,看你<b>够得着</b>又<b>适合</b>的院校专业:</p>
+      <div class="rfrow"><select id="qz-prov"></select><select id="qz-subj"></select></div>
+      <div class="rfrow">
+        <div class="qz-mode"><button data-m="score" class="on">分数</button><button data-m="rank">位次</button></div>
+        <input id="qz-val" type="number" min="1" placeholder="高考分数">
+        <button id="qz-rec-go">推荐</button>
+      </div>
+      <p class="sub" id="qz-rec-status"></p>
+      <div id="qz-reclist"></div>
+    </div>
+    <button class="tourbtn" id="qz-redo" style="margin-top:10px">重 新 测 评</button>`;
     b.innerHTML=html;
-    document.getElementById("qz-redo").addEventListener("click",qzStart);
-    b.querySelectorAll(".qz-light").forEach(btn=>btn.addEventListener("click",()=>{
-      const t=r.top[+btn.dataset.i];
-      clearRec();
-      const seen=new Set(),temps=[];
-      t.unis.forEach(it=>{
-        if(seen.has(it.uni)||!it.ll||!it.ll[0])return;seen.add(it.uni);
-        const hit=markers.find(m=>m.u.n===it.uni);
-        if(hit){hit.el.classList.add("rec","rec-稳","show-flag");}
-        else temps.push(it);
-      });
-      const off=fanOffsets(temps);
-      temps.forEach(it=>makeTempFlag(it,"稳",off.get(it)));
-      if(map.getLayer("uni-dots"))map.setPaintProperty("uni-dots","circle-opacity",0.1);
-      document.body.classList.add("rec-mode");
-      map.flyTo({center:[112,32],zoom:4.3,pitch:50,bearing:-8,duration:1600,curve:1.42});
+    qzMode="score";
+    fillProvSubj(document.getElementById("qz-prov"),document.getElementById("qz-subj"));
+    b.querySelectorAll(".qz-mode button").forEach(btn=>btn.addEventListener("click",()=>{
+      qzMode=btn.dataset.m;
+      b.querySelectorAll(".qz-mode button").forEach(x=>x.classList.toggle("on",x===btn));
+      document.getElementById("qz-val").placeholder=qzMode==="score"?"高考分数":"全省位次";
     }));
+    document.getElementById("qz-redo").addEventListener("click",qzStart);
+    document.getElementById("qz-rec-go").addEventListener("click",qzRecommend);
+    document.getElementById("qz-val").addEventListener("keydown",e=>{if(e.key==="Enter")qzRecommend();});
   }catch(e){b.innerHTML='<p class="sub">⚠️ 匹配服务异常</p>';}
+}
+async function qzRecommend(){
+  userTouched=true;
+  const prov=document.getElementById("qz-prov").value,
+        subj=document.getElementById("qz-subj").value,
+        val=document.getElementById("qz-val").value,
+        st=document.getElementById("qz-rec-status");
+  if(!val){st.textContent="请输入"+(qzMode==="score"?"分数":"位次");return;}
+  st.textContent="测算中…";
+  const s=QZ.sums,sc=["R","I","A","S","E","C"].map(d=>s[d]).join(",");
+  const qs=`scores=${sc}&prov=${encodeURIComponent(prov)}&subj=${encodeURIComponent(subj)}&${qzMode}=${val}`;
+  try{
+    const r=await (await fetch(`${API}/api/quiz/match?${qs}`)).json();
+    const rec=r.recommend;
+    if(!rec||rec.error){st.textContent="⚠️ "+((rec&&rec.error)||"暂无匹配");document.getElementById("qz-reclist").innerHTML="";return;}
+    const tot=["冲","稳","保"].reduce((n,bb)=>n+(rec.bands[bb]?rec.bands[bb].length:0),0);
+    st.textContent=`位次约 ${rec.rank.toLocaleString()} · 限定你契合的 ${(r.matchClasses||[]).join("/")}${tot<6?" · 此分段较薄,可参看「我的推荐」全部":""}`;
+    renderRecResult(rec,document.getElementById("qz-reclist"));
+    map.flyTo({center:[112,32],zoom:4.3,pitch:50,bearing:-8,duration:1600,curve:1.42});
+  }catch(e){st.textContent="⚠️ 无法连接推荐服务";}
 }
 // ---------- 视角旋转模式 ----------
 let rotMode=false,rotStart=null;
@@ -985,6 +1030,18 @@ document.getElementById("wxbtn").addEventListener("click",()=>{
   if(wxOn)wxStart();else wctx.clearRect(0,0,innerWidth,innerHeight);});
 document.addEventListener("visibilitychange",()=>{
   if(document.hidden){if(wxRAF){cancelAnimationFrame(wxRAF);wxRAF=0;}}else wxStart();});
+// 顶部轻提示:点「专业测评」开测评;首次与地图交互 / 点✕ / 12s 后隐去
+(function(){
+  const hint=document.getElementById("hint");if(!hint)return;
+  const gone=()=>hint.classList.add("gone");
+  document.getElementById("hint-x").addEventListener("click",gone);
+  document.getElementById("hint-quiz").addEventListener("click",()=>{
+    const qc=[...document.querySelectorAll(".chip")].find(c=>c.dataset.f==="quiz");
+    if(qc)qc.click();gone();
+  });
+  map.getCanvas().addEventListener("pointerdown",gone,{once:true});
+  setTimeout(gone,12000);
+})();
 document.getElementById("t3dbtn").addEventListener("click",()=>{
   userTouched=true;terrain3D=!terrain3D;
   document.getElementById("t3dbtn").textContent=terrain3D?"地形:立体":"地形:平面";

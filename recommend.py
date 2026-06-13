@@ -69,15 +69,20 @@ def get_plan_map(prov, year):
     return plan
 
 @lru_cache(maxsize=4096)
-def _cached(prov, subj_std, score, year, sel_key):
+def _cached(prov, subj_std, score, year, sel_key, rank, mcls_key):
     return _engine(prov, subj_std, score, year,
-                   set(sel_key.split(",")) if sel_key else None)
+                   set(sel_key.split(",")) if sel_key else None,
+                   rank or None,
+                   tuple(mcls_key.split("|")) if mcls_key else None)
 
-def engine(prov, subj_std, score, year=2025, sel=None):
+def engine(prov, subj_std, score, year=2025, sel=None, rank=None, mclasses=None):
+    """score 与 rank 二选一(rank 优先);mclasses 给定则只在这些专业类内推荐(测评×分数合并)。"""
     sel_key = ",".join(sorted(sel)) if sel else ""
-    return json.loads(json.dumps(_cached(prov, subj_std, int(score), int(year), sel_key)))
+    mcls_key = "|".join(sorted(mclasses)) if mclasses else ""
+    return json.loads(json.dumps(_cached(prov, subj_std, int(score or 0), int(year),
+                                         sel_key, int(rank) if rank else 0, mcls_key)))
 
-def _engine(prov, subj_std, score, year, sel):
+def _engine(prov, subj_std, score, year, sel, rank=None, mclasses=None):
     con = sqlite3.connect(DB, timeout=30)
     con.row_factory = sqlite3.Row
 
@@ -94,10 +99,13 @@ def _engine(prov, subj_std, score, year, sel):
         return {"error": f"{prov} {year} 年暂无{subj_std}类一分一段,无法换算位次",
                 "degrade": "no_rank"}
     scores = [t[0] for t in tbl]
-    i = bisect_right(scores, score) - 1
-    if i < 0:
-        return {"error": "分数低于该省统计下限", "degrade": "below_floor"}
-    my_rank = tbl[i][1]
+    if rank:
+        my_rank = int(rank)
+    else:
+        i = bisect_right(scores, score) - 1
+        if i < 0:
+            return {"error": "分数低于该省统计下限", "degrade": "below_floor"}
+        my_rank = tbl[i][1]
     cohort = {year: max(c for _, c in tbl)}
     eq = {year: my_rank}
     for yr in (year - 1, year - 2):
@@ -115,15 +123,20 @@ def _engine(prov, subj_std, score, year, sel):
         f = max(0.7, min(1.4, p[year] / p[year - 1]))
         return f ** 0.2
 
+    mcls_clause, mcls_params = "", ()
+    if mclasses:
+        ph = ",".join("?" * len(mclasses))
+        mcls_clause = f" AND major IN (SELECT major FROM uni_majors WHERE mclass IN ({ph}))"
+        mcls_params = tuple(mclasses)
     cands = defaultdict(list)
     for yr in eq:
-        rows = con.execute("""SELECT uni_name,major,min_score,min_rank,enroll_n,sel_req
+        rows = con.execute(f"""SELECT uni_name,major,min_score,min_rank,enroll_n,sel_req
             FROM admission_lines
             WHERE province=? AND year=? AND granularity='major'
               AND subject_std IN (?,?) AND min_rank IS NOT NULL
-              AND min_rank BETWEEN ? AND ?""",
+              AND min_rank BETWEEN ? AND ?{mcls_clause}""",
             (prov, yr, *(SUBJ_EQ.get(subj_std, (subj_std,)) + (subj_std,))[:2],
-             int(eq[yr] * 0.6), int(eq[yr] * 2.4))).fetchall()
+             int(eq[yr] * 0.6), int(eq[yr] * 2.4), *mcls_params)).fetchall()
         for r in rows:
             if not sel_ok(r["sel_req"], sel): continue
             cands[(r["uni_name"], r["major"])].append((yr, r["min_rank"] / eq[yr], dict(r)))
