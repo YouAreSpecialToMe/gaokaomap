@@ -106,7 +106,8 @@
   .card table{width:100%;font-size:12px;color:#5d4520;border-collapse:collapse;margin-top:6px}
   .card td,.card th{padding:3px 0;border-bottom:1px dashed #d5c096;text-align:left}
   .card .dim{font-size:11px;color:#a08a5e;margin-top:8px}
-  .card .x{position:absolute;top:8px;right:12px;cursor:pointer;color:#a08a5e;font-size:16px}
+  .card .x,.recpanel .x,.quizpanel .x{position:absolute;top:8px;right:12px;cursor:pointer;color:#a08a5e;font-size:16px;z-index:2}
+  .recpanel .x:hover,.quizpanel .x:hover,.card .x:hover{color:#8c2f1b}
 
   @keyframes cardIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
   .recpanel{animation:cardIn .5s cubic-bezier(.22,1,.36,1);position:absolute;right:20px;top:84px;z-index:6;width:240px;display:none;
@@ -230,6 +231,30 @@
   .loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:9;
     font:500 16px "Kaiti SC","STKaiti","KaiTi",serif;color:#7a5f33;letter-spacing:4px;background:#ece2c8;
     transition:opacity .95s ease}
+  .cfgbtn{display:none;position:absolute;top:14px;left:14px;z-index:11;width:40px;height:40px;
+    align-items:center;justify-content:center;border:1px solid #c5ab7c;border-radius:10px;
+    background:rgba(252,246,230,.95);color:#6b5226;font-size:19px;cursor:pointer;box-shadow:0 2px 6px rgba(80,55,20,.2)}
+  body.cfg-open .cfgbtn{background:#8c2f1b;color:#f7e8d6;border-color:#8c2f1b}
+  /* ---------- 移动端(≤640px):面板转底部抽屉、设置按钮收进 ⚙ 菜单 ---------- */
+  @media(max-width:640px){
+    .titlebar{top:12px} .titlebar h1{font-size:17px;letter-spacing:2px} .titlebar p{display:none}
+    .cfgbtn{display:flex}
+    #search{top:62px;left:12px;right:12px;width:auto;transform:none}
+    .stylebtn{display:none}
+    body.cfg-open #stylebtn{display:block;left:14px;top:108px}
+    body.cfg-open #rotbtn{display:block;left:14px;top:148px}
+    body.cfg-open #wxbtn{display:block;left:14px;top:188px}
+    body.cfg-open #t3dbtn{display:block;left:14px;top:228px}
+    .card,.recpanel,.quizpanel,.favpanel{left:0;right:0;bottom:0;top:auto;width:auto;max-width:none;
+      border-radius:16px 16px 0 0;max-height:74vh;box-sizing:border-box;animation:sheetUp .35s cubic-bezier(.22,1,.36,1)}
+    #recpanel{width:auto}
+    @keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+    .chips{bottom:10px;gap:6px;max-width:96vw}
+    .chip{padding:6px 11px;font-size:12.5px}
+    .favbtn{bottom:10px;right:10px;padding:7px 13px;font-size:13px}
+    .toast{bottom:96px}
+    .maplibregl-ctrl-top-right{transform:scale(.85);transform-origin:top right}
+  }
 </style>
 </head>
 <body>
@@ -240,6 +265,7 @@
 <button id="rotbtn" class="stylebtn" style="top:54px" title="切换后按住左键拖动:左右转方位,上下调俯仰">视角:平移</button>
 <button id="wxbtn" class="stylebtn" style="top:94px" title="分区天气:江南细雨连绵、云贵山雾缭绕、巴蜀盆地阴霾">天气:江南烟雨</button>
 <button id="t3dbtn" class="stylebtn" style="top:134px" title="平面=超流畅(默认);立体=真实 3D 起伏,适合静止欣赏,旋转会偏卡">地形:平面</button>
+<button id="cfgbtn" class="cfgbtn" title="画风/视角/天气/地形">⚙</button>
 <div id="search">
   <div id="search-box">
     <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.6" cy="6.6" r="4.8" fill="none" stroke="#8a6a45" stroke-width="1.5"/><path d="M10.3 10.3 L14.5 14.5" stroke="#8a6a45" stroke-width="1.6" stroke-linecap="round"/></svg>
@@ -256,6 +282,7 @@
 </div>
 <div class="card" id="card"></div>
 <div class="recpanel" id="recpanel">
+  <span class="x" onclick="document.getElementById('recpanel').style.display='none'">✕</span>
   <h3>我的推荐</h3>
   <div class="recform">
     <div class="rfrow"><select id="rp-prov"></select><select id="rp-subj"></select></div>
@@ -273,6 +300,7 @@
   <p class="dim" style="margin:8px 0 0">数据来自各省考试院等公开信息整理,仅供参考</p>
 </div>
 <div class="quizpanel" id="quizpanel">
+  <span class="x" onclick="document.getElementById('quizpanel').style.display='none'">✕</span>
   <h3>专业测评 <span class="dim" style="font-weight:400">RIASEC</span></h3>
   <div id="qz-body"><p class="sub">24 道小题,约 3 分钟。凭直觉选,没有对错。</p>
     <button class="tourbtn" id="qz-start">开 始 测 评</button></div>
@@ -1239,6 +1267,12 @@ function cardFavHTML(it){const k=favKey(it),on=favHas(k);
     navigator.clipboard.writeText(txt).then(()=>toast("已复制 "+FAV.length+" 条到剪贴板"),()=>toast("复制失败,请手动选择"));
   });
   favRender();
+})();
+// 移动端 ⚙ 设置菜单开合
+(function(){
+  const cb=document.getElementById("cfgbtn");
+  cb.addEventListener("click",e=>{e.stopPropagation();document.body.classList.toggle("cfg-open");});
+  map.getCanvas().addEventListener("pointerdown",()=>document.body.classList.remove("cfg-open"));
 })();
 document.getElementById("t3dbtn").addEventListener("click",()=>{
   userTouched=true;terrain3D=!terrain3D;
