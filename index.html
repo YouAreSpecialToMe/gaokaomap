@@ -579,7 +579,7 @@ function showCard(u){
   const tierTxt={"985":"985 · 双一流","211":"211 · 双一流",dfc:"双一流",ben:(u.tp||"本科")}[u.t];
   const disc=(u.disc||[]).map(([d,g])=>`<span class="tag">${d} ${g}</span>`).join("");
   card.innerHTML=`<span class="x" onclick="card.style.display='none'">✕</span>
-    <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:4px">${sealSVG(u.n,46)}
+    <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:4px">${badge(u.n,46)}
       <div><h3>${u.n}</h3>
     <div class="tags"><span class="tag">${tierTxt}</span><span class="tag">${u.c||u.p}</span>
       ${u.rank?`<span class="tag">综合排名参考 #${u.rank}</span>`:""}
@@ -691,6 +691,11 @@ function sealSVG(name,size){
     <rect x="4" y="4" width="56" height="56" rx="7" fill="#f7ecd9" stroke="#9e2f1b" stroke-width="4" opacity=".95"/>
     <g fill="#9e2f1b" font-family="Kaiti SC,STKaiti,KaiTi,serif" font-weight="600" text-anchor="middle">${texts}</g></svg>`;
 }
+function badge(name,size){
+  return `<img src="assets/logos/${encodeURIComponent(name)}.webp" width="${size}" height="${size}" alt=""
+    style="object-fit:contain;flex-shrink:0" data-n="${name}"
+    onerror="this.outerHTML=sealSVG(this.dataset.n,this.width)">`;
+}
 async function showUniCard(name){
   try{
     const u=await (await fetch(`${API}/api/uni?name=${encodeURIComponent(name)}&prov=${encodeURIComponent(document.getElementById("rp-prov").value)}`)).json();
@@ -702,7 +707,7 @@ async function showUniCard(name){
     const rows=Object.entries(majors).slice(0,6).map(([mj,d])=>
       `<tr><td>${mj.slice(0,12)}</td>${yrs.map(y=>`<td>${d[y]?d[y].toLocaleString():"-"}</td>`).join("")}</tr>`).join("");
     card.innerHTML=`<span class="x" onclick="card.style.display='none'">✕</span>
-      <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:4px">${sealSVG(u.name,46)}
+      <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:4px">${badge(u.name,46)}
         <div><h3>${u.name}</h3>
         <div class="tags"><span class="tag">${u.tier}</span><span class="tag">${u.city||u.province}</span>${u.rank?`<span class="tag">参考排名 #${u.rank}</span>`:""}</div></div></div>
       ${ev?`<div class="tags">${ev}</div>`:""}
