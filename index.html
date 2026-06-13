@@ -41,6 +41,10 @@
   .city span{font:500 11px "Kaiti SC","STKaiti","KaiTi",serif;color:#6b5226;letter-spacing:1px;white-space:nowrap}
   body.z-mid .city>*{opacity:1}
   .dlabel{pointer-events:none}
+  .ulabel{cursor:pointer;font:500 11px "Kaiti SC","STKaiti",serif;color:#5d4520;white-space:nowrap;
+    background:rgba(248,241,225,.82);border:1px solid rgba(189,154,85,.5);border-radius:5px;padding:1px 6px;
+    box-shadow:0 1px 3px rgba(80,55,20,.18);transition:opacity .3s ease}
+  .ulabel:hover{background:#fff;border-color:#9c2f1b;color:#3f3220}
   .dlabel span{font:500 10.5px "Kaiti SC","STKaiti","KaiTi",serif;color:#8a6f43;letter-spacing:1px;
     opacity:0;transition:opacity .7s ease;display:block;white-space:nowrap}
   body.z-city .dlabel span{opacity:.9}
@@ -791,9 +795,37 @@ function cullMarkers(){
     else if(!show&&m.mounted){m.mk.remove();m.mounted=false;}
   }
 }
+// 本科名称标签:放大到省/市级时,视野内的本科点阵浮出校名(碰撞去重叠 + 数量上限 + 增量更新防闪)。
+// 仅"全部院校"态显示(筛选态点阵本身即子集);用 DOTS 的 rank 决定挤占时谁优先。
+let curFilter="all",uniLabels=new Map();
+const ULABEL_Z=7.3,ULABEL_CAP=48;
+function updateUniLabels(){
+  const z=map.getZoom(),want=new Map();
+  if(z>=ULABEL_Z&&curFilter==="all"){
+    const W=innerWidth,H=innerHeight,PAD=40,inview=[];
+    for(const u of DOTS){if(!u.ll||!u.ll[0])continue;
+      const p=map.project(u.ll);if(p.x<-PAD||p.x>W+PAD||p.y<-PAD||p.y>H+PAD)continue;inview.push({u,p});}
+    inview.sort((a,b)=>(a.u.rank||99999)-(b.u.rank||99999));     // 名校优先挤位
+    const placed=[];
+    for(const m of markers){                                     // 先占位双一流旗子,本科标签避开它们
+      if(!m.mounted||!m.u.ll||!m.el.classList.contains("show-flag"))continue;
+      const fp=map.project(m.u.ll),o=m.mk.getOffset(),bh=[...String(m.u.s)].length*13+16;
+      placed.push({x:fp.x-9+o.x,y:fp.y-bh+o.y,w:18,h:bh});
+    }
+    for(const it of inview){if(want.size>=ULABEL_CAP)break;
+      const nm=it.u.n,w=[...nm].length*11+16,h=16,x=it.p.x-w/2,y=it.p.y-h-5;
+      if(placed.some(q=>x<q.x+q.w+4&&x+w+4>q.x&&y<q.y+q.h+4&&y+h+4>q.y))continue;  // 叠压则跳过
+      placed.push({x,y,w,h});want.set(nm,it.u);}
+  }
+  for(const[k,mk]of uniLabels)if(!want.has(k)){mk.remove();uniLabels.delete(k);}   // 移除离场
+  for(const[k,u]of want)if(!uniLabels.has(k)){                                      // 新增入场
+    const el=document.createElement("div");el.className="ulabel";el.textContent=u.n;
+    el.addEventListener("click",e=>{e.stopPropagation();showCard(u);});
+    uniLabels.set(k,new maplibregl.Marker({element:el,anchor:"bottom",offset:[0,-4]}).setLngLat(u.ll).addTo(map));}
+}
 // 防叠压只在运动停止后跑一次——jumpTo 每次都会同步触发 moveend,旋转时若每帧都重算+setOffset 会顿挫
 let declutterTimer=0;
-map.on("moveend",()=>{clearTimeout(declutterTimer);declutterTimer=setTimeout(()=>{cullMarkers();declutterFlags();},130);});
+map.on("moveend",()=>{clearTimeout(declutterTimer);declutterTimer=setTimeout(()=>{cullMarkers();declutterFlags();updateUniLabels();},130);});
 function lazyMarkers(list,key,mk){
   const on=list[0],data=window[key+"Data"];
   if(!data)return;
@@ -866,6 +898,7 @@ function showCard(u){
 const recpanel=document.getElementById("recpanel");
 // 筛选(分段控件:互斥单选,只控制地图显示)
 function applyFilter(f){
+  curFilter=f;
   document.querySelectorAll("#filter-seg .seg-i").forEach(c=>c.classList.toggle("on",c.dataset.f===f));
   stopTour();card.style.display="none";
   document.body.classList.remove("rec-mode");clearRec();
@@ -881,7 +914,7 @@ function applyFilter(f){
     else{map.setLayoutProperty("uni-dots","visibility","visible");
       map.setFilter("uni-dots",(f==="cs"||f==="med"||f==="fin")?["==",["get",f],1]:null);}
   }
-  updateFlags();cullMarkers();
+  updateFlags();cullMarkers();updateUniLabels();
 }
 document.querySelectorAll("#filter-seg .seg-i").forEach(ch=>
   ch.addEventListener("click",()=>{userTouched=true;applyFilter(ch.dataset.f);}));
