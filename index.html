@@ -26,6 +26,8 @@
   .titlebar h1{margin:0;font:600 24px/1.2 "Kaiti SC","STKaiti","KaiTi",serif;color:#4a3414;letter-spacing:5px;white-space:nowrap}
   .titlebar p{margin:4px 0 0;font-size:12px;color:#7a5f33;letter-spacing:1px;white-space:nowrap}
   .plabel{font:500 12px "Kaiti SC","STKaiti","KaiTi",serif;color:#9b8154;letter-spacing:2px;pointer-events:none;opacity:.85}
+  .nick{font:500 13px "Kaiti SC","STKaiti","KaiTi",serif;color:#b08a4e;letter-spacing:6px;
+    pointer-events:none;opacity:.78;white-space:nowrap;text-shadow:0 1px 2px rgba(245,238,220,.8)}
   .rlabel{font:italic 500 12px "Kaiti SC","STKaiti","KaiTi",serif;color:#4f7a6e;letter-spacing:4px;pointer-events:none;opacity:.9}
   .decor{pointer-events:none;opacity:.9}
   .spot{display:flex;flex-direction:column;align-items:center;pointer-events:none}
@@ -396,8 +398,40 @@ map.on("load",async()=>{
           "visibility":STYLES[styleMode].symbols?"visible":"none"},
         paint:{"icon-opacity":0.95}});
     }catch(e){console.warn("terrain symbols",e)}
+    const PANDA=`<svg width="24" height="22" viewBox="0 0 24 22"><circle cx="12" cy="8" r="5.2" fill="#f2ead8" stroke="#4a3414" stroke-width="1"/><circle cx="8.2" cy="4.4" r="2" fill="#4a3414"/><circle cx="15.8" cy="4.4" r="2" fill="#4a3414"/><ellipse cx="10" cy="8" rx="1.3" ry="1.7" fill="#4a3414"/><ellipse cx="14" cy="8" rx="1.3" ry="1.7" fill="#4a3414"/><circle cx="12" cy="10.2" r=".8" fill="#4a3414"/><ellipse cx="12" cy="16.5" rx="6.5" ry="4.8" fill="#f2ead8" stroke="#4a3414" stroke-width="1"/><ellipse cx="6.8" cy="15.5" rx="2" ry="3" fill="#4a3414"/><ellipse cx="17.2" cy="15.5" rx="2" ry="3" fill="#4a3414"/><path d="M20.5 7 q2.5-2.5 3-1" stroke="#6b7c4f" stroke-width="1.1" fill="none"/></svg>`;
+    const YAK=`<svg width="26" height="18" viewBox="0 0 26 18"><path d="M4 8 Q5 5 9 5 L17 5 Q21 5 22 8 L22 12 Q20 14 17 14 L16 14 L16 17 L14.5 17 L14.5 14 L9 14 L9 17 L7.5 17 L7.5 14 Q5 14 4 11 Z" fill="#4a3414"/><path d="M5 13.6 Q9 16.4 13 16.4 Q17 16.4 21 13.6" stroke="#4a3414" stroke-width="1.2" fill="none"/><circle cx="22" cy="6.5" r="1.7" fill="#4a3414"/><path d="M21.6 4.6 q2-2.2 3.6-1.6" stroke="#4a3414" stroke-width="1.1" fill="none"/></svg>`;
+    const YURT=`<svg width="24" height="18" viewBox="0 0 24 18"><path d="M3 9 L12 3 L21 9 Z" fill="#e8dcc0" stroke="#8a6a45" stroke-width="1"/><path d="M4 9 L20 9 L19 16 L5 16 Z" fill="#f2ead8" stroke="#8a6a45" stroke-width="1"/><path d="M10.5 16 L10.5 11.5 Q12 10.6 13.5 11.5 L13.5 16 Z" fill="#8a6a45"/><path d="M12 3 L12 1.2" stroke="#8a6a45" stroke-width="1"/></svg>`;
+    const HORSE=`<svg width="26" height="18" viewBox="0 0 26 18"><path d="M3 13 Q3 9 6 9 L8 9 Q9 6 12 6 L16 6 Q18 6 19 4 L20 2.5 Q21 1.5 22 2.5 L23.5 4.5 L22 5.5 L20.5 5 L19.5 8 Q21 9 21 12 L19.5 12 L19 15.5 L17.5 15.5 L17.5 12 L9 12 L8 15.5 L6.5 15.5 L6.5 12 Q4.5 12.5 3 13 Z" fill="#7d5f3b"/><path d="M19.8 3 q-1.5-.8-2.6-.4" stroke="#7d5f3b" stroke-width="1" fill="none"/></svg>`;
+    const DEER=`<svg width="22" height="20" viewBox="0 0 22 20"><path d="M6 12 Q6 9 9 9 L13 9 Q15 9 15.5 7 L16 5 L17.5 5.5 L16.8 8 Q18 9 18 11.5 L16.8 11.5 L16.5 16 L15 16 L15 12.5 L9.5 12.5 L9 16 L7.5 16 L7.2 12.5 Q6 12.5 6 12 Z" fill="#7d5f3b"/><path d="M15.6 4.6 q-1-2.4-3-2.8 M15.8 4.4 q.6-2.4 2.6-2.8 M15 5 q-1.8-.8-2.4-2" stroke="#7d5f3b" stroke-width="1" fill="none"/></svg>`;
+    const PRAYER=`<svg width="28" height="16" viewBox="0 0 28 16"><path d="M2 12 Q14 4 26 12" stroke="#8a6a45" stroke-width="1" fill="none"/><path d="M2 12 L2 15 M26 12 L26 15" stroke="#8a6a45" stroke-width="1.2"/><path d="M5 10.4 l3 -.9 l-.3 3 z" fill="#8c2f1b"/><path d="M10 8.7 l3 -.5 l-.2 3 z" fill="#e8dcc0" stroke="#8a6a45" stroke-width=".4"/><path d="M15 8.2 l3 .1 l-.5 3 z" fill="#564a85"/><path d="M20 9.3 l3 .7 l-1 2.7 z" fill="#6b7c4f"/></svg>`;
+    const TEA=`<svg width="24" height="14" viewBox="0 0 24 14"><g fill="#6b7c4f"><ellipse cx="6" cy="9" rx="4.5" ry="3.4"/><ellipse cx="13" cy="8" rx="5" ry="3.9"/><ellipse cx="19.5" cy="9.5" rx="3.8" ry="3"/></g><path d="M3 12.6 L22 12.6" stroke="#8a6a45" stroke-width="1"/></svg>`;
+    const TERRACE=`<svg width="26" height="16" viewBox="0 0 26 16"><g fill="none" stroke="#6b7c4f" stroke-width="1.4"><path d="M3 13 Q13 10 23 13"/><path d="M5 10 Q13 7.5 21 10"/><path d="M7 7 Q13 5 19 7"/><path d="M9.5 4.5 Q13 3.4 16.5 4.5"/></g><path d="M3 14.8 Q13 12.2 23 14.8" stroke="#7fa8a0" stroke-width="1.1" fill="none"/></svg>`;
+    const WUPENG=`<svg width="24" height="12" viewBox="0 0 24 12"><path d="M2 7.5 Q12 10.5 22 7.5 L19 10 Q12 12 5 10 Z" fill="#7d5f3b"/><path d="M8 7.8 Q8 3.8 12 3.8 Q16 3.8 16 7.8 Z" fill="#4a3414"/></svg>`;
+    const LIGHTHOUSE=`<svg width="16" height="22" viewBox="0 0 16 22"><path d="M6 20 L7 8 L9 8 L10 20 Z" fill="#f2ead8" stroke="#8a6a45" stroke-width="1"/><path d="M6.6 12 L9.4 12 M6.3 16 L9.7 16" stroke="#8c2f1b" stroke-width="1.3"/><rect x="6" y="5" width="4" height="3" fill="#8c2f1b"/><path d="M5 5 L11 5" stroke="#8a6a45" stroke-width="1"/><path d="M3 3 L6 4.6 M13 3 L10 4.6" stroke="#c9a86a" stroke-width="1"/><path d="M4 20 L12 20" stroke="#8a6a45" stroke-width="1.4"/></svg>`;
+    const GRAPE=`<svg width="16" height="18" viewBox="0 0 16 18"><path d="M8 2.2 q3 .2 5 -1.2" stroke="#6b7c4f" stroke-width="1" fill="none"/><g fill="#564a85" opacity=".85"><circle cx="6" cy="6" r="2"/><circle cx="10" cy="6" r="2"/><circle cx="4.5" cy="9.5" r="2"/><circle cx="8" cy="9.5" r="2"/><circle cx="11.5" cy="9.5" r="2"/><circle cx="6.2" cy="13" r="2"/><circle cx="9.8" cy="13" r="2"/><circle cx="8" cy="16" r="1.9"/></g></svg>`;
+    const GEESE=`<svg width="26" height="14" viewBox="0 0 26 14"><g stroke="#5a4a2e" stroke-width="1.3" fill="none" stroke-linecap="round"><path d="M4 9 q3 -3.2 6 0"/><path d="M11 5 q3 -3.2 6 0"/><path d="M17 10 q3 -3.2 6 0"/></g></svg>`;
+    const KITE=`<svg width="18" height="20" viewBox="0 0 18 20"><path d="M9 2 L15 8 L9 14 L3 8 Z" fill="#8c2f1b" opacity=".85" stroke="#8a6a45" stroke-width=".8"/><path d="M9 2 L9 14 M3 8 L15 8" stroke="#e8dcc0" stroke-width=".8"/><path d="M9 14 q2 3 0 5" stroke="#8a6a45" stroke-width="1" fill="none"/><path d="M8 16.6 l2 .8 M8.4 18.8 l1.8 .8" stroke="#8c2f1b" stroke-width="1"/></svg>`;
+    [["天府之国",104.2,30.9],["塞上江南",106.1,38.8],["鱼米之乡",120.0,31.05],
+     ["彩云之南",101.2,25.3],["白山黑水",127.2,45.8],["中原沃野",114.7,34.1],
+     ["丝路咽喉",97.3,40.3]].forEach(([t,lng,lat])=>{
+      const el=document.createElement("div");el.className="nick";el.textContent=t;
+      new maplibregl.Marker({element:el}).setLngLat([lng,lat]).addTo(map);
+    });
     [[83.8,38.9,CAMEL],[88.3,40.1,CAMEL],[98.5,40.2,CAMEL],[104.8,41.2,CAMEL],
-     [123.5,30.5,BOAT],[119.8,38.5,BOAT],[112.5,16.5,BOAT]
+     [123.5,30.5,BOAT],[119.8,38.5,BOAT],[112.5,16.5,BOAT],
+     [103.0,30.9,PANDA],[107.9,33.55,PANDA],
+     [90.5,31.8,YAK],[97.8,34.0,YAK],
+     [116.2,44.3,YURT],[119.9,49.0,YURT],
+     [82.8,43.4,HORSE],[112.5,43.8,HORSE],
+     [122.3,51.6,DEER],[128.6,43.6,DEER],
+     [90.9,30.15,PRAYER],
+     [119.5,30.05,TEA],[100.9,22.8,TEA],
+     [102.75,23.15,TERRACE],[110.1,25.85,TERRACE],
+     [120.58,30.0,WUPENG],
+     [122.7,37.4,LIGHTHOUSE],[122.0,29.9,LIGHTHOUSE],
+     [89.3,42.95,GRAPE],
+     [100.3,37.05,GEESE],[116.4,29.35,GEESE],
+     [119.16,36.8,KITE]
     ].forEach(([lng,lat,svg])=>{
       const el=document.createElement("div");el.className="decor";el.innerHTML=svg;
       new maplibregl.Marker({element:el,anchor:"bottom"}).setLngLat([lng,lat]).addTo(map);
