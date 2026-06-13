@@ -214,6 +214,17 @@
     background:rgba(74,52,20,.92);color:#f7e8d6;padding:8px 16px;border-radius:999px;font:500 13px "Kaiti SC",serif;
     letter-spacing:1px;opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;white-space:nowrap}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .stat{display:flex;align-items:center;gap:8px;margin:7px 0 2px;font-size:12px;color:#5d4520}
+  .stat>span{width:44px;flex:0 0 auto}
+  .statbar{flex:1;height:7px;background:#ede0c2;border-radius:4px;overflow:hidden}
+  .statbar i{display:block;height:100%;background:linear-gradient(90deg,#c08a2a,#8c2f1b);border-radius:4px;transition:width .6s cubic-bezier(.22,1,.36,1)}
+  .stat b{color:#8c2f1b;flex:0 0 auto}
+  .tlabel{font:600 12px "Kaiti SC","STKaiti",serif;color:#7a5f33;margin:9px 0 3px;letter-spacing:1px;border-top:1px dashed #d5c096;padding-top:7px}
+  .trow{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:12px;color:#5d4520}
+  .tmj{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tval{width:52px;text-align:right;color:#8c2f1b;font-weight:600;flex:0 0 auto}
+  .pbar{flex:1;height:8px;background:#ede0c2;border-radius:4px;overflow:hidden;min-width:36px}
+  .pbar i{display:block;height:100%;background:linear-gradient(90deg,#e0a32e,#8c2f1b);border-radius:4px;transition:width .6s cubic-bezier(.22,1,.36,1)}
   .qz-light{font-size:12px;padding:3px 10px;border:1px solid #8c2f1b;border-radius:999px;background:none;color:#8c2f1b;cursor:pointer}
   .qz-light:hover{background:#8c2f1b;color:#f7e8d6}
   .loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:9;
@@ -662,6 +673,27 @@ function updateFlags(){
 map.on("zoom",updateFlags);
 
 const card=document.getElementById("card");
+// 各专业录取位次条形(取每专业最新年份;条越长=位次越小=越难进)
+function trendRows(lines,prov){
+  const m={};(lines||[]).filter(l=>l.granularity==="major").forEach(l=>{
+    const c=m[l.major];if(l.min_rank&&(!c||l.year>c.y))m[l.major]={y:l.year,r:l.min_rank};});
+  const es=Object.entries(m).filter(([,d])=>d.r).sort((a,b)=>a[1].r-b[1].r).slice(0,7);
+  if(!es.length)return `<p class="dim" style="margin-top:8px">${prov||""}暂无该校专业位次数据,出分后补充</p>`;
+  const rs=es.map(([,d])=>d.r),mn=Math.min(...rs),rng=(Math.max(...rs)-mn)||1,yr=es[0][1].y;
+  return `<div class="tlabel">${yr} 各专业录取位次 · ${prov||""}<span style="font-weight:400;color:#a8916a"> (越长越难进)</span></div>`+
+    es.map(([mj,d])=>{const w=20+(1-(d.r-mn)/rng)*80;
+      return `<div class="trow"><span class="tmj">${mj.slice(0,11)}</span><div class="pbar"><i style="width:${w.toFixed(0)}%"></i></div><span class="tval">${d.r.toLocaleString()}</span></div>`;}).join("");
+}
+async function loadTrend(name){
+  const el=document.getElementById("card-trend");if(!el)return;
+  const prov=(document.getElementById("rp-prov")||{}).value||"浙江";
+  el.innerHTML='<p class="dim" style="margin-top:8px">载入 '+prov+' 录取位次…</p>';
+  try{
+    const u=await (await fetch(`${API}/api/uni?name=${encodeURIComponent(name)}&prov=${encodeURIComponent(prov)}`)).json();
+    if(document.getElementById("card-trend")!==el)return;     // 卡片已切换,丢弃过期结果
+    el.innerHTML=trendRows(u.lines,prov);
+  }catch(e){el.innerHTML="";}
+}
 function showCard(u){
   const tierTxt={"985":"985 · 双一流","211":"211 · 双一流",dfc:"双一流",ben:(u.tp||"本科")}[u.t];
   const disc=(u.disc||[]).map(([d,g])=>`<span class="tag">${d} ${g}</span>`).join("");
@@ -672,11 +704,14 @@ function showCard(u){
       ${u.rank?`<span class="tag">综合排名参考 #${u.rank}</span>`:""}
       ${u.rec?`<span class="tag" style="background:#f6d9cc;color:#8c2f1b">推荐 · ${u.rec} ${u.pr}</span>`:""}</div></div></div>
     ${disc?`<div class="tags" style="margin-top:4px">${disc}</div>`:""}
-    ${(u.by||u.mp||u.dp)?`<p>${u.by?`保研率 ${u.by}%`:""}${u.mp?` · 硕士点 ${u.mp}`:""}${u.dp?` · 博士点 ${u.dp}`:""}</p>`:""}
+    ${u.by?`<div class="stat"><span>保研率</span><div class="statbar"><i style="width:${Math.min(100,u.by*2.5).toFixed(0)}%"></i></div><b>${u.by}%</b></div>`:""}
+    ${(u.mp||u.dp)?`<p class="dim" style="margin:2px 0">${u.mp?`硕士点 ${u.mp}`:""}${u.mp&&u.dp?" · ":""}${u.dp?`博士点 ${u.dp}`:""}</p>`:""}
     ${u.intro?`<p class="dim" style="margin-top:6px">${u.intro}…</p>`:""}
+    <div id="card-trend"></div>
     <div>${cardFavHTML({n:u.n,t:u.t,c:u.c||u.p,ll:u.ll})}</div>
-    <p class="dim">※ 教育部名单 · 第四轮学科评估${u.approx?" · 坐标为城市近似":""} · 录取位次接入中</p>`;
+    <p class="dim">※ 教育部名单 · 第四轮学科评估${u.approx?" · 坐标为城市近似":""}</p>`;
   card.style.display="block";
+  loadTrend(u.n);
 }
 
 const chips=document.querySelectorAll(".chip");
@@ -820,18 +855,14 @@ async function showUniCard(name){
     const u=await (await fetch(`${API}/api/uni?name=${encodeURIComponent(name)}&prov=${encodeURIComponent(document.getElementById("rp-prov").value)}`)).json();
     if(u.error)return;
     const ev=(u.eval||[]).map(e=>`<span class="tag">${e.discipline} ${e.grade}</span>`).join("");
-    const majors={};
-    (u.lines||[]).filter(l=>l.granularity==="major").forEach(l=>{(majors[l.major]=majors[l.major]||{})[l.year]=l.min_rank;});
-    const yrs=[2025,2024,2023];
-    const rows=Object.entries(majors).slice(0,6).map(([mj,d])=>
-      `<tr><td>${mj.slice(0,12)}</td>${yrs.map(y=>`<td>${d[y]?d[y].toLocaleString():"-"}</td>`).join("")}</tr>`).join("");
+    const prov=document.getElementById("rp-prov").value;
     card.innerHTML=`<span class="x" onclick="card.style.display='none'">✕</span>
       <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:4px">${badge(u.name,46)}
         <div><h3>${u.name}</h3>
         <div class="tags"><span class="tag">${u.tier}</span><span class="tag">${u.city||u.province}</span>${u.rank?`<span class="tag">参考排名 #${u.rank}</span>`:""}</div></div></div>
       ${ev?`<div class="tags">${ev}</div>`:""}
-      ${rows?`<table><tr><th>专业(本省位次)</th><th>25</th><th>24</th><th>23</th></tr>${rows}</table>`:""}
-      <p class="dim">${(u.intro||"").slice(0,80)}…</p>
+      ${trendRows(u.lines,prov)}
+      <p class="dim" style="margin-top:6px">${(u.intro||"").slice(0,80)}…</p>
       <div>${cardFavHTML({n:u.name,t:/985/.test(u.tier)?"985":/211/.test(u.tier)?"211":/双一流/.test(u.tier)?"dfc":"ben",c:u.city||u.province,ll:llOf(u.name)})}</div>`;
     card.style.display="block";
   }catch(e){}
