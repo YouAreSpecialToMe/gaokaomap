@@ -548,7 +548,9 @@ map.on("load",async()=>{
   updateFlags();
   declutterFlags();
 });
-map.on("moveend",declutterFlags);
+// 防叠压只在运动停止后跑一次——jumpTo 每次都会同步触发 moveend,旋转时若每帧都重算+setOffset 会顿挫
+let declutterTimer=0;
+map.on("moveend",()=>{clearTimeout(declutterTimer);declutterTimer=setTimeout(declutterFlags,130);});
 function lazyMarkers(list,key,mk){
   const on=list[0],data=window[key+"Data"];
   if(!data)return;
@@ -855,28 +857,49 @@ rotbtn.addEventListener("click",()=>{
   map.getCanvas().style.cursor=rotMode?"grab":"";
 });
 const cv=map.getCanvas();
+// 把指针移动合并成每帧至多一次 jumpTo——避免一帧内多次 mousemove 触发多次相机重算/标记重投影
+let rotTarget=null,rotRAF=0;
+function rotFlush(){
+  rotRAF=0;
+  if(rotTarget){map.jumpTo(rotTarget);rotTarget=null;}
+}
+function rotMove(cx,cy){
+  rotTarget={bearing:rotStart.b-(cx-rotStart.x)*0.3,
+             pitch:Math.max(0,Math.min(75,rotStart.p+(rotStart.y-cy)*0.25))};
+  if(!rotRAF)rotRAF=requestAnimationFrame(rotFlush);
+}
 cv.addEventListener("mousedown",e=>{
   if(!rotMode||e.button!==0)return;
   rotStart={x:e.clientX,y:e.clientY,b:map.getBearing(),p:map.getPitch()};
   cv.style.cursor="grabbing";
 });
-window.addEventListener("mousemove",e=>{
-  if(!rotStart)return;
-  map.jumpTo({bearing:rotStart.b-(e.clientX-rotStart.x)*0.3,
-              pitch:Math.max(0,Math.min(75,rotStart.p+(rotStart.y-e.clientY)*0.25))});
-});
+window.addEventListener("mousemove",e=>{if(rotStart)rotMove(e.clientX,e.clientY);});
 window.addEventListener("mouseup",()=>{if(rotStart){rotStart=null;cv.style.cursor=rotMode?"grab":"";}});
 cv.addEventListener("touchstart",e=>{
   if(!rotMode||e.touches.length!==1)return;
   const t=e.touches[0];rotStart={x:t.clientX,y:t.clientY,b:map.getBearing(),p:map.getPitch()};
 },{passive:true});
 cv.addEventListener("touchmove",e=>{
-  if(!rotStart||e.touches.length!==1)return;
-  const t=e.touches[0];
-  map.jumpTo({bearing:rotStart.b-(t.clientX-rotStart.x)*0.3,
-              pitch:Math.max(0,Math.min(75,rotStart.p+(rotStart.y-t.clientY)*0.25))});
+  if(rotStart&&e.touches.length===1)rotMove(e.touches[0].clientX,e.touches[0].clientY);
 },{passive:true});
 cv.addEventListener("touchend",()=>{rotStart=null;},{passive:true});
+
+// ---------- 交互期降级 ----------
+// 每帧重算 3D 地形网格(RTT+DEM 瓦片调度)是旋转/平移/缩放顿挫的主因(实测开地形 ~85ms/帧,
+// 关地形 ~9ms/帧,且与像素分辨率无关)。拖动/滚轮期间临时撤掉 3D 网格(2D 晕渲+分层设色仍在,
+// 画面仍是水墨群山,只是暂失立体),停手 220ms 后地形回弹。只听真实指针/滚轮输入,避免 setTerrain
+// 自身触发的 move 事件造成开关抖动。
+let _loQ=false,_hiTimer=0,_pdown=false;
+function _hiQ(){if(!_loQ)return;_loQ=false;map.setTerrain({source:"dem",exaggeration:STYLES[styleMode].terrainEx});}
+function _nudgeQ(){
+  if(!_loQ&&map.getTerrain()){_loQ=true;map.setTerrain(null);}
+  clearTimeout(_hiTimer);_hiTimer=setTimeout(_hiQ,220);
+}
+cv.addEventListener("pointerdown",()=>{_pdown=true;_nudgeQ();});
+window.addEventListener("pointerup",()=>{_pdown=false;});
+window.addEventListener("pointermove",()=>{if(_pdown)_nudgeQ();});
+cv.addEventListener("wheel",_nudgeQ,{passive:true});
+
 document.getElementById("qz-start").addEventListener("click",qzStart);
 document.getElementById("rp-go").addEventListener("click",runRecommend);
 document.getElementById("rp-score").addEventListener("keydown",e=>{if(e.key==="Enter")runRecommend();});
