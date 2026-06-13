@@ -212,6 +212,12 @@
   .fav-mj{font-size:11px;color:#7d6536}
   .fav-x{margin-left:auto;color:#c0a877;cursor:pointer;font-size:12px;flex:0 0 auto;padding:0 2px}
   .fav-x:hover{color:#8c2f1b}
+  .fav-grp{font:600 12px "Kaiti SC","STKaiti",serif;color:#6b5630;margin:9px 0 1px;display:flex;align-items:center;gap:5px}
+  .fav-risk{font-size:12px;padding:6px 9px;border-radius:7px;margin:2px 0 6px;line-height:1.45}
+  .fav-risk.ok{background:rgba(29,158,117,.12);color:#15795a}
+  .fav-risk.warn{background:rgba(216,90,48,.14);color:#9c2f1b}
+  .fav-row[draggable]{cursor:grab}
+  .fav-row.dragging{opacity:.4}
   .fav-actions{display:flex;gap:8px;margin-top:10px}
   .fav-actions button{flex:1;padding:7px;border:1px solid #c5ab7c;border-radius:6px;background:#fdf8ea;
     color:#6b5226;font:500 12px "Kaiti SC","STKaiti",serif;cursor:pointer;transition:all .15s}
@@ -1705,27 +1711,45 @@ function favSave(){try{localStorage.setItem("gk_fav",JSON.stringify(FAV));}catch
 function favToggle(it){const k=favKey(it),i=FAV.findIndex(x=>favKey(x)===k);
   const added=i<0;if(added)FAV.push(it);else FAV.splice(i,1);favSave();
   toast(added?"已加入志愿表":"已移出志愿表");return added;}
+let favDragI=null;
 function favRender(){
   document.getElementById("fav-n").textContent=FAV.length;
   document.getElementById("favbtn").classList.toggle("has",FAV.length>0);
   const list=document.getElementById("fav-list");
-  if(!FAV.length)list.innerHTML='<p class="sr-empty">还没有收藏。打开任意学校卡片或推荐结果,点 ☆ 收藏即可加入。</p>';
-  else list.innerHTML=FAV.map((it,i)=>`<div class="fav-row" data-i="${i}">
-    ${badge(it.n,26)}
-    <div class="fav-meta"><span class="fav-nm">${it.n}</span>${it.major?`<span class="fav-mj">${it.major}</span>`:""}</div>
-    ${it.band?`<span class="rb ${it.band}">${it.band}</span>`:`<span class="sr-badge t${it.t||"ben"}">${tierZh(it.t)}</span>`}
-    <span class="fav-x" data-i="${i}">✕</span></div>`).join("");
-  list.querySelectorAll(".fav-row").forEach(r=>r.addEventListener("click",e=>{
-    if(e.target.classList.contains("fav-x"))return;
-    const it=FAV[+r.dataset.i],ll=it.ll||llOf(it.n);userTouched=true;
-    if(ll&&ll[0])map.flyTo({center:ll,zoom:9,pitch:45,duration:1800,curve:1.42});
-    showUniCard(it.n);
-  }));
+  const syncBtns=()=>{document.querySelectorAll(".card-fav").forEach(b=>{const on=favHas(b.dataset.k);b.classList.toggle("on",on);b.textContent=on?"★ 已收藏":"☆ 收藏";});
+    document.querySelectorAll(".rec-fav").forEach(b=>b.classList.toggle("on",favHas(b.dataset.k)));};
+  if(!FAV.length){list.innerHTML='<p class="sr-empty">还没有收藏。点学校卡片★、推荐结果、或选校助手「＋加入志愿表」即可。</p>';syncBtns();return;}
+  const c={"冲":0,"稳":0,"保":0};FAV.forEach(x=>{if(c[x.band]!==undefined)c[x.band]++;});
+  const banded=c.冲+c.稳+c.保;
+  let html='';
+  if(banded){let cls='ok',msg=`✓ 冲 ${c.冲} · 稳 ${c.稳} · 保 ${c.保},梯度合理`;
+    if(!c.保){cls='warn';msg='⚠ 没有"保"底——有滑档风险,建议加 1-2 个保底专业';}
+    else if(c.冲&&!c.稳){cls='warn';msg='⚠ 缺"稳"档,梯度断层,建议补几个匹配专业';}
+    html+=`<div class="fav-risk ${cls}">${msg}</div>`;}
+  [["冲","冲一冲(争取)"],["稳","稳一稳(匹配)"],["保","保一保(兜底)"],["","其他收藏"]].forEach(([band,lab])=>{
+    const its=FAV.map((it,i)=>({it,i})).filter(x=>(x.it.band||"")===band);
+    if(!its.length)return;
+    if(band||banded)html+=`<div class="fav-grp">${band?`<span class="rb ${band}">${band}</span> `:''}${lab} · ${its.length}</div>`;
+    its.forEach(({it,i})=>{html+=`<div class="fav-row" draggable="true" data-i="${i}">
+      ${badge(it.n,26)}
+      <div class="fav-meta"><span class="fav-nm">${it.n}</span>${it.major?`<span class="fav-mj">${it.major}</span>`:""}</div>
+      <span class="sr-badge t${it.t||"ben"}">${tierZh(it.t)}</span>
+      <span class="fav-x" data-i="${i}">✕</span></div>`;});
+  });
+  list.innerHTML=html;
+  list.querySelectorAll(".fav-row").forEach(r=>{
+    r.addEventListener("click",e=>{if(e.target.classList.contains("fav-x"))return;
+      const it=FAV[+r.dataset.i],ll=it.ll||llOf(it.n);userTouched=true;
+      if(ll&&ll[0])map.flyTo({center:ll,zoom:9,pitch:45,duration:1800,curve:1.42});showUniCard(it.n);});
+    r.addEventListener("dragstart",()=>{favDragI=+r.dataset.i;r.classList.add("dragging");});
+    r.addEventListener("dragend",()=>r.classList.remove("dragging"));
+    r.addEventListener("dragover",e=>e.preventDefault());
+    r.addEventListener("drop",e=>{e.preventDefault();const ti=+r.dataset.i;
+      if(favDragI==null||favDragI===ti)return;const [mv]=FAV.splice(favDragI,1);FAV.splice(ti,0,mv);favSave();});
+  });
   list.querySelectorAll(".fav-x").forEach(x=>x.addEventListener("click",e=>{
     e.stopPropagation();FAV.splice(+x.dataset.i,1);favSave();}));
-  document.querySelectorAll(".card-fav").forEach(b=>{const on=favHas(b.dataset.k);
-    b.classList.toggle("on",on);b.textContent=on?"★ 已收藏":"☆ 收藏";});
-  document.querySelectorAll(".rec-fav").forEach(b=>b.classList.toggle("on",favHas(b.dataset.k)));
+  syncBtns();
 }
 window.cardFavClick=function(btn){try{favToggle(JSON.parse(btn.dataset.it.replace(/&#39;/g,"'")));}catch(e){}};
 function cardFavHTML(it){const k=favKey(it),on=favHas(k);
@@ -1737,8 +1761,11 @@ function cardFavHTML(it){const k=favKey(it),on=favHas(k);
   document.getElementById("fav-clear").addEventListener("click",()=>{if(FAV.length&&confirm("清空志愿表?")){FAV=[];favSave();}});
   document.getElementById("fav-export").addEventListener("click",()=>{
     if(!FAV.length){toast("志愿表是空的");return;}
-    const txt=FAV.map((it,i)=>`${i+1}. ${it.n}${it.major?" · "+it.major:""}${it.band?" ["+it.band+"]":""}`).join("\n");
-    navigator.clipboard.writeText(txt).then(()=>toast("已复制 "+FAV.length+" 条到剪贴板"),()=>toast("复制失败,请手动选择"));
+    const out=["【我的高考志愿表】"];
+    [["冲","■ 冲一冲"],["稳","■ 稳一稳"],["保","■ 保一保"],["","■ 其他"]].forEach(([b,lab])=>{
+      const its=FAV.filter(x=>(x.band||"")===b);if(!its.length)return;
+      out.push("",lab);its.forEach((it,i)=>out.push(`  ${i+1}. ${it.n}${it.major?" · "+it.major:""}`));});
+    navigator.clipboard.writeText(out.join("\n")).then(()=>toast("已复制 "+FAV.length+" 条到剪贴板"),()=>toast("复制失败,请手动选择"));
   });
   favRender();
 })();
