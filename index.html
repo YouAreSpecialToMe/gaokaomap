@@ -257,6 +257,39 @@
   .recpanel::-webkit-scrollbar,.quizpanel::-webkit-scrollbar,.favpanel::-webkit-scrollbar,#recpanel::-webkit-scrollbar,#search-results::-webkit-scrollbar{width:6px}
   .recpanel::-webkit-scrollbar-thumb,.quizpanel::-webkit-scrollbar-thumb,.favpanel::-webkit-scrollbar-thumb,#recpanel::-webkit-scrollbar-thumb,#search-results::-webkit-scrollbar-thumb{background:var(--gold-soft);border-radius:3px}
   .titlebar h1{text-shadow:0 1px 0 rgba(255,250,238,.5)}
+  /* ===== 统一控件:左上图标工具条 / 底部分段筛选 + 主操作 ===== */
+  .toolbar{position:absolute;top:14px;left:14px;z-index:10;display:flex;flex-direction:column;
+    background:linear-gradient(180deg,var(--paper-a),var(--paper-b));border:1px solid var(--gold-soft);
+    border-radius:13px;box-shadow:var(--elev);overflow:hidden;
+    -webkit-backdrop-filter:blur(10px) saturate(1.04);backdrop-filter:blur(10px) saturate(1.04)}
+  .tbtn{width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;
+    background:none;border:0;color:var(--ink-soft);padding:0;transition:background .2s,color .2s,transform .15s}
+  .tbtn+.tbtn{border-top:1px solid rgba(189,154,85,.32)}
+  .tbtn svg{width:21px;height:21px;display:block}
+  .tbtn:hover{background:rgba(189,154,85,.16);color:var(--ink)}
+  .tbtn:active{transform:scale(.88)}
+  .tbtn.on{background:#9c2f1b;color:#fbf0df}
+  .tbtn.on:hover{background:#882819;color:#fbf0df}
+  .botbar{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);z-index:5;
+    display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center;max-width:94vw;
+    animation:fadeUp 1s .55s cubic-bezier(.22,1,.36,1) backwards}
+  .seg{display:inline-flex;background:linear-gradient(180deg,var(--paper-a),var(--paper-b));
+    border:1px solid var(--gold-soft);border-radius:999px;box-shadow:var(--elev);overflow:hidden;
+    -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+  .seg-i{font:500 13px/1 "Kaiti SC","STKaiti","KaiTi",serif;letter-spacing:1px;padding:9px 15px;
+    background:none;border:0;color:var(--ink-soft);cursor:pointer;white-space:nowrap;transition:background .2s,color .2s}
+  .seg-i+.seg-i{border-left:1px solid rgba(189,154,85,.32)}
+  .seg-i:hover{background:rgba(189,154,85,.16);color:var(--ink)}
+  .seg-i.on{background:#9c2f1b;color:#fbf0df;box-shadow:0 0 0 1px rgba(216,192,138,.5) inset}
+  .acts{display:inline-flex;gap:8px}
+  .actbtn{font:600 13px/1 "Kaiti SC","STKaiti","KaiTi",serif;letter-spacing:1px;padding:10px 16px;
+    border-radius:999px;cursor:pointer;white-space:nowrap;color:#fbf0df;border:1px solid var(--gold);
+    background:linear-gradient(180deg,#a8392a,#8c2f1b);
+    box-shadow:0 4px 12px rgba(156,47,27,.3),0 0 0 1px rgba(216,192,138,.4) inset;
+    transition:transform .25s cubic-bezier(.34,1.56,.64,1),box-shadow .25s}
+  .actbtn:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(156,47,27,.4),0 0 0 1px rgba(216,192,138,.55) inset}
+  .actbtn:active{transform:scale(.95)}
+  .actbtn.on{background:linear-gradient(180deg,#7a2417,#5f1c11)}
   .cfgbtn{display:none;position:absolute;top:14px;left:14px;z-index:11;width:40px;height:40px;
     align-items:center;justify-content:center;border:1px solid #c5ab7c;border-radius:10px;
     background:rgba(252,246,230,.95);color:#6b5226;font-size:19px;cursor:pointer;box-shadow:0 2px 6px rgba(80,55,20,.2)}
@@ -266,17 +299,17 @@
     .titlebar{top:12px} .titlebar h1{font-size:17px;letter-spacing:2px} .titlebar p{display:none}
     .cfgbtn{display:flex}
     #search{top:62px;left:12px;right:12px;width:auto;transform:none}
-    .stylebtn{display:none}
-    body.cfg-open #stylebtn{display:block;left:14px;top:108px}
-    body.cfg-open #rotbtn{display:block;left:14px;top:148px}
-    body.cfg-open #wxbtn{display:block;left:14px;top:188px}
-    body.cfg-open #t3dbtn{display:block;left:14px;top:228px}
+    .toolbar{display:none;top:108px}
+    body.cfg-open .toolbar{display:flex}
     .card,.recpanel,.quizpanel,.favpanel{left:0;right:0;bottom:0;top:auto;width:auto;max-width:none;
       border-radius:16px 16px 0 0;max-height:74vh;box-sizing:border-box;animation:sheetUp .35s cubic-bezier(.22,1,.36,1)}
     #recpanel{width:auto}
     @keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
-    .chips{bottom:10px;gap:6px;max-width:96vw}
-    .chip{padding:6px 11px;font-size:12.5px}
+    .botbar{bottom:10px;gap:8px;max-width:96vw;flex-direction:column}
+    .seg{max-width:96vw;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .seg::-webkit-scrollbar{display:none}
+    .seg-i{padding:7px 12px;font-size:12.5px}
+    .actbtn{padding:8px 14px;font-size:12.5px}
     .favbtn{bottom:10px;right:10px;padding:7px 13px;font-size:13px}
     .toast{bottom:96px}
     .maplibregl-ctrl-top-right{transform:scale(.85);transform-origin:top right}
@@ -287,10 +320,12 @@
 <div id="map"></div>
 <div class="paper"></div>
 <div class="vignette"></div>
-<button id="stylebtn" class="stylebtn">画风:山形符号</button>
-<button id="rotbtn" class="stylebtn" style="top:54px" title="切换后按住左键拖动:左右转方位,上下调俯仰">视角:平移</button>
-<button id="wxbtn" class="stylebtn" style="top:94px" title="分区天气:江南细雨连绵、云贵山雾缭绕、巴蜀盆地阴霾">天气:江南烟雨</button>
-<button id="t3dbtn" class="stylebtn" style="top:134px" title="平面=超流畅(默认);立体=真实 3D 起伏,适合静止欣赏,旋转会偏卡">地形:平面</button>
+<div class="toolbar" id="toolbar">
+  <button class="tbtn" id="stylebtn" title="画风:山形符号 — 点按切换水彩浮雕"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><path d="M3 18 L8.5 8 L12 13.5 L15 9 L21 18 Z"/><circle cx="16.7" cy="6.3" r="1.5"/></svg></button>
+  <button class="tbtn" id="rotbtn" title="视角:平移 — 点按切旋转模式(旋转模式下按住左键拖动转方位 / 俯仰)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 8"/><path d="M20 3.5V8h-4.5"/><path d="M20 12a8 8 0 0 1-13.7 5.6L4 16"/><path d="M4 20.5V16h4.5"/></svg></button>
+  <button class="tbtn on" id="wxbtn" title="天气:江南烟雨 — 点按关闭分区天气"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14.5a3.4 3.4 0 0 1 .4-6.8 4.5 4.5 0 0 1 8.7 1.2A3 3 0 0 1 16 14.5Z"/><path d="M8 17.5l-1 2.6M12 17.5l-1 2.6M16 17.5l-1 2.6"/></svg></button>
+  <button class="tbtn" id="t3dbtn" title="地形:平面(超流畅)— 点按切换立体 3D"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3 21 7.5 12 12 3 7.5Z"/><path d="M3 12 12 16.5 21 12"/><path d="M3 16.5 12 21 21 16.5"/></svg></button>
+</div>
 <button id="cfgbtn" class="cfgbtn" title="画风/视角/天气/地形">⚙</button>
 <div id="search">
   <div id="search-box">
@@ -308,7 +343,7 @@
 </div>
 <div class="card" id="card"></div>
 <div class="recpanel" id="recpanel">
-  <span class="x" onclick="document.getElementById('recpanel').style.display='none'">✕</span>
+  <span class="x" onclick="document.getElementById('recpanel').style.display='none';document.getElementById('act-rec').classList.remove('on')">✕</span>
   <h3>我的推荐</h3>
   <div class="recform">
     <div class="rfrow"><select id="rp-prov"></select><select id="rp-subj"></select></div>
@@ -326,7 +361,7 @@
   <p class="dim" style="margin:8px 0 0">数据来自各省考试院等公开信息整理,仅供参考</p>
 </div>
 <div class="quizpanel" id="quizpanel">
-  <span class="x" onclick="document.getElementById('quizpanel').style.display='none'">✕</span>
+  <span class="x" onclick="document.getElementById('quizpanel').style.display='none';document.getElementById('act-quiz').classList.remove('on')">✕</span>
   <h3>专业测评 <span class="dim" style="font-weight:400">RIASEC</span></h3>
   <div id="qz-body"><p class="sub">24 道小题,约 3 分钟。凭直觉选,没有对错。</p>
     <button class="tourbtn" id="qz-start">开 始 测 评</button></div>
@@ -338,15 +373,19 @@
   <div class="fav-actions"><button id="fav-export">复制清单</button><button id="fav-clear">清空</button></div>
 </div>
 <div class="toast" id="toast"></div>
-<div class="chips" id="chips">
-  <span class="chip on" data-f="all">全部院校</span>
-  <span class="chip" data-f="985">985 巡礼</span>
-  <span class="chip" data-f="211">211 · 双一流</span>
-  <span class="chip" data-f="cs">计算机强校</span>
-  <span class="chip" data-f="med">医学名校</span>
-  <span class="chip" data-f="fin">财经法学</span>
-  <span class="chip" data-f="rec">✦ 我的推荐</span>
-  <span class="chip" data-f="quiz">✦ 专业测评</span>
+<div class="botbar" id="botbar">
+  <div class="seg" id="filter-seg">
+    <button class="seg-i on" data-f="all">全部院校</button>
+    <button class="seg-i" data-f="985">985 巡礼</button>
+    <button class="seg-i" data-f="211">211·双一流</button>
+    <button class="seg-i" data-f="cs">计算机</button>
+    <button class="seg-i" data-f="med">医学</button>
+    <button class="seg-i" data-f="fin">财经法学</button>
+  </div>
+  <div class="acts">
+    <button class="actbtn" id="act-rec">✦ 我的推荐</button>
+    <button class="actbtn" id="act-quiz">✦ 专业测评</button>
+  </div>
 </div>
 <script>
 let UNIS=[],DOTS=[];
@@ -385,7 +424,7 @@ function applyStyle(){
   if(map.getLayer("terrain-sym"))
     map.setLayoutProperty("terrain-sym","visibility",P.symbols?"visible":"none");
   if(map.getTerrain())map.setTerrain({source:"dem",exaggeration:P.terrainEx});
-  document.getElementById("stylebtn").textContent=P.label;
+  {const sb=document.getElementById("stylebtn");sb.title=P.label+" — 点按切换"+(styleMode==="wc"?"山形符号":"水彩浮雕");sb.classList.toggle("on",styleMode==="wc");}
 }
 const map=new maplibregl.Map({
   container:"map",
@@ -768,36 +807,46 @@ function showCard(u){
   loadTrend(u.n);
 }
 
-const chips=document.querySelectorAll(".chip");
 const recpanel=document.getElementById("recpanel");
-chips.forEach(ch=>ch.addEventListener("click",()=>{
-  userTouched=true;
-  if(ch.dataset.f==="quiz"){
-    const qp=document.getElementById("quizpanel");
-    qp.style.display=qp.style.display==="block"?"none":"block";
-    return;
-  }
-  chips.forEach(c=>c.classList.remove("on"));ch.classList.add("on");
-  const f=ch.dataset.f;
+// 筛选(分段控件:互斥单选,只控制地图显示)
+function applyFilter(f){
+  document.querySelectorAll("#filter-seg .seg-i").forEach(c=>c.classList.toggle("on",c.dataset.f===f));
   stopTour();card.style.display="none";
-  recpanel.style.display=f==="rec"?"block":"none";
-  if(f!=="rec"){document.body.classList.remove("rec-mode");clearRec();}
-  markers.forEach(({u,el,mk})=>{
+  document.body.classList.remove("rec-mode");clearRec();
+  markers.forEach(({u,el})=>{
     let vis=true;
     if(f==="985")vis=u.t==="985";
     else if(f==="211")vis=u.t==="211"||u.t==="dfc";
     else if(f==="cs"||f==="med"||f==="fin")vis=u.g.includes(f);
-    else if(f==="rec")vis=true;
     el.style.display=vis?"":"none";
   });
   if(map.getLayer("uni-dots")){
-    if(f==="985"||f==="211"||f==="rec"){map.setLayoutProperty("uni-dots","visibility","none");}
+    if(f==="985"||f==="211"){map.setLayoutProperty("uni-dots","visibility","none");}
     else{map.setLayoutProperty("uni-dots","visibility","visible");
       map.setFilter("uni-dots",(f==="cs"||f==="med"||f==="fin")?["==",["get",f],1]:null);}
   }
   updateFlags();
-
-}));
+}
+document.querySelectorAll("#filter-seg .seg-i").forEach(ch=>
+  ch.addEventListener("click",()=>{userTouched=true;applyFilter(ch.dataset.f);}));
+// 主操作:开/合 推荐与测评面板(与筛选互不干扰)
+const actRec=document.getElementById("act-rec"),actQuiz=document.getElementById("act-quiz");
+function syncActs(){
+  actRec.classList.toggle("on",recpanel.style.display==="block");
+  actQuiz.classList.toggle("on",document.getElementById("quizpanel").style.display==="block");
+}
+actRec.addEventListener("click",()=>{
+  userTouched=true;
+  const open=recpanel.style.display!=="block";
+  if(open){applyFilter("all");recpanel.style.display="block";}else recpanel.style.display="none";
+  syncActs();
+});
+actQuiz.addEventListener("click",()=>{
+  userTouched=true;
+  const qp=document.getElementById("quizpanel");
+  qp.style.display=qp.style.display==="block"?"none":"block";
+  syncActs();
+});
 
 let RECS=[];
 const API=(location.port==="8765")?`http://${location.hostname||"127.0.0.1"}:8787`:"";
@@ -1055,7 +1104,8 @@ let rotMode=false,rotStart=null;
 const rotbtn=document.getElementById("rotbtn");
 rotbtn.addEventListener("click",()=>{
   userTouched=true;rotMode=!rotMode;
-  rotbtn.textContent=rotMode?"视角:旋转":"视角:平移";
+  rotbtn.classList.toggle("on",rotMode);
+  rotbtn.title=rotMode?"视角:旋转中 — 按住左键拖动转方位 / 俯仰;点按回到平移":"视角:平移 — 点按切旋转模式";
   rotMode?map.dragPan.disable():map.dragPan.enable();
   map.getCanvas().style.cursor=rotMode?"grab":"";
 });
@@ -1178,7 +1228,9 @@ function wxFrame(ts){
 function wxStart(){if(wxOn&&!wxRAF){wxPrev=0;wxRAF=requestAnimationFrame(wxFrame);}}
 wxStart();
 document.getElementById("wxbtn").addEventListener("click",()=>{
-  wxOn=!wxOn;document.getElementById("wxbtn").textContent=wxOn?"天气:江南烟雨":"天气:关";
+  wxOn=!wxOn;
+  const wb=document.getElementById("wxbtn");wb.classList.toggle("on",wxOn);
+  wb.title=wxOn?"天气:江南烟雨 — 点按关闭分区天气":"天气:已关 — 点按开启(江南细雨 / 云贵山雾 / 巴蜀阴霾)";
   if(wxOn)wxStart();else wctx.clearRect(0,0,innerWidth,innerHeight);});
 document.addEventListener("visibilitychange",()=>{
   if(document.hidden){if(wxRAF){cancelAnimationFrame(wxRAF);wxRAF=0;}}else wxStart();});
@@ -1240,9 +1292,7 @@ document.addEventListener("visibilitychange",()=>{
   });
   clr.addEventListener("click",()=>{inp.value="";res.style.display="none";wrap.classList.remove("searching");boxEl.classList.remove("has-val");inp.focus();});
   document.addEventListener("click",e=>{if(!wrap.contains(e.target))res.style.display="none";});
-  document.getElementById("hint-quiz").addEventListener("click",()=>{
-    const qc=[...document.querySelectorAll(".chip")].find(c=>c.dataset.f==="quiz");if(qc)qc.click();
-  });
+  document.getElementById("hint-quiz").addEventListener("click",()=>document.getElementById("act-quiz").click());
 })();
 // ---------- 志愿表 / 收藏(localStorage 持久化)----------
 let FAV=[];try{FAV=JSON.parse(localStorage.getItem("gk_fav")||"[]");}catch(e){FAV=[];}
@@ -1302,7 +1352,8 @@ function cardFavHTML(it){const k=favKey(it),on=favHas(k);
 })();
 document.getElementById("t3dbtn").addEventListener("click",()=>{
   userTouched=true;terrain3D=!terrain3D;
-  document.getElementById("t3dbtn").textContent=terrain3D?"地形:立体":"地形:平面";
+  const tb=document.getElementById("t3dbtn");tb.classList.toggle("on",terrain3D);
+  tb.title=terrain3D?"地形:立体 3D — 静止欣赏更佳,旋转会偏卡;点按回平面":"地形:平面(超流畅)— 点按切换立体 3D";
   if(terrain3D)map.setTerrain({source:"dem",exaggeration:STYLES[styleMode].terrainEx});
   else{_loQ=false;clearTimeout(_hiTimer);map.setTerrain(null);}
 });
