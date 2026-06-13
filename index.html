@@ -184,6 +184,9 @@
   .sr-item .meta{margin-left:auto;font-size:11px;color:#a08a5e;flex:0 0 auto}
   .sr-badge{font-size:10px;padding:1px 6px;border-radius:4px;color:#fff;flex:0 0 auto}
   .sr-badge.t985{background:#8c2f1b}.sr-badge.t211{background:#96660f}.sr-badge.tdfc{background:#564a85}.sr-badge.tben{background:#9a8757}
+  .sr-badge.sr-cbadge{background:#4f6457}
+  .sr-pin{width:26px;height:26px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;color:#9c2f1b}
+  .sr-pin svg{width:20px;height:20px}
   .sr-empty{padding:12px;text-align:center;font-size:12px;color:#a08a5e}
   .favbtn{position:absolute;right:18px;bottom:20px;z-index:8;cursor:pointer;border:1px solid #c5ab7c;
     background:rgba(252,246,230,.95);color:#8c2f1b;border-radius:999px;padding:9px 16px;
@@ -388,7 +391,18 @@
   </div>
 </div>
 <script>
-let UNIS=[],DOTS=[];
+let UNIS=[],DOTS=[],CITYIDX=[];
+// 由各校所在城市聚合出"城市"索引(质心坐标 + 院校数),供搜索把城市作为独立结果
+function buildCityIndex(){
+  const g={};
+  for(const u of UNIS.concat(DOTS)){
+    const c=u.c||u.p;if(!c||!u.ll||!u.ll[0])continue;
+    (g[c]=g[c]||{n:c,p:u.p,sx:0,sy:0,cnt:0,isCity:true}).cnt++;
+    g[c].sx+=u.ll[0];g[c].sy+=u.ll[1];
+  }
+  CITYIDX=Object.values(g).map(o=>({n:o.n,p:o.p,cnt:o.cnt,isCity:true,
+    ll:[o.sx/o.cnt,o.sy/o.cnt]})).sort((a,b)=>b.cnt-a.cnt);
+}
 const REC_MAP={"复旦大学":["冲","35%"],"南京大学":["冲","42%"],"中国科学技术大学":["冲","30%"],
 "厦门大学":["稳","68%"],"武汉大学":["稳","72%"],"华中科技大学":["稳","70%"],
 "中南大学":["保","91%"],"兰州大学":["保","93%"]};
@@ -705,6 +719,7 @@ map.on("load",async()=>{
       if(TOP15.has(u.n))u.top=1;
       return u;});
     DOTS=all.filter(u=>u.t==="ben"||isCampus(u.n));
+    buildCityIndex();
     document.querySelector(".titlebar p").textContent=`收录 ${all.length} 所本科 · 双一流 ${UNIS.length} · 数据:教育部名单+学科评估`;
     try{
       map.addSource("unidots",{type:"geojson",data:{type:"FeatureCollection",
@@ -1244,7 +1259,16 @@ document.addEventListener("visibilitychange",()=>{
   const TIER_W={"985":9,"211":6,"dfc":3,"ben":0};
   function doSearch(q){
     q=nm(q).trim();if(!q)return[];
-    const pool=UNIS.concat(DOTS),out=[];
+    const out=[];
+    // 城市:命中即作为独立结果,排在同名院校之前
+    for(const c of CITYIDX){
+      const base=nm(c.n).replace(/(市|地区|自治州|盟|特别行政区)$/,"");let sc=-1;
+      if(base===q||nm(c.n)===q)sc=96;
+      else if(base.startsWith(q))sc=90;
+      else if(base.includes(q))sc=50;
+      if(sc>=0)out.push([sc+Math.min(c.cnt,20)/40,c]);
+    }
+    const pool=UNIS.concat(DOTS);
     for(const u of pool){
       const n=nm(u.n),s=nm(u.s),c=nm(u.c||u.p);let sc=-1;
       if(n===q||s===q)sc=100;
@@ -1261,16 +1285,24 @@ document.addEventListener("visibilitychange",()=>{
     items=list;sel=-1;
     if(!inp.value.trim()){res.style.display="none";return;}
     if(!list.length){res.innerHTML='<div class="sr-empty">没找到「'+inp.value.trim()+'」,换个词试试</div>';res.style.display="block";return;}
-    res.innerHTML=list.map((u,i)=>`<div class="sr-item" data-i="${i}">
-      ${badge(u.n,26)}<span class="nm">${u.n}</span>
-      <span class="sr-badge t${u.t}">${tierTxt(u.t)}</span>
-      <span class="meta">${u.c||u.p||""}</span></div>`).join("");
+    res.innerHTML=list.map((u,i)=> u.isCity
+      ? `<div class="sr-item" data-i="${i}"><span class="sr-pin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 21s7-6.4 7-11.5A7 7 0 0 0 5 9.5C5 14.6 12 21 12 21Z"/><circle cx="12" cy="9.3" r="2.4"/></svg></span>
+        <span class="nm">${u.n}</span><span class="sr-badge sr-cbadge">城市</span>
+        <span class="meta">${u.cnt} 所院校</span></div>`
+      : `<div class="sr-item" data-i="${i}">${badge(u.n,26)}<span class="nm">${u.n}</span>
+        <span class="sr-badge t${u.t}">${tierTxt(u.t)}</span>
+        <span class="meta">${u.c||u.p||""}</span></div>`).join("");
     res.style.display="block";
     res.querySelectorAll(".sr-item").forEach(el=>el.addEventListener("click",()=>pick(items[+el.dataset.i])));
   }
   function pick(u){
     if(!u)return;userTouched=true;
     inp.value=u.n;res.style.display="none";wrap.classList.remove("searching");boxEl.classList.add("has-val");
+    if(u.isCity){                                  // 城市:飞到质心、铺开该城院校,不弹院校卡
+      if(typeof applyFilter==="function")applyFilter("all");
+      if(u.ll&&u.ll[0])map.flyTo({center:u.ll,zoom:9.4,pitch:42,bearing:0,duration:2000,curve:1.42});
+      inp.blur();return;
+    }
     if(u.ll&&u.ll[0])map.flyTo({center:u.ll,zoom:9,pitch:45,bearing:0,duration:2000,curve:1.42});
     showCard(u);inp.blur();
   }
