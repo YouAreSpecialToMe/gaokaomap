@@ -167,6 +167,7 @@
 <button id="stylebtn" class="stylebtn">画风:山形符号</button>
 <button id="rotbtn" class="stylebtn" style="top:54px" title="切换后按住左键拖动:左右转方位,上下调俯仰">视角:平移</button>
 <button id="wxbtn" class="stylebtn" style="top:94px" title="分区天气:江南细雨连绵、云贵山雾缭绕、巴蜀盆地阴霾">天气:江南烟雨</button>
+<button id="t3dbtn" class="stylebtn" style="top:134px" title="平面=超流畅(默认);立体=真实 3D 起伏,适合静止欣赏,旋转会偏卡">地形:平面</button>
 <div class="loading" id="loading">正在铺开山河画卷⋯</div>
 <div class="titlebar">
   <h1>高考升学地图</h1>
@@ -227,6 +228,9 @@ const STYLES={
       hsShadow:"#6e4f2c",hsHighlight:"#fff6dd",hsAccent:"#8a6a3f",hsEx:0.18,
       terrainEx:3.2,symbols:true,label:"画风:山形符号"}};
 let styleMode="sym";
+// 默认平面(分层设色+晕渲+木刻山即山河画卷,旋转/平移恒 120fps);3D 网格每帧重算 ~100ms/帧
+// 且开关时有 ~85ms 回弹卡顿,故改为可选项,默认关。
+let terrain3D=false;
 function applyStyle(){
   const P=STYLES[styleMode];
   if(map.getLayer("relief"))map.setPaintProperty("relief","color-relief-color",P.ramp);
@@ -281,7 +285,7 @@ map.on("load",async()=>{
     let terrainOn=false,introDone=false;
     const enableTerrain=()=>{
       if(terrainOn)return;terrainOn=true;
-      map.setTerrain({source:"dem",exaggeration:STYLES[styleMode].terrainEx});
+      if(terrain3D)map.setTerrain({source:"dem",exaggeration:STYLES[styleMode].terrainEx});
       map.jumpTo({...HOME,zoom:2.95,pitch:28,bearing:-18});
       const lo=document.getElementById("loading");
       lo.style.opacity=0;setTimeout(()=>lo.style.display="none",1000);
@@ -892,8 +896,9 @@ cv.addEventListener("touchend",()=>{rotStart=null;},{passive:true});
 // 画面仍是水墨群山,只是暂失立体),停手 220ms 后地形回弹。只听真实指针/滚轮输入,避免 setTerrain
 // 自身触发的 move 事件造成开关抖动。
 let _loQ=false,_hiTimer=0,_pdown=false;
-function _hiQ(){if(!_loQ)return;_loQ=false;map.setTerrain({source:"dem",exaggeration:STYLES[styleMode].terrainEx});}
+function _hiQ(){if(!_loQ)return;_loQ=false;if(terrain3D)map.setTerrain({source:"dem",exaggeration:STYLES[styleMode].terrainEx});}
 function _nudgeQ(){
+  if(!terrain3D)return;                          // 平面模式恒流畅,无需降级
   if(!_loQ&&map.getTerrain()){_loQ=true;map.setTerrain(null);}
   clearTimeout(_hiTimer);_hiTimer=setTimeout(_hiQ,220);
 }
@@ -980,6 +985,12 @@ document.getElementById("wxbtn").addEventListener("click",()=>{
   if(wxOn)wxStart();else wctx.clearRect(0,0,innerWidth,innerHeight);});
 document.addEventListener("visibilitychange",()=>{
   if(document.hidden){if(wxRAF){cancelAnimationFrame(wxRAF);wxRAF=0;}}else wxStart();});
+document.getElementById("t3dbtn").addEventListener("click",()=>{
+  userTouched=true;terrain3D=!terrain3D;
+  document.getElementById("t3dbtn").textContent=terrain3D?"地形:立体":"地形:平面";
+  if(terrain3D)map.setTerrain({source:"dem",exaggeration:STYLES[styleMode].terrainEx});
+  else{_loQ=false;clearTimeout(_hiTimer);map.setTerrain(null);}
+});
 document.getElementById("stylebtn").addEventListener("click",()=>{
   userTouched=true;
   styleMode=styleMode==="wc"?"sym":"wc";
