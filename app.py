@@ -95,7 +95,7 @@ def uni_card(name, prov):
             """SELECT year,subject_std subj,granularity,major,min_score,min_rank
                FROM admission_lines WHERE uni_name IN (?,?) AND province=?
                  AND year>=2023 AND min_rank IS NOT NULL
-               ORDER BY year DESC, min_rank LIMIT 40""", (name, strip, prov))]
+               ORDER BY year DESC, min_rank LIMIT 400""", (name, strip, prov))]
     out = {"name": u["name"], "province": u["province"], "city": u["city"],
            "tier": "985" if u["is_985"] else "211" if u["is_211"]
                    else "双一流" if u["is_dfc"] else (u["level"] or ""),
