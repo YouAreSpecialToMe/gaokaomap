@@ -116,6 +116,40 @@
   .tourbtn{margin-top:12px;width:100%;padding:9px 0;border:none;border-radius:8px;background:#8c2f1b;color:#f7e8d6;
     font:500 14px "Kaiti SC","STKaiti","KaiTi",serif;letter-spacing:3px;cursor:pointer}
   .tourbtn:hover{background:#a13a22}
+  .recform{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+  .rfrow{display:flex;gap:6px}
+  .recform select,.recform input{flex:1;min-width:0;padding:6px 8px;border:1px solid #c5ab7c;border-radius:6px;
+    background:#fdf8ea;color:#4a3414;font:500 13px "Kaiti SC","STKaiti",serif}
+  .recform button{padding:6px 14px;border:none;border-radius:6px;background:#8c2f1b;color:#f7e8d6;
+    font:500 13px "Kaiti SC","STKaiti",serif;letter-spacing:2px;cursor:pointer}
+  .recform button:hover{background:#a13a22}
+  .rfsel{display:flex;gap:8px;flex-wrap:wrap;font-size:12px;color:#6b5226}
+  .rfsel label{display:flex;align-items:center;gap:2px;cursor:pointer}
+  .recgroup{font:600 13px "Kaiti SC","STKaiti",serif;letter-spacing:2px;margin:8px 0 2px}
+  .recgroup.冲{color:#d85a30}.recgroup.稳{color:#b8860b}.recgroup.保{color:#1d9e75}
+  .recrow small{color:#a08a5e;margin-left:4px}
+  #recpanel{max-height:72vh;overflow-y:auto;width:262px}
+  .quizpanel{animation:cardIn .5s cubic-bezier(.22,1,.36,1);position:absolute;left:20px;top:84px;z-index:6;width:280px;display:none;
+    max-height:78vh;overflow-y:auto;background:rgba(252,246,230,.97);border:1px solid #c5ab7c;border-radius:10px;
+    padding:14px 16px;box-shadow:0 6px 20px rgba(80,55,20,.3)}
+  .quizpanel h3{margin:0 0 8px;font:600 16px "Kaiti SC","STKaiti",serif;color:#4a3414;letter-spacing:2px}
+  .qz-prog{height:5px;background:#ede0c2;border-radius:3px;margin:6px 0 10px;overflow:hidden}
+  .qz-prog i{display:block;height:100%;background:#8c2f1b;border-radius:3px;transition:width .3s}
+  .qz-q{font:500 14px/1.6 "Kaiti SC","STKaiti",serif;color:#4a3414;min-height:64px;margin-bottom:10px}
+  .qz-opts{display:flex;flex-direction:column;gap:6px}
+  .qz-opts button{padding:8px;border:1px solid #c5ab7c;border-radius:7px;background:#fdf8ea;color:#5d4520;
+    font:500 13px "Kaiti SC","STKaiti",serif;cursor:pointer;transition:all .15s}
+  .qz-opts button:hover{background:#8c2f1b;color:#f7e8d6}
+  .qz-back{margin-top:8px;background:none;border:none;color:#a08a5e;font-size:12px;cursor:pointer}
+  .qz-dim{display:flex;align-items:center;gap:6px;font-size:12px;color:#5d4520;margin:3px 0}
+  .qz-dim b{width:58px;font-weight:500}
+  .qz-bar{flex:1;height:8px;background:#ede0c2;border-radius:4px;overflow:hidden}
+  .qz-bar i{display:block;height:100%;background:linear-gradient(90deg,#c08a2a,#8c2f1b);border-radius:4px}
+  .qz-cls{border-top:1px dashed #d5c096;padding:8px 0}
+  .qz-cls h4{margin:0;font:600 14px "Kaiti SC","STKaiti",serif;color:#8c2f1b}
+  .qz-cls p{margin:3px 0;font-size:12px;color:#6b5226}
+  .qz-light{font-size:12px;padding:3px 10px;border:1px solid #8c2f1b;border-radius:999px;background:none;color:#8c2f1b;cursor:pointer}
+  .qz-light:hover{background:#8c2f1b;color:#f7e8d6}
   .loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:9;
     font:500 16px "Kaiti SC","STKaiti","KaiTi",serif;color:#7a5f33;letter-spacing:4px;background:#ece2c8;
     transition:opacity .95s ease}
@@ -134,9 +168,25 @@
 <div class="card" id="card"></div>
 <div class="recpanel" id="recpanel">
   <h3>我的推荐</h3>
-  <p class="sub">浙江 · 652 分 · 位次 4300(示例)</p>
+  <div class="recform">
+    <div class="rfrow"><select id="rp-prov"></select><select id="rp-subj"></select></div>
+    <div class="rfrow"><input id="rp-score" type="number" placeholder="高考分数" min="100" max="750">
+      <button id="rp-go">测一测</button></div>
+    <div class="rfsel" id="rp-sel">
+      <label><input type="checkbox" value="化">化</label><label><input type="checkbox" value="生">生</label>
+      <label><input type="checkbox" value="政">政</label><label><input type="checkbox" value="地">地</label>
+      <label><input type="checkbox" value="物">物</label><label><input type="checkbox" value="史">史</label>
+    </div>
+  </div>
+  <p class="sub" id="rp-status">选择省份科类,输入分数</p>
   <div id="reclist"></div>
-  <button class="tourbtn" id="tourbtn">开 始 巡 游</button>
+  <button class="tourbtn" id="tourbtn" style="display:none">开 始 巡 游</button>
+  <p class="dim" style="margin:8px 0 0">数据来自各省考试院等公开信息整理,仅供参考</p>
+</div>
+<div class="quizpanel" id="quizpanel">
+  <h3>专业测评 <span class="dim" style="font-weight:400">RIASEC</span></h3>
+  <div id="qz-body"><p class="sub">24 道小题,约 3 分钟。凭直觉选,没有对错。</p>
+    <button class="tourbtn" id="qz-start">开 始 测 评</button></div>
 </div>
 <div class="chips" id="chips">
   <span class="chip on" data-f="all">全部院校</span>
@@ -146,6 +196,7 @@
   <span class="chip" data-f="med">医学名校</span>
   <span class="chip" data-f="fin">财经法学</span>
   <span class="chip" data-f="rec">✦ 我的推荐</span>
+  <span class="chip" data-f="quiz">✦ 专业测评</span>
 </div>
 <script>
 let UNIS=[],DOTS=[];
@@ -475,11 +526,16 @@ const chips=document.querySelectorAll(".chip");
 const recpanel=document.getElementById("recpanel");
 chips.forEach(ch=>ch.addEventListener("click",()=>{
   userTouched=true;
+  if(ch.dataset.f==="quiz"){
+    const qp=document.getElementById("quizpanel");
+    qp.style.display=qp.style.display==="block"?"none":"block";
+    return;
+  }
   chips.forEach(c=>c.classList.remove("on"));ch.classList.add("on");
   const f=ch.dataset.f;
   stopTour();card.style.display="none";
-  document.body.classList.toggle("rec-mode",f==="rec");
   recpanel.style.display=f==="rec"?"block":"none";
+  if(f!=="rec"){document.body.classList.remove("rec-mode");clearRec();}
   markers.forEach(({u,el,mk})=>{
     let vis=true;
     if(f==="985")vis=u.t==="985";
@@ -494,21 +550,181 @@ chips.forEach(ch=>ch.addEventListener("click",()=>{
       map.setFilter("uni-dots",(f==="cs"||f==="med"||f==="fin")?["==",["get",f],1]:null);}
   }
   updateFlags();
-  if(f==="rec")map.flyTo({center:[112,30],zoom:4.4,pitch:52,bearing:-8,duration:1800,curve:1.42});
+
 }));
 
 let RECS=[];
-function buildRecs(){
-  RECS=UNIS.filter(u=>u.rec).sort((a,b)=>"冲稳保".indexOf(a.rec)-"冲稳保".indexOf(b.rec));
-  document.getElementById("reclist").innerHTML=RECS.map((u,i)=>
-    `<div class="recrow" data-i="${i}"><span class="rb ${u.rec}">${u.rec}</span>${u.n}<span class="pr">${u.pr}</span></div>`).join("");
-  document.querySelectorAll(".recrow").forEach(r=>r.addEventListener("click",()=>{
-    userTouched=true;
-    const u=RECS[+r.dataset.i];
-    map.flyTo({center:u.ll,zoom:7,pitch:62,bearing:14,duration:2200,curve:1.42});showCard(u);
-  }));
+const API=(location.port==="8765")?`http://${location.hostname||"127.0.0.1"}:8787`:"";
+let recTemp=[];
+function clearRec(){
+  recTemp.forEach(m=>m.remove());recTemp=[];
+  markers.forEach(({el})=>{el.classList.remove("rec","rec-冲","rec-稳","rec-保");});
+  if(map.getLayer("uni-dots"))map.setPaintProperty("uni-dots","circle-opacity",0.78);
 }
-
+function buildRecs(){}
+async function loadMeta(){
+  try{
+    const m=await (await fetch(API+"/api/meta")).json();
+    const ps=document.getElementById("rp-prov"),ss=document.getElementById("rp-subj");
+    ps.innerHTML=m.provinces.map(p=>`<option>${p.province}</option>`).join("");
+    const upd=()=>{
+      const p=m.provinces.find(x=>x.province===ps.value);
+      ss.innerHTML=(p?p.subjects:["综合"]).map(x=>`<option>${x}</option>`).join("");
+      document.getElementById("rp-sel").style.display=
+        ["物理","历史","综合"].includes(ss.value)?"flex":"none";
+    };
+    ps.addEventListener("change",upd);ss.addEventListener("change",upd);
+    ps.value="浙江";upd();
+  }catch(e){document.getElementById("rp-status").textContent="⚠️ 推荐服务未启动(8787)";}
+}
+loadMeta();
+function applyRecToMap(bands){
+  clearRec();
+  const seen=new Set();
+  for(const b of ["冲","稳","保"]) for(const it of bands[b]){
+    if(seen.has(it.uni))continue;seen.add(it.uni);
+    const hit=markers.find(m=>m.u.n===it.uni);
+    if(hit){hit.el.classList.add("rec","rec-"+b,"show-flag");}
+    else if(it.ll&&it.ll[0]){
+      const el=document.createElement("div");
+      el.className="umk t"+(it.tier||"ben")+" rec rec-"+b+" show-flag";
+      el.innerHTML=`<div class="flag"><div class="banner">${it.uni.slice(0,6)}</div><div class="pole"></div></div><div class="dot"></div>`;
+      el.addEventListener("click",e=>{e.stopPropagation();showUniCard(it.uni);});
+      recTemp.push(new maplibregl.Marker({element:el,anchor:"bottom"}).setLngLat(it.ll).addTo(map));
+    }
+  }
+  if(map.getLayer("uni-dots"))map.setPaintProperty("uni-dots","circle-opacity",0.1);
+  document.body.classList.add("rec-mode");
+}
+async function showUniCard(name){
+  try{
+    const u=await (await fetch(`${API}/api/uni?name=${encodeURIComponent(name)}&prov=${encodeURIComponent(document.getElementById("rp-prov").value)}`)).json();
+    if(u.error)return;
+    const ev=(u.eval||[]).map(e=>`<span class="tag">${e.discipline} ${e.grade}</span>`).join("");
+    const majors={};
+    (u.lines||[]).filter(l=>l.granularity==="major").forEach(l=>{(majors[l.major]=majors[l.major]||{})[l.year]=l.min_rank;});
+    const yrs=[2025,2024,2023];
+    const rows=Object.entries(majors).slice(0,6).map(([mj,d])=>
+      `<tr><td>${mj.slice(0,12)}</td>${yrs.map(y=>`<td>${d[y]?d[y].toLocaleString():"-"}</td>`).join("")}</tr>`).join("");
+    card.innerHTML=`<span class="x" onclick="card.style.display='none'">✕</span>
+      <h3>${u.name}</h3>
+      <div class="tags"><span class="tag">${u.tier}</span><span class="tag">${u.city||u.province}</span>${u.rank?`<span class="tag">参考排名 #${u.rank}</span>`:""}</div>
+      ${ev?`<div class="tags">${ev}</div>`:""}
+      ${rows?`<table><tr><th>专业(本省位次)</th><th>25</th><th>24</th><th>23</th></tr>${rows}</table>`:""}
+      <p class="dim">${(u.intro||"").slice(0,80)}…</p>`;
+    card.style.display="block";
+  }catch(e){}
+}
+async function runRecommend(){
+  userTouched=true;
+  const prov=document.getElementById("rp-prov").value,
+        subj=document.getElementById("rp-subj").value,
+        score=document.getElementById("rp-score").value,
+        st=document.getElementById("rp-status");
+  if(!score){st.textContent="请输入分数";return;}
+  const sel=[...document.querySelectorAll("#rp-sel input:checked")].map(i=>i.value).join(",");
+  st.textContent="测算中…";
+  try{
+    const r=await (await fetch(`${API}/api/recommend?prov=${encodeURIComponent(prov)}&subj=${encodeURIComponent(subj)}&score=${score}${sel?"&sel="+sel:""}`)).json();
+    if(r.error){st.textContent="⚠️ "+r.error;document.getElementById("reclist").innerHTML="";return;}
+    st.textContent=`位次约 ${r.rank.toLocaleString()}(${prov}·${subj})${r.notes.length?" · "+r.notes[0]:""}`;
+    RECS=[];
+    let html="";
+    for(const b of ["冲","稳","保"]){
+      html+=`<div class="recgroup ${b}">${b}</div>`;
+      r.bands[b].slice(0,8).forEach(it=>{
+        RECS.push({n:it.uni,ll:it.ll,band:b});
+        html+=`<div class="recrow" data-uni="${it.uni}" data-ll="${it.ll||''}">
+          <span class="rb ${b}">${b}</span>${it.uni.slice(0,9)}·${it.major.slice(0,8)}
+          <span class="pr">${it.minRank.toLocaleString()}${it.note?`<small>${it.note}</small>`:""}</span></div>`;
+      });
+    }
+    document.getElementById("reclist").innerHTML=html;
+    document.getElementById("tourbtn").style.display=RECS.length?"block":"none";
+    document.querySelectorAll("#reclist .recrow").forEach(row=>row.addEventListener("click",()=>{
+      userTouched=true;
+      const ll=row.dataset.ll?row.dataset.ll.split(",").map(Number):null;
+      if(ll&&ll[0])map.flyTo({center:ll,zoom:8.5,pitch:55,bearing:10,duration:2000,curve:1.42});
+      showUniCard(row.dataset.uni);
+    }));
+    applyRecToMap(r.bands);
+    map.flyTo({center:[112,32],zoom:4.3,pitch:50,bearing:-8,duration:1600,curve:1.42});
+  }catch(e){st.textContent="⚠️ 无法连接推荐服务";}
+}
+// ---------- 专业测评 ----------
+let QZ={qs:null,idx:0,ans:[]};
+async function qzStart(){
+  if(!QZ.qs){
+    try{QZ.qs=(await (await fetch(API+"/api/quiz")).json());}
+    catch(e){document.getElementById("qz-body").innerHTML='<p class="sub">⚠️ 服务未启动</p>';return;}
+  }
+  QZ.idx=0;QZ.ans=[];qzRender();
+}
+function qzRender(){
+  const b=document.getElementById("qz-body"),n=QZ.qs.questions.length;
+  if(QZ.idx>=n)return qzFinish();
+  const q=QZ.qs.questions[QZ.idx];
+  b.innerHTML=`<div class="qz-prog"><i style="width:${QZ.idx/n*100}%"></i></div>
+    <div class="qz-q">${QZ.idx+1}/${n} · ${q.q}</div>
+    <div class="qz-opts">${QZ.qs.scale.map((t,i)=>`<button data-v="${i}">${t}</button>`).join("")}</div>
+    ${QZ.idx?'<button class="qz-back" id="qz-back">← 上一题</button>':''}`;
+  b.querySelectorAll(".qz-opts button").forEach(btn=>btn.addEventListener("click",()=>{
+    QZ.ans[QZ.idx]={dim:q.dim,v:+btn.dataset.v};QZ.idx++;qzRender();
+  }));
+  const bk=document.getElementById("qz-back");
+  if(bk)bk.addEventListener("click",()=>{QZ.idx--;qzRender();});
+}
+async function qzFinish(){
+  const sums={R:0,I:0,A:0,S:0,E:0,C:0};
+  QZ.ans.forEach(a=>sums[a.dim]+=a.v);
+  const prov=document.getElementById("rp-prov").value,
+        subj=document.getElementById("rp-subj").value,
+        score=document.getElementById("rp-score").value;
+  const qs=`scores=${["R","I","A","S","E","C"].map(d=>sums[d]).join(",")}`+
+    (score?`&prov=${encodeURIComponent(prov)}&subj=${encodeURIComponent(subj)}&score=${score}`:"");
+  const b=document.getElementById("qz-body");
+  b.innerHTML='<p class="sub">分析中…</p>';
+  try{
+    const r=await (await fetch(`${API}/api/quiz/match?${qs}`)).json();
+    let html='<div style="margin-bottom:6px">';
+    for(const[k,v]of Object.entries(r.profile))
+      html+=`<div class="qz-dim"><b>${k}</b><div class="qz-bar"><i style="width:${v}%"></i></div><span>${v}</span></div>`;
+    html+='</div>';
+    r.top.forEach((t,i)=>{
+      html+=`<div class="qz-cls"><h4>${i+1}. ${t.mclass} <small style="color:#a08a5e">${t.code} · 契合 ${t.fit}</small></h4>
+        ${t.majors?`<p>${t.majors}</p>`:""}
+        ${t.unis&&t.unis.length?`<p>${t.unis.slice(0,3).map(u=>u.uni).join(" / ")}</p>
+          <button class="qz-light" data-i="${i}">在地图点亮可达院校</button>`:
+          (score?"":'<p class="dim">在「我的推荐」填分数后可点亮可达院校</p>')}</div>`;
+    });
+    html+='<button class="tourbtn" id="qz-redo" style="margin-top:10px">重 新 测 评</button>';
+    b.innerHTML=html;
+    document.getElementById("qz-redo").addEventListener("click",qzStart);
+    b.querySelectorAll(".qz-light").forEach(btn=>btn.addEventListener("click",()=>{
+      const t=r.top[+btn.dataset.i];
+      clearRec();
+      const seen=new Set();
+      t.unis.forEach(it=>{
+        if(seen.has(it.uni)||!it.ll||!it.ll[0])return;seen.add(it.uni);
+        const hit=markers.find(m=>m.u.n===it.uni);
+        if(hit){hit.el.classList.add("rec","rec-稳","show-flag");}
+        else{
+          const el=document.createElement("div");
+          el.className="umk t"+(it.tier||"ben")+" rec rec-稳 show-flag";
+          el.innerHTML=`<div class="flag"><div class="banner">${it.uni.slice(0,6)}</div><div class="pole"></div></div><div class="dot"></div>`;
+          el.addEventListener("click",e=>{e.stopPropagation();showUniCard(it.uni);});
+          recTemp.push(new maplibregl.Marker({element:el,anchor:"bottom"}).setLngLat(it.ll).addTo(map));
+        }
+      });
+      if(map.getLayer("uni-dots"))map.setPaintProperty("uni-dots","circle-opacity",0.1);
+      document.body.classList.add("rec-mode");
+      map.flyTo({center:[112,32],zoom:4.3,pitch:50,bearing:-8,duration:1600,curve:1.42});
+    }));
+  }catch(e){b.innerHTML='<p class="sub">⚠️ 匹配服务异常</p>';}
+}
+document.getElementById("qz-start").addEventListener("click",qzStart);
+document.getElementById("rp-go").addEventListener("click",runRecommend);
+document.getElementById("rp-score").addEventListener("keydown",e=>{if(e.key==="Enter")runRecommend();});
 let tourTimer=null,touring=false;
 const tourbtn=document.getElementById("tourbtn");
 function stopTour(){touring=false;clearTimeout(tourTimer);tourbtn.textContent="开 始 巡 游";}
@@ -538,8 +754,8 @@ tourbtn.addEventListener("click",()=>{
       stopTour();card.style.display="none";return;
     }
     const u=RECS[i];
-    map.flyTo({center:u.ll,zoom:7,pitch:63,bearing:i%2?18:-18,duration:2800,curve:1.42,essential:true});
-    showCard(u);
+    if(u.ll&&u.ll[0])map.flyTo({center:u.ll,zoom:7,pitch:63,bearing:i%2?18:-18,duration:2800,curve:1.42,essential:true});
+    showUniCard(u.n);
     i++;tourTimer=setTimeout(step,4200);
   };
   step();

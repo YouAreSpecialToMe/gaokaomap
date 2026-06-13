@@ -1,48 +1,32 @@
-# 高考升学地图 · GaokaoMap
+# 高考升学地图 gaokaomap
 
-古地图画卷风格的中国高考志愿交互地图。真实数据驱动:全国 **1,598 所本科院校**
-(双一流 147 所立旗 + 普通本科点阵)、第四轮学科评估、保研率/硕博点画像,
-配合 30 省 × 2017-2024 一分一段表与浙江 6.5 万行投档线,支撑"分数 → 位次 → 冲稳保"推荐闭环。
+古地图画卷风的高考志愿辅助:全国 1,598 所本科院校浏览 · 分数/位次冲稳保推荐 · RIASEC 专业测评。
 
-## 快速开始
+**数据底座**(31 省 × 2017-2025):投档线 584 万行(位次 98%)· 招生计划 334 万 · 一分一段 26 万段 · 学科评估 · 开设专业图谱 11 万。
+
+## 本地运行
 
 ```bash
-python3 -m http.server 8765
-# 打开 http://localhost:8765/
+git clone git@github.com:YouAreSpecialToMe/gaokaomap.git && cd gaokaomap
+# 数据库(2.1GB,私有仓库,需权限):
+git clone --depth 1 git@github.com:YouAreSpecialToMe/gaokao-data.git
+cat gaokao-data/gaokao.db.gz.part-* | gunzip > gaokao-data/gaokao.db
+# 启动(单进程,前端+API 同端口):
+python3 app.py 8000     # → http://127.0.0.1:8000
 ```
 
-需要联网加载:MapLibre GL JS(unpkg)、省界 GeoJSON(DataV)、
-地形瓦片(AWS terrarium)、水系(Natural Earth)、街道瓦片(CARTO,城市级缩放才加载)。
+依赖:Python 3.8+,标准库即可(ETL 脚本另需 `pip install python-calamine`)。
 
-## 视觉方案
+## 功能
+- **画卷地图**:CC0 明清木刻笔刷(Zuodong)+ 真实 DEM 地形 + 分层设色;城市/景点/街巷层
+- **我的推荐**:省/科类/分数 → 一分一段位次换算 → 跨年等效位次 → 冲稳保(边界经 23 万样本回测校准:冲 15-40% / 稳 55-88% / 保 ≥90% 真实录取率)→ 画卷点亮
+- **专业测评**:24 题霍兰德 RIASEC → 六维画像 → 专业类匹配 × 位次可达院校
+- **院校卡片**:学科评估 / 保研率 / 本省近三年专业位次
 
-- **MapLibre GL JS v5**:真实 DEM 地形(可调夸张)+ color-relief 海拔分层设色 + hillshade
-- **双画风一键切换**:山形符号(明清木刻舆图风)/ 水彩浮雕(Imhof 学派配色)
-- **木刻笔刷**:山/丘/林/浪/城池/宝塔符号取自 [Zuodong 笔刷集](https://kmalexander.com/2023/01/19/zuodong-a-free-17th-century-brush-set-for-fantasy-maps/)
-  (17 世纪中国木刻地图提取,**CC0**),离线按真实 DEM 高程+起伏度自动布点(915 → 抽稀 396 点)
-- 飘带双描边河流、花瓣粒子、开场运镜、城市级街巷渐显 + 区县结构
+## 目录
+- `app.py` 单进程服务(静态 + /api/meta /api/recommend /api/uni /api/quiz*)
+- `recommend.py` 推荐引擎 · `quiz_data.py` 测评题库与专业映射
+- `scripts/` 数据 ETL(通用省份引擎/回测/冒烟)· `docs/` 设计文档
 
-## 数据管线(scripts/)
-
-| 脚本 | 作用 |
-|---|---|
-| `etl-universities.py` | 院校基础信息 Excel → universities(3,218 校)+ subject_eval(学科评估 4,902 行) |
-| `etl-coords.py` | pg7go 坐标(BD09)模糊匹配 + BD09→GCJ02→WGS84 转换,97% 覆盖 |
-| `etl-rank-tables.py` | 30 省一分一段 Excel → rank_tables(23 万行) |
-| `etl-zj-admissions.py` | 浙江校级 5 年 + 专业级 2 年投档线 → admission_lines(6.5 万行) |
-| `export-map-data.py` | gaokao.db → unis.json(地图用,学科评估驱动筛选标签) |
-| `gen-terrain-symbols.py` | DEM 分析 → terrain-symbols.json(山形符号点位) |
-| `prep-zuodong.py` | Zuodong 笔刷染色/缩放 → assets/zuodong/ |
-
-**注意**:`gaokao.db` 与原始数据集(购买所得)不随仓库分发;
-按 `docs/data-plan.md` 获取数据源后运行上述脚本可完整重建。
-
-## 数据源与许可
-
-- 代码:MIT
-- 木刻笔刷:CC0(K.M. Alexander #NoBadMaps / Zuodong)
-- 院校坐标:[pg7go/The-Location-Data-of-Schools-in-China](https://github.com/pg7go/The-Location-Data-of-Schools-in-China)(BD09,已转 WGS84)
-- 一分一段/投档线:各省教育考试院公开信息(经第三方整理购入,不在本仓库分发)
-- 省界:阿里 DataV Atlas;地形:AWS Terrain Tiles;水系:Natural Earth;街道:CARTO(注意其商用条款)
-
-> 免责声明:demo 阶段数据未经考试院逐条核验,不构成志愿填报建议。
+## 声明
+数据来自各省教育考试院等公开渠道整理,仅供参考,不构成志愿填报依据。用户输入即算即弃,不收集任何个人信息。
