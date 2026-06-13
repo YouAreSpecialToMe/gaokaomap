@@ -164,6 +164,7 @@
 <div class="paper"></div>
 <div class="vignette"></div>
 <button id="stylebtn" class="stylebtn">画风:山形符号</button>
+<button id="rotbtn" class="stylebtn" style="top:54px" title="切换后按住左键拖动:左右转方位,上下调俯仰">视角:平移</button>
 <div class="loading" id="loading">正在铺开山河画卷⋯</div>
 <div class="titlebar">
   <h1>高考升学地图</h1>
@@ -578,10 +579,11 @@ function showCard(u){
   const tierTxt={"985":"985 · 双一流","211":"211 · 双一流",dfc:"双一流",ben:(u.tp||"本科")}[u.t];
   const disc=(u.disc||[]).map(([d,g])=>`<span class="tag">${d} ${g}</span>`).join("");
   card.innerHTML=`<span class="x" onclick="card.style.display='none'">✕</span>
-    <h3>${u.n}</h3>
+    <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:4px">${sealSVG(u.n,46)}
+      <div><h3>${u.n}</h3>
     <div class="tags"><span class="tag">${tierTxt}</span><span class="tag">${u.c||u.p}</span>
       ${u.rank?`<span class="tag">综合排名参考 #${u.rank}</span>`:""}
-      ${u.rec?`<span class="tag" style="background:#f6d9cc;color:#8c2f1b">推荐 · ${u.rec} ${u.pr}</span>`:""}</div>
+      ${u.rec?`<span class="tag" style="background:#f6d9cc;color:#8c2f1b">推荐 · ${u.rec} ${u.pr}</span>`:""}</div></div></div>
     ${disc?`<div class="tags" style="margin-top:4px">${disc}</div>`:""}
     ${(u.by||u.mp||u.dp)?`<p>${u.by?`保研率 ${u.by}%`:""}${u.mp?` · 硕士点 ${u.mp}`:""}${u.dp?` · 博士点 ${u.dp}`:""}</p>`:""}
     ${u.intro?`<p class="dim" style="margin-top:6px">${u.intro}…</p>`:""}
@@ -678,6 +680,17 @@ function applyRecToMap(bands){
   if(map.getLayer("uni-dots"))map.setPaintProperty("uni-dots","circle-opacity",0.1);
   document.body.classList.add("rec-mode");
 }
+function sealSVG(name,size){
+  let t=String(name).replace(/(大学|学院|职业技术|职业|高等专科|学校)/g,"").slice(0,4);
+  if(!t)t=String(name).slice(0,2);
+  const ch=[...t],n=ch.length,fs=n<=2?26:21;
+  let texts="";
+  if(n<=2)ch.forEach((c,i)=>texts+=`<text x="32" y="${n===1?40:26+i*26}" font-size="${fs}">${c}</text>`);
+  else{const pos=[[20,27],[44,27],[20,52],[44,52]];ch.forEach((c,i)=>texts+=`<text x="${pos[i][0]}" y="${pos[i][1]}" font-size="${fs}">${c}</text>`);}
+  return `<svg width="${size}" height="${size}" viewBox="0 0 64 64" style="transform:rotate(-2deg);flex-shrink:0">
+    <rect x="4" y="4" width="56" height="56" rx="7" fill="#f7ecd9" stroke="#9e2f1b" stroke-width="4" opacity=".95"/>
+    <g fill="#9e2f1b" font-family="Kaiti SC,STKaiti,KaiTi,serif" font-weight="600" text-anchor="middle">${texts}</g></svg>`;
+}
 async function showUniCard(name){
   try{
     const u=await (await fetch(`${API}/api/uni?name=${encodeURIComponent(name)}&prov=${encodeURIComponent(document.getElementById("rp-prov").value)}`)).json();
@@ -689,8 +702,9 @@ async function showUniCard(name){
     const rows=Object.entries(majors).slice(0,6).map(([mj,d])=>
       `<tr><td>${mj.slice(0,12)}</td>${yrs.map(y=>`<td>${d[y]?d[y].toLocaleString():"-"}</td>`).join("")}</tr>`).join("");
     card.innerHTML=`<span class="x" onclick="card.style.display='none'">✕</span>
-      <h3>${u.name}</h3>
-      <div class="tags"><span class="tag">${u.tier}</span><span class="tag">${u.city||u.province}</span>${u.rank?`<span class="tag">参考排名 #${u.rank}</span>`:""}</div>
+      <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:4px">${sealSVG(u.name,46)}
+        <div><h3>${u.name}</h3>
+        <div class="tags"><span class="tag">${u.tier}</span><span class="tag">${u.city||u.province}</span>${u.rank?`<span class="tag">参考排名 #${u.rank}</span>`:""}</div></div></div>
       ${ev?`<div class="tags">${ev}</div>`:""}
       ${rows?`<table><tr><th>专业(本省位次)</th><th>25</th><th>24</th><th>23</th></tr>${rows}</table>`:""}
       <p class="dim">${(u.intro||"").slice(0,80)}…</p>`;
@@ -800,6 +814,38 @@ async function qzFinish(){
     }));
   }catch(e){b.innerHTML='<p class="sub">⚠️ 匹配服务异常</p>';}
 }
+// ---------- 视角旋转模式 ----------
+let rotMode=false,rotStart=null;
+const rotbtn=document.getElementById("rotbtn");
+rotbtn.addEventListener("click",()=>{
+  userTouched=true;rotMode=!rotMode;
+  rotbtn.textContent=rotMode?"视角:旋转":"视角:平移";
+  rotMode?map.dragPan.disable():map.dragPan.enable();
+  map.getCanvas().style.cursor=rotMode?"grab":"";
+});
+const cv=map.getCanvas();
+cv.addEventListener("mousedown",e=>{
+  if(!rotMode||e.button!==0)return;
+  rotStart={x:e.clientX,y:e.clientY,b:map.getBearing(),p:map.getPitch()};
+  cv.style.cursor="grabbing";
+});
+window.addEventListener("mousemove",e=>{
+  if(!rotStart)return;
+  map.jumpTo({bearing:rotStart.b-(e.clientX-rotStart.x)*0.3,
+              pitch:Math.max(0,Math.min(75,rotStart.p+(rotStart.y-e.clientY)*0.25))});
+});
+window.addEventListener("mouseup",()=>{if(rotStart){rotStart=null;cv.style.cursor=rotMode?"grab":"";}});
+cv.addEventListener("touchstart",e=>{
+  if(!rotMode||e.touches.length!==1)return;
+  const t=e.touches[0];rotStart={x:t.clientX,y:t.clientY,b:map.getBearing(),p:map.getPitch()};
+},{passive:true});
+cv.addEventListener("touchmove",e=>{
+  if(!rotStart||e.touches.length!==1)return;
+  const t=e.touches[0];
+  map.jumpTo({bearing:rotStart.b-(t.clientX-rotStart.x)*0.3,
+              pitch:Math.max(0,Math.min(75,rotStart.p+(rotStart.y-t.clientY)*0.25))});
+},{passive:true});
+cv.addEventListener("touchend",()=>{rotStart=null;},{passive:true});
 document.getElementById("qz-start").addEventListener("click",qzStart);
 document.getElementById("rp-go").addEventListener("click",runRecommend);
 document.getElementById("rp-score").addEventListener("keydown",e=>{if(e.key==="Enter")runRecommend();});
