@@ -769,14 +769,31 @@ map.on("load",async()=>{
     el.innerHTML=`<div class="flag"><div class="banner">${u.s}</div><div class="pole"></div></div><div class="dot"></div>`;
     el.addEventListener("click",e=>{e.stopPropagation();showCard(u);});
     const mk=new maplibregl.Marker({element:el,anchor:"bottom"}).setLngLat(u.ll).addTo(map);
-    markers.push({u,el,mk});
+    markers.push({u,el,mk,mounted:true});
   });
   updateFlags();
   declutterFlags();
 });
+// 视口裁剪(LOD):放大到某省时只挂载视野内的旗子,屏外的卸载——大幅减少每帧 DOM 重投影压力。
+// 屏幕空间判定(map.project),天然兼容俯仰/旋转;留 PAD 像素边距,平移不闪。
+const CULL_PAD=200;
+function cullMarkers(){
+  const z=map.getZoom(),W=innerWidth,H=innerHeight,
+        recMode=document.body.classList.contains("rec-mode"),all=z<5.4;  // 低缩放=全国概览,全挂
+  for(const m of markers){
+    let show=all;
+    if(!all){
+      if(m.el.style.display==="none")show=false;                         // 被筛选隐藏的直接卸载
+      else{const p=map.project(m.u.ll);
+        show=(p.x>=-CULL_PAD&&p.x<=W+CULL_PAD&&p.y>=-CULL_PAD&&p.y<=H+CULL_PAD)||(recMode&&!!m.u.rec);}
+    }
+    if(show&&!m.mounted){m.mk.addTo(map);m.mounted=true;}
+    else if(!show&&m.mounted){m.mk.remove();m.mounted=false;}
+  }
+}
 // 防叠压只在运动停止后跑一次——jumpTo 每次都会同步触发 moveend,旋转时若每帧都重算+setOffset 会顿挫
 let declutterTimer=0;
-map.on("moveend",()=>{clearTimeout(declutterTimer);declutterTimer=setTimeout(declutterFlags,130);});
+map.on("moveend",()=>{clearTimeout(declutterTimer);declutterTimer=setTimeout(()=>{cullMarkers();declutterFlags();},130);});
 function lazyMarkers(list,key,mk){
   const on=list[0],data=window[key+"Data"];
   if(!data)return;
@@ -864,7 +881,7 @@ function applyFilter(f){
     else{map.setLayoutProperty("uni-dots","visibility","visible");
       map.setFilter("uni-dots",(f==="cs"||f==="med"||f==="fin")?["==",["get",f],1]:null);}
   }
-  updateFlags();
+  updateFlags();cullMarkers();
 }
 document.querySelectorAll("#filter-seg .seg-i").forEach(ch=>
   ch.addEventListener("click",()=>{userTouched=true;applyFilter(ch.dataset.f);}));
@@ -927,7 +944,7 @@ const FAN=[[0,0],[40,-8],[-40,-8],[80,-16],[-80,-16],[120,-24],[-120,-24],
 // 拉开后偏移自动归零回到真实位置;因用 map.project 投影,天然适配俯仰视角。根治同城旗面互抢点击。
 function declutterFlags(){
   if(document.body.classList.contains("rec-mode"))return;     // 推荐态由临时旗的扇形负责
-  const shown=markers.filter(m=>m.u.ll&&m.u.ll[0]&&m.el.classList.contains("show-flag"));
+  const shown=markers.filter(m=>m.u.ll&&m.u.ll[0]&&m.mounted&&m.el.classList.contains("show-flag"));
   shown.sort((a,b)=>(a.u.rank||9999)-(b.u.rank||9999));        // 名校优先保位
   const cand=[[0,0]],STEP=22,GAP=3,BW=18;
   for(let t=0;t<3;t++)for(let s=1;s<=5;s++){cand.push([s*STEP,-t*42]);cand.push([-s*STEP,-t*42]);}
