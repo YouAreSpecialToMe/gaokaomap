@@ -184,6 +184,36 @@
   .sr-badge{font-size:10px;padding:1px 6px;border-radius:4px;color:#fff;flex:0 0 auto}
   .sr-badge.t985{background:#8c2f1b}.sr-badge.t211{background:#96660f}.sr-badge.tdfc{background:#564a85}.sr-badge.tben{background:#9a8757}
   .sr-empty{padding:12px;text-align:center;font-size:12px;color:#a08a5e}
+  .favbtn{position:absolute;right:18px;bottom:20px;z-index:8;cursor:pointer;border:1px solid #c5ab7c;
+    background:rgba(252,246,230,.95);color:#8c2f1b;border-radius:999px;padding:9px 16px;
+    font:600 14px "Kaiti SC","STKaiti",serif;letter-spacing:1px;box-shadow:0 3px 12px rgba(80,55,20,.2);
+    transition:transform .2s,box-shadow .2s}
+  .favbtn:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(80,55,20,.28)}
+  .favbtn.has{background:#8c2f1b;color:#f7e8d6;border-color:#8c2f1b}
+  .favpanel{position:absolute;right:18px;bottom:66px;z-index:8;width:270px;max-height:62vh;overflow-y:auto;display:none;
+    background:rgba(252,246,230,.98);border:1px solid #c5ab7c;border-radius:12px;padding:14px 16px;
+    box-shadow:0 8px 24px rgba(80,55,20,.3);animation:cardIn .4s cubic-bezier(.22,1,.36,1)}
+  .favpanel h3{margin:0 0 8px;font:600 16px "Kaiti SC","STKaiti",serif;color:#4a3414;letter-spacing:2px}
+  .fav-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #ece0c4;cursor:pointer}
+  .fav-row:hover .fav-nm{color:#8c2f1b}
+  .fav-meta{display:flex;flex-direction:column;min-width:0}
+  .fav-nm{font:500 13px "Kaiti SC","STKaiti",serif;color:#4a3414;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fav-mj{font-size:11px;color:#a08a5e}
+  .fav-x{margin-left:auto;color:#c0a877;cursor:pointer;font-size:12px;flex:0 0 auto;padding:0 2px}
+  .fav-x:hover{color:#8c2f1b}
+  .fav-actions{display:flex;gap:8px;margin-top:10px}
+  .fav-actions button{flex:1;padding:7px;border:1px solid #c5ab7c;border-radius:6px;background:#fdf8ea;
+    color:#6b5226;font:500 12px "Kaiti SC","STKaiti",serif;cursor:pointer;transition:all .15s}
+  .fav-actions button:hover{background:#8c2f1b;color:#f7e8d6;border-color:#8c2f1b}
+  .card-fav{margin-top:8px;border:1px solid #c5ab7c;background:#fdf8ea;color:#8c2f1b;border-radius:6px;
+    padding:5px 13px;font:500 13px "Kaiti SC","STKaiti",serif;cursor:pointer;transition:all .2s}
+  .card-fav.on{background:#8c2f1b;color:#f7e8d6;border-color:#8c2f1b}
+  .rec-fav{margin-left:6px;cursor:pointer;color:#cbb47e;font-size:14px;flex:0 0 auto;background:none;border:none;padding:0;line-height:1}
+  .rec-fav.on,.rec-fav:hover{color:#e0a32e}
+  .toast{position:absolute;bottom:74px;left:50%;transform:translateX(-50%) translateY(8px);z-index:9;
+    background:rgba(74,52,20,.92);color:#f7e8d6;padding:8px 16px;border-radius:999px;font:500 13px "Kaiti SC",serif;
+    letter-spacing:1px;opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;white-space:nowrap}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
   .qz-light{font-size:12px;padding:3px 10px;border:1px solid #8c2f1b;border-radius:999px;background:none;color:#8c2f1b;cursor:pointer}
   .qz-light:hover{background:#8c2f1b;color:#f7e8d6}
   .loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:9;
@@ -236,6 +266,13 @@
   <div id="qz-body"><p class="sub">24 道小题,约 3 分钟。凭直觉选,没有对错。</p>
     <button class="tourbtn" id="qz-start">开 始 测 评</button></div>
 </div>
+<button class="favbtn" id="favbtn" title="我的志愿表">★ 志愿表 <span id="fav-n">0</span></button>
+<div class="favpanel" id="favpanel">
+  <h3>我的志愿表</h3>
+  <div id="fav-list"></div>
+  <div class="fav-actions"><button id="fav-export">复制清单</button><button id="fav-clear">清空</button></div>
+</div>
+<div class="toast" id="toast"></div>
 <div class="chips" id="chips">
   <span class="chip on" data-f="all">全部院校</span>
   <span class="chip" data-f="985">985 巡礼</span>
@@ -637,6 +674,7 @@ function showCard(u){
     ${disc?`<div class="tags" style="margin-top:4px">${disc}</div>`:""}
     ${(u.by||u.mp||u.dp)?`<p>${u.by?`保研率 ${u.by}%`:""}${u.mp?` · 硕士点 ${u.mp}`:""}${u.dp?` · 博士点 ${u.dp}`:""}</p>`:""}
     ${u.intro?`<p class="dim" style="margin-top:6px">${u.intro}…</p>`:""}
+    <div>${cardFavHTML({n:u.n,t:u.t,c:u.c||u.p,ll:u.ll})}</div>
     <p class="dim">※ 教育部名单 · 第四轮学科评估${u.approx?" · 坐标为城市近似":""} · 录取位次接入中</p>`;
   card.style.display="block";
 }
@@ -793,7 +831,8 @@ async function showUniCard(name){
         <div class="tags"><span class="tag">${u.tier}</span><span class="tag">${u.city||u.province}</span>${u.rank?`<span class="tag">参考排名 #${u.rank}</span>`:""}</div></div></div>
       ${ev?`<div class="tags">${ev}</div>`:""}
       ${rows?`<table><tr><th>专业(本省位次)</th><th>25</th><th>24</th><th>23</th></tr>${rows}</table>`:""}
-      <p class="dim">${(u.intro||"").slice(0,80)}…</p>`;
+      <p class="dim">${(u.intro||"").slice(0,80)}…</p>
+      <div>${cardFavHTML({n:u.name,t:/985/.test(u.tier)?"985":/211/.test(u.tier)?"211":/双一流/.test(u.tier)?"dfc":"ben",c:u.city||u.province,ll:llOf(u.name)})}</div>`;
     card.style.display="block";
   }catch(e){}
 }
@@ -823,9 +862,11 @@ function renderRecResult(r,listEl){
     html+=`<div class="recgroup ${b}">${b}</div>`;
     r.bands[b].slice(0,8).forEach(it=>{
       RECS.push({n:it.uni,ll:it.ll,band:b});
+      const fit={n:it.uni,major:it.major,band:b,t:it.tier,ll:it.ll},k=favKey(fit);
       html+=`<div class="recrow" data-uni="${it.uni}" data-ll="${it.ll||''}">
         <span class="rb ${b}">${b}</span>${it.uni.slice(0,9)}·${it.major.slice(0,8)}
-        <span class="pr">${it.minRank.toLocaleString()}${it.note?`<small>${it.note}</small>`:""}</span></div>`;
+        <span class="pr">${it.minRank.toLocaleString()}${it.note?`<small>${it.note}</small>`:""}</span>
+        <button class="rec-fav${favHas(k)?" on":""}" data-k="${k}" data-it='${JSON.stringify(fit).replace(/'/g,"&#39;")}' onclick="event.stopPropagation();cardFavClick(this)" title="加入志愿表">★</button></div>`;
     });
   }
   listEl.innerHTML=html;
@@ -1117,6 +1158,56 @@ document.addEventListener("visibilitychange",()=>{
   document.getElementById("hint-quiz").addEventListener("click",()=>{
     const qc=[...document.querySelectorAll(".chip")].find(c=>c.dataset.f==="quiz");if(qc)qc.click();
   });
+})();
+// ---------- 志愿表 / 收藏(localStorage 持久化)----------
+let FAV=[];try{FAV=JSON.parse(localStorage.getItem("gk_fav")||"[]");}catch(e){FAV=[];}
+let _toastT=0;
+function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");
+  clearTimeout(_toastT);_toastT=setTimeout(()=>t.classList.remove("show"),1800);}
+const favKey=it=>it.n+"|"+(it.major||"");
+const favHas=k=>FAV.some(x=>favKey(x)===k);
+const llOf=name=>{const u=UNIS.concat(DOTS).find(x=>x.n===name);return u?u.ll:null;};
+const tierZh=t=>t==="985"?"985":t==="211"?"211":t==="dfc"?"双一流":"本科";
+function favSave(){try{localStorage.setItem("gk_fav",JSON.stringify(FAV));}catch(e){}favRender();}
+function favToggle(it){const k=favKey(it),i=FAV.findIndex(x=>favKey(x)===k);
+  const added=i<0;if(added)FAV.push(it);else FAV.splice(i,1);favSave();
+  toast(added?"已加入志愿表":"已移出志愿表");return added;}
+function favRender(){
+  document.getElementById("fav-n").textContent=FAV.length;
+  document.getElementById("favbtn").classList.toggle("has",FAV.length>0);
+  const list=document.getElementById("fav-list");
+  if(!FAV.length)list.innerHTML='<p class="sr-empty">还没有收藏。打开任意学校卡片或推荐结果,点 ☆ 收藏即可加入。</p>';
+  else list.innerHTML=FAV.map((it,i)=>`<div class="fav-row" data-i="${i}">
+    ${badge(it.n,26)}
+    <div class="fav-meta"><span class="fav-nm">${it.n}</span>${it.major?`<span class="fav-mj">${it.major}</span>`:""}</div>
+    ${it.band?`<span class="rb ${it.band}">${it.band}</span>`:`<span class="sr-badge t${it.t||"ben"}">${tierZh(it.t)}</span>`}
+    <span class="fav-x" data-i="${i}">✕</span></div>`).join("");
+  list.querySelectorAll(".fav-row").forEach(r=>r.addEventListener("click",e=>{
+    if(e.target.classList.contains("fav-x"))return;
+    const it=FAV[+r.dataset.i],ll=it.ll||llOf(it.n);userTouched=true;
+    if(ll&&ll[0])map.flyTo({center:ll,zoom:9,pitch:45,duration:1800,curve:1.42});
+    showUniCard(it.n);
+  }));
+  list.querySelectorAll(".fav-x").forEach(x=>x.addEventListener("click",e=>{
+    e.stopPropagation();FAV.splice(+x.dataset.i,1);favSave();}));
+  document.querySelectorAll(".card-fav").forEach(b=>{const on=favHas(b.dataset.k);
+    b.classList.toggle("on",on);b.textContent=on?"★ 已收藏":"☆ 收藏";});
+  document.querySelectorAll(".rec-fav").forEach(b=>b.classList.toggle("on",favHas(b.dataset.k)));
+}
+window.cardFavClick=function(btn){try{favToggle(JSON.parse(btn.dataset.it.replace(/&#39;/g,"'")));}catch(e){}};
+function cardFavHTML(it){const k=favKey(it),on=favHas(k);
+  return `<button class="card-fav${on?" on":""}" data-k="${k}" data-it='${JSON.stringify(it).replace(/'/g,"&#39;")}' onclick="cardFavClick(this)">${on?"★ 已收藏":"☆ 收藏"}</button>`;}
+(function(){
+  const btn=document.getElementById("favbtn"),panel=document.getElementById("favpanel");
+  btn.addEventListener("click",e=>{e.stopPropagation();panel.style.display=panel.style.display==="block"?"none":"block";});
+  document.addEventListener("click",e=>{if(!panel.contains(e.target)&&e.target!==btn)panel.style.display="none";});
+  document.getElementById("fav-clear").addEventListener("click",()=>{if(FAV.length&&confirm("清空志愿表?")){FAV=[];favSave();}});
+  document.getElementById("fav-export").addEventListener("click",()=>{
+    if(!FAV.length){toast("志愿表是空的");return;}
+    const txt=FAV.map((it,i)=>`${i+1}. ${it.n}${it.major?" · "+it.major:""}${it.band?" ["+it.band+"]":""}`).join("\n");
+    navigator.clipboard.writeText(txt).then(()=>toast("已复制 "+FAV.length+" 条到剪贴板"),()=>toast("复制失败,请手动选择"));
+  });
+  favRender();
 })();
 document.getElementById("t3dbtn").addEventListener("click",()=>{
   userTouched=true;terrain3D=!terrain3D;
