@@ -35,6 +35,8 @@
   .spot span{font:500 11px "Kaiti SC","STKaiti","KaiTi",serif;color:#6b5226;letter-spacing:1px;margin-top:1px;white-space:nowrap}
   .spot.top>*{opacity:.95}
   body.z-mid .spot>*{opacity:.95}
+  /* 地标/装饰随缩放等比缩:地图缩小(看全国)时变小,放大才恢复——避免低缩放下图标巨大糊屏 */
+  .decor>*,.spot>*{transform:scale(var(--ds,1));transform-origin:center bottom}
   .city{display:flex;align-items:center;gap:3px;pointer-events:none}
   .city>*{opacity:0;transition:opacity .7s ease}
   .city i{width:4.5px;height:4.5px;border-radius:50%;background:#6b5226;display:block;flex-shrink:0}
@@ -840,6 +842,8 @@ function updateFlags(){
   const z=map.getZoom();
   document.body.classList.toggle("z-mid",z>=4.8);
   document.body.classList.toggle("z-city",z>=8.2);
+  document.body.style.setProperty("--ds",Math.max(.45,Math.min(1,(z-3)/3.5)).toFixed(3));  // 地标随缩放等比缩
+
   lazyMarkers([z>=4.6],"_city",([nm,lng,lat])=>{
     const el=document.createElement("div");el.className="city";
     el.innerHTML=`<i></i><span>${nm}</span>`;
