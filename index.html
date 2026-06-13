@@ -1287,7 +1287,10 @@ function wxFrame(ts){
   const dt=Math.min(50,(ts-wxPrev)||16);wxPrev=ts;wxT+=dt;
   wctx.clearRect(0,0,innerWidth,innerHeight);
   if(!wxOn)return;
-  const t=wxT/1000,zA=Math.max(.35,Math.min(1,(map.getZoom()-3)/4));   // 越放大越浓
+  // 区域概览时显形,放大到城市级(z≥7)渐隐——天气是氛围,看校名时必须让位,否则盆地阴霾糊满整屏
+  const z=map.getZoom(),t=wxT/1000,
+    zA=z<5.5?Math.max(.4,Math.min(1,(z-2.8)/2.4)):Math.max(0,1-(z-5.5)/1.5);
+  if(zA<=0.01)return;   // 城市级:画布已清空,直接收工(rAF 仍转,缩回自动恢复)
   const blob=(x,y,rx,ry,tint,al)=>{
     wctx.save();wctx.translate(x,y);wctx.scale(rx,ry);
     const g=wctx.createRadialGradient(0,0,0,0,0,1);
