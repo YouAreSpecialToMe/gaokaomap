@@ -44,6 +44,7 @@
   .dlabel span{font:500 10.5px "Kaiti SC","STKaiti","KaiTi",serif;color:#8a6f43;letter-spacing:1px;
     opacity:0;transition:opacity .7s ease;display:block;white-space:nowrap}
   body.z-city .dlabel span{opacity:.9}
+  #wx{position:absolute;inset:0;pointer-events:none;z-index:2}
   .petals{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:3}
   .petals i{position:absolute;top:-3vh;display:block;animation:fall linear infinite;will-change:transform}
   .petals i b{display:block;width:10px;height:8px;border-radius:62% 38% 55% 45%;
@@ -165,6 +166,7 @@
 <div class="vignette"></div>
 <button id="stylebtn" class="stylebtn">画风:山形符号</button>
 <button id="rotbtn" class="stylebtn" style="top:54px" title="切换后按住左键拖动:左右转方位,上下调俯仰">视角:平移</button>
+<button id="wxbtn" class="stylebtn" style="top:94px" title="分区天气:江南细雨连绵、云贵山雾缭绕、巴蜀盆地阴霾">天气:江南烟雨</button>
 <div class="loading" id="loading">正在铺开山河画卷⋯</div>
 <div class="titlebar">
   <h1>高考升学地图</h1>
@@ -918,6 +920,66 @@ for(let i=0;i<14;i++){
   bb.style.animationDelay="-"+(Math.random()*3).toFixed(1)+"s";
   p.appendChild(bb);petals.appendChild(p);
 }
+// ---------- 分区天气(地理投影画布)----------
+// MapLibre 5.24 无原生 setRain/setSnow,自绘:每帧把各区中心投影到屏幕(随缩放/旋转/俯仰自适应),
+// 画椭圆薄雾;江南再叠细雨斜丝。江南烟雨 / 云贵山雾 / 巴蜀阴霾,西北中原保持晴干。
+const WX=document.createElement("canvas");WX.id="wx";document.body.appendChild(WX);
+const wctx=WX.getContext("2d");
+let wxOn=true,wxRAF=0,wxPrev=0,wxT=0;
+const WEATHER=[
+  {type:"rain",c:[120.5,31.1],rx:2.7,ry:1.9,tint:"176,192,205"},  // 太湖·苏锡常
+  {type:"rain",c:[120.1,30.1],rx:2.1,ry:1.6,tint:"176,192,205"},  // 杭嘉湖·钱塘
+  {type:"rain",c:[118.6,31.6],rx:1.8,ry:1.5,tint:"182,196,206"},  // 皖南·金陵
+  {type:"fog", c:[102.9,25.2],rx:3.1,ry:2.3,tint:"224,232,239"},  // 滇中
+  {type:"fog", c:[106.3,26.9],rx:2.3,ry:1.9,tint:"222,230,238"},  // 黔中
+  {type:"haze",c:[104.4,30.5],rx:2.8,ry:2.0,tint:"214,218,222"}]; // 成都平原·川西多雾
+WEATHER.forEach(r=>{r.parts=[];for(let i=0;i<46;i++)r.parts.push(
+  {u:Math.random()*2-1,v:Math.random()*2.2-1.1,l:6+Math.random()*8,s:.6+Math.random()*.7});});
+function wxResize(){const d=Math.min(devicePixelRatio||1,2);
+  WX.width=innerWidth*d;WX.height=innerHeight*d;WX.style.width=innerWidth+"px";WX.style.height=innerHeight+"px";
+  wctx.setTransform(d,0,0,d,0,0);}
+addEventListener("resize",wxResize);wxResize();
+function wxRadii(c,rx,ry){const p0=map.project(c),px=map.project([c[0]+rx,c[1]]),py=map.project([c[0],c[1]+ry]);
+  return [Math.hypot(px.x-p0.x,px.y-p0.y),Math.hypot(py.x-p0.x,py.y-p0.y),p0];}
+function wxFrame(ts){
+  wxRAF=wxOn?requestAnimationFrame(wxFrame):0;
+  const dt=Math.min(50,(ts-wxPrev)||16);wxPrev=ts;wxT+=dt;
+  wctx.clearRect(0,0,innerWidth,innerHeight);
+  if(!wxOn)return;
+  const t=wxT/1000,zA=Math.max(.35,Math.min(1,(map.getZoom()-3)/4));   // 越放大越浓
+  const blob=(x,y,rx,ry,tint,al)=>{
+    wctx.save();wctx.translate(x,y);wctx.scale(rx,ry);
+    const g=wctx.createRadialGradient(0,0,0,0,0,1);
+    g.addColorStop(0,`rgba(${tint},${al})`);g.addColorStop(.6,`rgba(${tint},${al*.55})`);g.addColorStop(1,`rgba(${tint},0)`);
+    wctx.fillStyle=g;wctx.beginPath();wctx.arc(0,0,1,0,7);wctx.fill();wctx.restore();};
+  for(const r of WEATHER){
+    const [RX,RY,p]=wxRadii(r.c,r.rx,r.ry);
+    if(RX<6||p.x<-RX-60||p.x>innerWidth+RX+60||p.y<-RY-60||p.y>innerHeight+RY+60)continue;
+    const a=(r.type==="fog"?.54:r.type==="haze"?.40:.24)*zA;
+    blob(p.x,p.y,RX,RY,r.tint,a);                                    // 底雾
+    const nW=r.type==="rain"?2:3;                                    // 飘动雾缕
+    for(let k=0;k<nW;k++){const ph=k*2.3;
+      blob(p.x+Math.sin(t*.06+ph)*RX*.45, p.y+Math.cos(t*.045+ph*1.3)*RY*.34,
+           RX*.6,RY*.6, r.tint, a*.6);}
+    if(r.type==="rain"&&RY>90){
+      wctx.strokeStyle=`rgba(198,210,221,${.5*zA})`;wctx.lineWidth=1;wctx.beginPath();
+      for(const q of r.parts){
+        q.v+=q.s*dt/430;if(q.v>1.1){q.v=-1.1;q.u=Math.random()*2-1;}
+        if(q.u*q.u+q.v*q.v>1)continue;
+        const x=p.x+q.u*RX,y=p.y+q.v*RY,len=q.l*(.8+zA*.7);
+        wctx.moveTo(x,y);wctx.lineTo(x+2.5,y+len);
+      }
+      wctx.stroke();
+    }
+  }
+}
+function wxStart(){if(wxOn&&!wxRAF){wxPrev=0;wxRAF=requestAnimationFrame(wxFrame);}}
+wxStart();
+document.getElementById("wxbtn").addEventListener("click",()=>{
+  wxOn=!wxOn;document.getElementById("wxbtn").textContent=wxOn?"天气:江南烟雨":"天气:关";
+  if(wxOn)wxStart();else wctx.clearRect(0,0,innerWidth,innerHeight);});
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden){if(wxRAF){cancelAnimationFrame(wxRAF);wxRAF=0;}}else wxStart();});
 document.getElementById("stylebtn").addEventListener("click",()=>{
   userTouched=true;
   styleMode=styleMode==="wc"?"sym":"wc";
