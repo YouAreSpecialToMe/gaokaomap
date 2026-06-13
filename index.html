@@ -310,6 +310,23 @@
   #bgm-tip .bgm-x{width:22px;height:22px;display:flex;align-items:center;justify-content:center;border:0;
     border-radius:50%;background:rgba(157,47,27,.1);color:var(--zhu);font-size:11px;cursor:pointer;padding:0}
   #bgm-tip .bgm-x:hover{background:var(--zhu);color:#fbf0df}
+  /* 选中院校时的"招录数据看板"——填中间留白,展示近三年各专业录取位次(宽屏才显示) */
+  .detailpanel{position:absolute;left:392px;top:118px;z-index:6;width:412px;max-height:calc(100vh - 210px);
+    overflow-y:auto;display:none;padding:16px 18px;border-radius:14px;
+    background:linear-gradient(180deg,var(--paper-a),var(--paper-b));border:1px solid var(--gold-soft);
+    box-shadow:var(--elev);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+  .detailpanel.show{display:block;animation:cardIn .5s cubic-bezier(.22,1,.36,1)}
+  .detailpanel h3{margin:0 0 2px;font:600 16px "Kaiti SC","STKaiti",serif;color:var(--ink);letter-spacing:2px;display:flex;align-items:center;gap:8px}
+  .detailpanel h3::before{content:"";width:3px;height:15px;background:var(--zhu);border-radius:1px;flex:0 0 auto}
+  .detailpanel .sub{font-size:12px;color:var(--ink-soft);margin:0 0 10px}
+  .detailpanel .x{position:absolute;top:8px;right:12px;cursor:pointer;color:#7d6536;font-size:16px;background:none;border:0;z-index:2}
+  .dtab{width:100%;border-collapse:collapse;font-size:12.5px;color:var(--ink-soft)}
+  .dtab th{text-align:right;font-weight:600;color:var(--ink);padding:5px 6px;border-bottom:1.5px solid var(--gold-soft);position:sticky;top:-16px;background:var(--paper-b)}
+  .dtab th:first-child{text-align:left}
+  .dtab td{padding:4px 6px;border-bottom:1px dashed #e0d0aa;text-align:right;font-variant-numeric:tabular-nums}
+  .dtab td:first-child{text-align:left;color:var(--ink);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dtab tr:hover td{background:rgba(189,154,85,.1)}
+  @media(max-width:1100px){.detailpanel{display:none!important}}
   /* ===== 无障碍:可见焦点 (WCAG 2.4.7) + 尊重 prefers-reduced-motion (2.3.3) ===== */
   :focus-visible{outline:2.5px solid var(--zhu);outline-offset:2px}
   .tbtn:focus-visible,.seg-i:focus-visible{outline:none;box-shadow:0 0 0 2.5px var(--zhu) inset}
@@ -881,6 +898,29 @@ function trendRows(lines,prov){
     es.map(([mj,d])=>{const w=20+(1-(d.r-mn)/rng)*80;
       return `<div class="trow"><span class="tmj">${mj.slice(0,11)}</span><div class="pbar"><i style="width:${w.toFixed(0)}%"></i></div><span class="tval">${d.r.toLocaleString()}</span></div>`;}).join("");
 }
+// 中间"招录数据看板":近三年各专业录取最低位次(全专业表 + 难度趋势箭头),填中间留白
+const detailpanel=document.createElement("div");detailpanel.className="detailpanel";detailpanel.id="detailpanel";document.body.appendChild(detailpanel);
+function hideDetail(){detailpanel.classList.remove("show");}
+function detailTable(lines,prov,name){
+  const m={};(lines||[]).filter(l=>l.granularity==="major"&&l.min_rank).forEach(l=>{(m[l.major]=m[l.major]||{})[l.year]=l.min_rank;});
+  const rows=Object.entries(m).map(([mj,y])=>({mj,y25:y[2025],y24:y[2024],y23:y[2023],latest:y[2025]||y[2024]||y[2023]}))
+    .filter(r=>r.latest).sort((a,b)=>a.latest-b.latest);
+  if(!rows.length)return "";
+  const cell=v=>v?v.toLocaleString():'—';
+  let h=`<h3>招录数据看板</h3><p class="sub">${name} · ${prov} · 近三年各专业录取最低位次 <span style="color:#a8916a">(数字越小越难进)</span></p>
+    <table class="dtab"><thead><tr><th>专业</th><th>2025</th><th>2024</th><th>2023</th><th>趋势</th></tr></thead><tbody>`;
+  for(const r of rows){const a=r.y25,b=r.y24;
+    const tr=(a&&b)?(a<b?'<span style="color:#9c2f1b" title="位次走低=更难">↑难</span>':a>b?'<span style="color:#1d9e75" title="位次走高=更易">↓易</span>':'—'):'—';
+    h+=`<tr><td title="${r.mj}">${r.mj}</td><td>${cell(r.y25)}</td><td>${cell(r.y24)}</td><td>${cell(r.y23)}</td><td>${tr}</td></tr>`;}
+  return h+`</tbody></table><p class="sub" style="margin:8px 0 0">共 ${rows.length} 个专业 · 数据:各省考试院公开投档线</p>`;
+}
+function showDetail(lines,prov,name){
+  if(innerWidth<=1100){hideDetail();return;}            // 窄屏空间不足,看板不显示(小卡已含简表)
+  const html=detailTable(lines,prov,name);
+  if(!html){hideDetail();return;}
+  detailpanel.innerHTML=`<span class="x" role="button" tabindex="0" aria-label="关闭看板" onclick="hideDetail()">✕</span>`+html;
+  detailpanel.classList.add("show");
+}
 async function loadTrend(name){
   const el=document.getElementById("card-trend");if(!el)return;
   const prov=(document.getElementById("rp-prov")||{}).value||"浙江";
@@ -889,6 +929,7 @@ async function loadTrend(name){
     const u=await (await fetch(`${API}/api/uni?name=${encodeURIComponent(name)}&prov=${encodeURIComponent(prov)}`)).json();
     if(document.getElementById("card-trend")!==el)return;     // 卡片已切换,丢弃过期结果
     el.innerHTML=trendRows(u.lines,prov);
+    showDetail(u.lines,prov,name);                            // 同步填充中间看板
   }catch(e){el.innerHTML="";}
 }
 // 点校聚焦:把所选学校平滑带到画面中央(避开左侧卡片留白),让中间有内容、卡片与地图相连。
@@ -896,14 +937,15 @@ async function loadTrend(name){
 function focusSchool(ll){
   if(!ll||!ll[0])return;userTouched=true;
   const tz=Math.max(map.getZoom(),6.8),
-    pad=innerWidth>640?{left:330,top:90,right:30,bottom:40}
-                      :{top:60,bottom:Math.round(innerHeight*0.5),left:20,right:20};
+    pad=innerWidth>1100?{left:820,top:100,right:40,bottom:50}   // 让出左卡片 + 中间数据看板
+       :innerWidth>640 ?{left:330,top:90,right:30,bottom:40}
+                       :{top:60,bottom:Math.round(innerHeight*0.5),left:20,right:20};
   map.flyTo({center:ll,zoom:tz,padding:pad,duration:1100,curve:1.4,essential:true});
 }
 function showCard(u){
   const tierTxt={"985":"985 · 双一流","211":"211 · 双一流",dfc:"双一流",ben:(u.tp||"本科")}[u.t];
   const disc=(u.disc||[]).map(([d,g])=>`<span class="tag">${d} ${g}</span>`).join("");
-  card.innerHTML=`<span class="x" role="button" tabindex="0" aria-label="关闭" onclick="card.style.display='none'">✕</span>
+  card.innerHTML=`<span class="x" role="button" tabindex="0" aria-label="关闭" onclick="card.style.display='none';hideDetail()">✕</span>
     <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:4px">${badge(u.n,46)}
       <div><h3>${u.n}</h3>
     <div class="tags"><span class="tag">${tierTxt}</span><span class="tag">${u.c||u.p}</span>
@@ -925,7 +967,7 @@ const recpanel=document.getElementById("recpanel");
 function applyFilter(f){
   curFilter=f;
   document.querySelectorAll("#filter-seg .seg-i").forEach(c=>c.classList.toggle("on",c.dataset.f===f));
-  stopTour();card.style.display="none";
+  stopTour();card.style.display="none";hideDetail();
   document.body.classList.remove("rec-mode");clearRec();
   markers.forEach(({u,el})=>{
     let vis=true;
@@ -1073,7 +1115,7 @@ async function showUniCard(name){
     if(u.error)return;
     const ev=(u.eval||[]).map(e=>`<span class="tag">${e.discipline} ${e.grade}</span>`).join("");
     const prov=document.getElementById("rp-prov").value;
-    card.innerHTML=`<span class="x" role="button" tabindex="0" aria-label="关闭" onclick="card.style.display='none'">✕</span>
+    card.innerHTML=`<span class="x" role="button" tabindex="0" aria-label="关闭" onclick="card.style.display='none';hideDetail()">✕</span>
       <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:4px">${badge(u.name,46)}
         <div><h3>${u.name}</h3>
         <div class="tags"><span class="tag">${u.tier}</span><span class="tag">${u.city||u.province}</span>${u.rank?`<span class="tag">参考排名 #${u.rank}</span>`:""}</div></div></div>
@@ -1082,6 +1124,7 @@ async function showUniCard(name){
       <p class="dim" style="margin-top:6px">${(u.intro||"").slice(0,80)}…</p>
       <div>${cardFavHTML({n:u.name,t:/985/.test(u.tier)?"985":/211/.test(u.tier)?"211":/双一流/.test(u.tier)?"dfc":"ben",c:u.city||u.province,ll:llOf(u.name)})}</div>`;
     card.style.display="block";
+    showDetail(u.lines,prov,u.name);                          // 中间看板
   }catch(e){}
 }
 async function runRecommend(){
