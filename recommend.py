@@ -49,6 +49,25 @@ def band_of(rho):
         if lo <= rho < hi: return b
     return None
 
+@lru_cache(maxsize=8)
+def get_uinfo():
+    con = sqlite3.connect(DB, timeout=30)
+    u = {r[0]: (r[1], r[2], r[3], r[4], r[5], r[6]) for r in con.execute(
+        "SELECT name,lng,lat,is_985,is_211,is_dfc,city FROM universities")}
+    con.close()
+    return u
+
+@lru_cache(maxsize=128)
+def get_plan_map(prov, year):
+    con = sqlite3.connect(DB, timeout=30)
+    plan = {}
+    for un, yr, n in con.execute("""SELECT uni_name,year,SUM(plan_n) FROM enrollment_plans
+        WHERE province=? AND year IN (?,?) GROUP BY uni_name,year""",
+        (prov, year, year - 1)):
+        plan.setdefault(un, {})[yr] = n or 0
+    con.close()
+    return plan
+
 @lru_cache(maxsize=4096)
 def _cached(prov, subj_std, score, year, sel_key):
     return _engine(prov, subj_std, score, year,
@@ -87,18 +106,9 @@ def _engine(prov, subj_std, score, year, sel):
             cohort[yr] = max(c for _, c in t)
             eq[yr] = max(1, round(my_rank * cohort[yr] / cohort[year]))
 
-    # 院校坐标/层级(一次载入,被 lru 摊薄)
-    uinfo = {r["name"]: (r["lng"], r["lat"], r["is_985"], r["is_211"], r["is_dfc"], r["city"])
-             for r in con.execute(
-                 "SELECT name,lng,lat,is_985,is_211,is_dfc,city FROM universities")}
+    uinfo = get_uinfo()
     strip_paren = lambda s: re.sub(r"[(（][^)）]*[)）]", "", str(s)).strip()
-
-    # 招生计划同比因子(校级)
-    plan = {}
-    for r in con.execute("""SELECT uni_name,year,SUM(plan_n) n FROM enrollment_plans
-        WHERE province=? AND year IN (?,?) GROUP BY uni_name,year""",
-        (prov, year, year - 1)):
-        plan.setdefault(r["uni_name"], {})[r["year"]] = r["n"] or 0
+    plan = get_plan_map(prov, year)
     def plan_factor(un):
         p = plan.get(un) or plan.get(strip_paren(un))
         if not p or not p.get(year) or not p.get(year - 1): return 1.0

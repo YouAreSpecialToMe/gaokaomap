@@ -43,11 +43,13 @@
     opacity:0;transition:opacity .7s ease;display:block;white-space:nowrap}
   body.z-city .dlabel span{opacity:.9}
   .petals{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:3}
-  .petals i{position:absolute;top:-3vh;display:block;width:10px;height:8px;border-radius:62% 38% 55% 45%;
-    background:rgba(213,156,146,.5);animation:fall linear infinite,sway ease-in-out infinite alternate}
-  .petals i.g{background:rgba(202,174,116,.45);width:9px;height:7px;border-radius:45% 55% 40% 60%}
+  .petals i{position:absolute;top:-3vh;display:block;animation:fall linear infinite;will-change:transform}
+  .petals i b{display:block;width:10px;height:8px;border-radius:62% 38% 55% 45%;
+    background:rgba(213,156,146,.5);animation:sway ease-in-out infinite alternate;will-change:transform}
+  .petals i.g b{background:rgba(202,174,116,.45);width:9px;height:7px;border-radius:45% 55% 40% 60%}
   @keyframes fall{to{transform:translateY(110vh) rotate(520deg)}}
-  @keyframes sway{from{margin-left:-22px}to{margin-left:22px}}
+  @keyframes sway{from{transform:translateX(-22px)}to{transform:translateX(22px)}}
+  .maplibregl-marker{will-change:transform}
 
   .umk{cursor:pointer}
   .umk .flag{display:flex;flex-direction:column;align-items:center;opacity:0;pointer-events:none;
@@ -324,12 +326,9 @@ map.on("load",async()=>{
       map.addLayer({id:"district-line",type:"line",source:"districts",paint:{
         "line-color":"#8a6a3f","line-width":1,"line-dasharray":[3,2.5],
         "line-opacity":["interpolate",["linear"],["zoom"],7.2,0,8.2,0.5]}});
-      feats.forEach(f=>{
-        if(!f.properties.center||!f.properties.name)return;
-        const el=document.createElement("div");el.className="dlabel";
-        el.innerHTML=`<span>${f.properties.name.replace(/(市辖区|地区)$/,"")}</span>`;
-        new maplibregl.Marker({element:el}).setLngLat(f.properties.center).addTo(map);
-      });
+      window._distData=feats.filter(f=>f.properties.center&&f.properties.name)
+        .map(f=>[f.properties.name.replace(/(市辖区|地区)$/,""),f.properties.center]);
+      window._distMks=null;
     }catch(e){}
     try{
       const RV="https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/50m/physical/";
@@ -446,11 +445,7 @@ map.on("load",async()=>{
       ["南昌",115.86,28.68],["武汉",114.31,30.59],["合肥",117.23,31.82],["南京",118.80,32.06],
       ["苏州",120.62,31.30],["杭州",120.16,30.29],["宁波",121.55,29.87],["福州",119.30,26.08],
       ["厦门",118.09,24.48],["台北",121.51,25.04]];
-    CITIES.forEach(([nm,lng,lat])=>{
-      const el=document.createElement("div");el.className="city";
-      el.innerHTML=`<i></i><span>${nm}</span>`;
-      new maplibregl.Marker({element:el,anchor:"left"}).setLngLat([lng,lat]).addTo(map);
-    });
+    window._cityData=CITIES;window._cityMks=null;
     gj.features.forEach(f=>{
       const c=f.properties.center||f.properties.centroid;if(!c)return;
       const el=document.createElement("div");el.className="plabel";
@@ -498,10 +493,29 @@ map.on("load",async()=>{
   });
   updateFlags();
 });
+function lazyMarkers(list,key,mk){
+  const on=list[0],data=window[key+"Data"];
+  if(!data)return;
+  if(on&&!window[key+"Mks"]){
+    window[key+"Mks"]=data.map(d=>mk(d).addTo(map));
+  }else if(!on&&window[key+"Mks"]){
+    window[key+"Mks"].forEach(m=>m.remove());window[key+"Mks"]=null;
+  }
+}
 function updateFlags(){
   const z=map.getZoom();
   document.body.classList.toggle("z-mid",z>=4.8);
   document.body.classList.toggle("z-city",z>=8.2);
+  lazyMarkers([z>=4.6],"_city",([nm,lng,lat])=>{
+    const el=document.createElement("div");el.className="city";
+    el.innerHTML=`<i></i><span>${nm}</span>`;
+    return new maplibregl.Marker({element:el,anchor:"left"}).setLngLat([lng,lat]);
+  });
+  lazyMarkers([z>=8.0],"_dist",([nm,c])=>{
+    const el=document.createElement("div");el.className="dlabel";
+    el.innerHTML=`<span>${nm}</span>`;
+    return new maplibregl.Marker({element:el}).setLngLat(c);
+  });
   markers.forEach(({u,el})=>el.classList.toggle("show-flag",z>=5||!!u.top||!!u.rec&&document.body.classList.contains("rec-mode")));
 }
 map.on("zoom",updateFlags);
@@ -733,9 +747,12 @@ for(let i=0;i<14;i++){
   const p=document.createElement("i");
   if(Math.random()<.45)p.className="g";
   p.style.left=Math.random()*100+"vw";
-  p.style.animationDuration=(14+Math.random()*10)+"s,"+(3+Math.random()*2.5)+"s";
-  p.style.animationDelay="-"+(Math.random()*22).toFixed(1)+"s,-"+(Math.random()*3).toFixed(1)+"s";
-  petals.appendChild(p);
+  p.style.animationDuration=(14+Math.random()*10)+"s";
+  p.style.animationDelay="-"+(Math.random()*22).toFixed(1)+"s";
+  const bb=document.createElement("b");
+  bb.style.animationDuration=(3+Math.random()*2.5)+"s";
+  bb.style.animationDelay="-"+(Math.random()*3).toFixed(1)+"s";
+  p.appendChild(bb);petals.appendChild(p);
 }
 document.getElementById("stylebtn").addEventListener("click",()=>{
   userTouched=true;

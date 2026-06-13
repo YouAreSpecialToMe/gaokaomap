@@ -10,7 +10,7 @@ from functools import lru_cache
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from recommend import engine, DB, ALIAS, SUBJ_EQ
+from recommend import engine, DB, ALIAS, SUBJ_EQ, get_uinfo
 import quiz_data as QZ
 from bisect import bisect_right
 
@@ -41,8 +41,7 @@ def quiz_unis(mclass, prov, subj, score):
         (prov, *(SUBJ_EQ.get(subj,(subj,))+(subj,))[:2],
          int(r*0.75), int(r*1.8), mclass, int(r*1.15))).fetchall()
     seen, out = set(), []
-    uinfo = {x[0]:(x[1],x[2],x[3],x[4],x[5]) for x in con.execute(
-        "SELECT name,lng,lat,is_985,is_211,is_dfc FROM universities")}
+    uinfo = get_uinfo()
     for row in rows:
         if row["uni_name"] in seen: continue
         seen.add(row["uni_name"])
