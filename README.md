@@ -31,3 +31,5 @@ python3 app.py 8000     # → http://127.0.0.1:8000
 ## 声明
 数据来自各省教育考试院等公开渠道整理,仅供参考,不构成志愿填报依据。用户输入即算即弃,不收集任何个人信息。
 校徽素材整理自 [China-University-Emblems](https://github.com/fenqijun/China-University-Emblems)(覆盖 1294/1598 所,余者以生成印章代替);校徽版权归各校所有,本项目为非商业教育用途,如有异议即撤。
+
+配乐《秋风词》(古琴)来自 [archive.org](https://archive.org/details/QiuFengCi),公有领域(Public Domain),可商用免署名。

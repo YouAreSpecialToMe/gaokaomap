@@ -343,6 +343,7 @@
   <button class="tbtn" id="rotbtn" aria-label="视角模式:平移 / 旋转" title="视角:平移 — 点按切旋转模式(旋转模式下按住左键拖动转方位 / 俯仰)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 8"/><path d="M20 3.5V8h-4.5"/><path d="M20 12a8 8 0 0 1-13.7 5.6L4 16"/><path d="M4 20.5V16h4.5"/></svg></button>
   <button class="tbtn on" id="wxbtn" aria-label="分区天气开关" title="天气:江南烟雨 — 点按关闭分区天气"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14.5a3.4 3.4 0 0 1 .4-6.8 4.5 4.5 0 0 1 8.7 1.2A3 3 0 0 1 16 14.5Z"/><path d="M8 17.5l-1 2.6M12 17.5l-1 2.6M16 17.5l-1 2.6"/></svg></button>
   <button class="tbtn" id="t3dbtn" aria-label="地形:平面 / 立体 3D" title="地形:平面(超流畅)— 点按切换立体 3D"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3 21 7.5 12 12 3 7.5Z"/><path d="M3 12 12 16.5 21 12"/><path d="M3 16.5 12 21 21 16.5"/></svg></button>
+  <button class="tbtn" id="musbtn" aria-label="配乐:关 — 点按播放" title="配乐:古琴《秋风词》(公有领域)— 点按播放 / 静音"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17V5l10-2v12"/><circle cx="6.5" cy="17" r="2.5"/><circle cx="16.5" cy="15" r="2.5"/></svg></button>
 </div>
 <button id="cfgbtn" class="cfgbtn" aria-label="设置:画风 / 视角 / 天气 / 地形" title="画风/视角/天气/地形">⚙</button>
 <div id="search">
@@ -1327,6 +1328,27 @@ document.getElementById("wxbtn").addEventListener("click",()=>{
   if(wxOn)wxStart();else wctx.clearRect(0,0,innerWidth,innerHeight);});
 document.addEventListener("visibilitychange",()=>{
   if(document.hidden){if(wxRAF){cancelAnimationFrame(wxRAF);wxRAF=0;}}else wxStart();});
+// ---------- 配乐:古琴《秋风词》(archive.org · 公有领域)----------
+// 默认关、绝不自动外放(也合浏览器策略);开关 + 循环 + 淡入淡出 + localStorage 记忆 + 切后台暂停。
+const BGM=new Audio("assets/audio/guqin-qiufengci.mp3");
+BGM.loop=true;BGM.preload="none";BGM.volume=0;
+const BGM_VOL=0.3;let bgmOn=false,bgmFadeT=0;
+function bgmFadeTo(target){clearInterval(bgmFadeT);
+  bgmFadeT=setInterval(()=>{const d=target-BGM.volume;
+    if(Math.abs(d)<0.03){BGM.volume=target;clearInterval(bgmFadeT);if(!target)BGM.pause();}
+    else BGM.volume=Math.max(0,Math.min(1,BGM.volume+(d>0?.05:-.05)));},55);}
+const musbtn=document.getElementById("musbtn");
+function setBgm(on){bgmOn=on;musbtn.classList.toggle("on",on);
+  musbtn.setAttribute("aria-label",on?"配乐:开(古琴·秋风词)— 点按静音":"配乐:关 — 点按播放");
+  if(on)BGM.play().then(()=>bgmFadeTo(BGM_VOL)).catch(()=>{});else bgmFadeTo(0);
+  try{localStorage.setItem("gk_bgm",on?"1":"0");}catch(e){}}
+musbtn.addEventListener("click",()=>setBgm(!bgmOn));
+document.addEventListener("visibilitychange",()=>{if(!bgmOn)return;
+  if(document.hidden)BGM.pause();else BGM.play().catch(()=>{});});
+if(localStorage.getItem("gk_bgm")==="1"){               // 记忆上次开启:首个手势时恢复(浏览器要求)
+  musbtn.classList.add("on");
+  const resume=()=>{setBgm(true);["pointerdown","keydown","touchstart"].forEach(e=>removeEventListener(e,resume));};
+  ["pointerdown","keydown","touchstart"].forEach(e=>addEventListener(e,resume,{once:true,passive:true}));}
 // ---------- 学校搜索(全 1598 所:校名/简称/城市 即时联想)----------
 (function(){
   const wrap=document.getElementById("search"),inp=document.getElementById("search-input"),
