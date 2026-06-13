@@ -343,7 +343,12 @@
     border:1px solid var(--gold-soft);border-radius:8px;padding:5px 9px;cursor:pointer}
   #viz-chart svg{display:block;width:100%;height:auto}
   .vizleg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-soft);margin-top:4px}
-  .vizleg i{display:inline-block;width:15px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
+  .vizleg i{display:inline-block;width:15px;height:10px;border-radius:2px;margin-right:5px;vertical-align:middle}
+  .viztabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+  .viztab{font:500 13px "Kaiti SC","STKaiti",serif;color:var(--ink-soft);background:rgba(250,243,228,.7);
+    border:1px solid var(--gold-soft);border-radius:999px;padding:5px 14px;cursor:pointer;transition:background .2s,color .2s}
+  .viztab:hover{background:#fffaf0}
+  .viztab.on{background:#9c2f1b;color:#fbf0df;border-color:var(--gold)}
   /* ===== 无障碍:可见焦点 (WCAG 2.4.7) + 尊重 prefers-reduced-motion (2.3.3) ===== */
   :focus-visible{outline:2.5px solid var(--zhu);outline-offset:2px}
   .tbtn:focus-visible,.seg-i:focus-visible{outline:none;box-shadow:0 0 0 2.5px var(--zhu) inset}
@@ -458,14 +463,13 @@
 </div>
 <div class="vizpanel" id="vizpanel">
   <span class="x" role="button" tabindex="0" aria-label="关闭" onclick="closeViz()">✕</span>
-  <h3>一分一段 · 位次曲线</h3>
-  <div class="vizctl">
-    <select id="viz-prov"></select><select id="viz-subj"></select>
-    <span class="dim" style="margin-left:auto">2017–2025 · 各省考试院</span>
+  <h3>数说高考</h3>
+  <div class="viztabs">
+    <button class="viztab on" data-t="rank">位次曲线</button>
+    <button class="viztab" data-t="eval">学科实力榜</button>
+    <button class="viztab" data-t="prov">各省考生</button>
   </div>
-  <div id="viz-chart"></div>
-  <div id="viz-legend" class="vizleg"></div>
-  <p class="dim" id="viz-note" style="margin:6px 2px 0">分数→全省累计位次。线越靠右上=同分位次越好;对比各年看"卷"的程度。</p>
+  <div id="viz-body"></div>
 </div>
 <script>
 let UNIS=[],DOTS=[],CITYIDX=[];
@@ -1066,11 +1070,23 @@ async function loadMeta(){
   }catch(e){document.getElementById("rp-status").textContent="⚠️ 推荐服务未启动(8787)";}
 }
 loadMeta();
-// ---------- 一分一段 · 位次曲线可视化 ----------
+// ---------- 数说高考:数据可视化中心(多 tab 图表) ----------
 const vizmask=document.createElement("div");vizmask.className="vizmask";document.body.appendChild(vizmask);
-const vizpanel=document.getElementById("vizpanel");let vizInit=false;
+const vizpanel=document.getElementById("vizpanel");let vizTab="rank";
 const fmtRank=r=>r>=1e4?(r/1e4).toFixed(r>=1e5?0:1)+"万":Math.round(r).toLocaleString();
 const rankAt=(pts,s)=>{for(const p of pts)if(p[0]<=s)return p[1];return pts.length?pts[pts.length-1][1]:0;};
+// 横向条形图(榜单类):items=[{label,v,v2?}]
+function drawBarChart(items,opt){opt=opt||{};const fmt=opt.fmt||(v=>v.toLocaleString());
+  if(!items||!items.length)return '<p class="dim" style="padding:24px 0;text-align:center">暂无数据</p>';
+  const base=opt.v2?items.map(d=>d.v2||d.v):items.map(d=>d.v),max=Math.max(...base)||1;
+  const W=680,rowH=23,labelW=120,valW=66,barL=labelW+10,barR=W-valW,barW=barR-barL,H=items.length*rowH+12;
+  let s='';items.forEach((d,i)=>{const y=i*rowH+18;
+    if(opt.v2&&d.v2)s+=`<rect x="${barL}" y="${y-11}" width="${((d.v2/max)*barW).toFixed(1)}" height="15" rx="3" fill="${opt.color2||'#ecd9b0'}"/>`;
+    s+=`<rect x="${barL}" y="${y-11}" width="${((d.v/max)*barW).toFixed(1)}" height="15" rx="3" fill="${opt.color||'#9c2f1b'}"/>`;
+    s+=`<text x="${barL-7}" y="${y}" font-size="11.5" fill="#3f3220" text-anchor="end">${d.label}</text>`;
+    s+=`<text x="${barR+5}" y="${y}" font-size="11" fill="#6b5630">${fmt(d.v)}${opt.suffix||''}</text>`;});
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto">${s}</svg>`;
+}
 function drawRankChart(data,userScore){
   const W=680,H=360,mL=46,mR=14,mT=16,mB=26,iw=W-mL-mR,ih=H-mT-mB;
   const ys=(data.years||[]).filter(y=>y.pts&&y.pts.length);
@@ -1102,7 +1118,7 @@ function rebuildVizSubj(){
   const p=(META||[]).find(x=>x.province===vp.value);
   vs.innerHTML=((p&&p.subjects)||["综合"]).map(x=>`<option>${x}</option>`).join("");
 }
-async function loadViz(){
+async function loadRank(){
   const prov=document.getElementById("viz-prov").value,subj=document.getElementById("viz-subj").value;
   const ch=document.getElementById("viz-chart");ch.innerHTML='<p class="dim" style="padding:24px 0;text-align:center">载入中…</p>';
   try{
@@ -1111,17 +1127,45 @@ async function loadViz(){
     ch.innerHTML=drawRankChart(d,(rp&&rp.value===prov&&sc>=100)?sc:0);
   }catch(e){ch.innerHTML='<p class="dim" style="padding:24px 0;text-align:center">⚠️ 数据服务未启动(8787)</p>';}
 }
-function closeViz(){vizmask.classList.remove("show");vizpanel.classList.remove("show");document.getElementById("act-viz").classList.remove("on");}
-function openViz(){
-  if(vizpanel.classList.contains("show"))return closeViz();
+function renderRank(){
+  document.getElementById("viz-body").innerHTML=
+    `<div class="vizctl"><select id="viz-prov"></select><select id="viz-subj"></select>
+     <span class="dim" style="margin-left:auto">2017–2025 · 各省考试院</span></div>
+     <div id="viz-chart"></div><div id="viz-legend" class="vizleg"></div>
+     <p class="dim" style="margin:6px 2px 0">分数→全省累计位次;越靠右上=同分位次越好,对比各年看竞争。在「我的推荐」填分数后回看会标出你的位置。</p>`;
   const vp=document.getElementById("viz-prov"),vs=document.getElementById("viz-subj");
-  if(!vizInit){vp.innerHTML=(META||[{province:"浙江"}]).map(p=>`<option>${p.province}</option>`).join("");
-    vp.addEventListener("change",()=>{rebuildVizSubj();loadViz();});vs.addEventListener("change",loadViz);vizInit=true;}
+  vp.innerHTML=(META||[{province:"浙江"}]).map(p=>`<option>${p.province}</option>`).join("");
   const rp=document.getElementById("rp-prov"),rs=document.getElementById("rp-subj");
   vp.value=(rp&&rp.value)||"浙江";rebuildVizSubj();
   if(rs&&rs.value&&[...vs.options].some(o=>o.value===rs.value))vs.value=rs.value;
-  loadViz();vizmask.classList.add("show");vizpanel.classList.add("show");document.getElementById("act-viz").classList.add("on");
+  vp.addEventListener("change",()=>{rebuildVizSubj();loadRank();});vs.addEventListener("change",loadRank);
+  loadRank();
 }
+async function renderStat(kind,opt){
+  document.getElementById("viz-body").innerHTML=
+    `<div id="viz-chart"><p class="dim" style="padding:24px 0;text-align:center">载入中…</p></div>
+     <div class="vizleg" id="viz-legend">${opt.legend||""}</div>
+     <p class="dim" style="margin:8px 2px 0">${opt.note||""}</p>`;
+  try{const d=await (await fetch(`${API}/api/stats?type=${kind}`)).json();
+    document.getElementById("viz-chart").innerHTML=drawBarChart(d.data,opt);
+  }catch(e){document.getElementById("viz-chart").innerHTML='<p class="dim" style="padding:24px 0;text-align:center">⚠️ 数据服务未启动(8787)</p>';}
+}
+function renderViz(){
+  if(vizTab==="rank")renderRank();
+  else if(vizTab==="eval")renderStat("eval",{v2:true,color:"#9c2f1b",color2:"#ecd9b0",fmt:v=>v,suffix:" 个 A+",
+    legend:'<span><i style="background:#9c2f1b"></i>A+ 学科</span><span><i style="background:#ecd9b0"></i>A 类(A+/A/A-)</span>',
+    note:"第四轮学科评估 · A+ 学科数最多的高校。北大、清华各 21 个 A+ 并列榜首。"});
+  else if(vizTab==="prov")renderStat("province",{color:"#8c2f1b",fmt:v=>(v/1e4).toFixed(1),suffix:" 万",
+    note:"2025 各省高考考生规模(按一分一段最低位次合计估算)。河南近 91 万领跑,广东、山东紧随。"});
+}
+function closeViz(){vizmask.classList.remove("show");vizpanel.classList.remove("show");document.getElementById("act-viz").classList.remove("on");}
+function openViz(){
+  if(vizpanel.classList.contains("show"))return closeViz();
+  renderViz();
+  vizmask.classList.add("show");vizpanel.classList.add("show");document.getElementById("act-viz").classList.add("on");
+}
+document.querySelectorAll(".viztab").forEach(b=>b.addEventListener("click",()=>{
+  vizTab=b.dataset.t;document.querySelectorAll(".viztab").forEach(x=>x.classList.toggle("on",x===b));renderViz();}));
 document.getElementById("act-viz").addEventListener("click",openViz);
 vizmask.addEventListener("click",closeViz);
 const FAN=[[0,0],[40,-8],[-40,-8],[80,-16],[-80,-16],[120,-24],[-120,-24],

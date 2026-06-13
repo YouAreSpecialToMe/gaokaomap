@@ -124,6 +124,24 @@ def rank_curve(prov, subj, years):
     con.close()
     return {"prov": prov, "subj": subj, "years": res}
 
+def stats(kind):
+    """聚合数据看板:eval=学科评估A+榜;province=各省考生规模。"""
+    con = db()
+    if kind == "eval":
+        rows = con.execute("""SELECT u.name, SUM(s.grade='A+') ap, SUM(s.grade IN('A+','A','A-')) a
+            FROM subject_eval s JOIN universities u ON u.id=s.uni_id
+            GROUP BY s.uni_id HAVING ap>0 ORDER BY ap DESC, a DESC LIMIT 20""").fetchall()
+        out = {"kind": "eval", "data": [{"label": r[0], "v": r[1], "v2": r[2]} for r in rows]}
+    elif kind == "province":
+        rows = con.execute("""SELECT province, SUM(mx) tot FROM
+            (SELECT province,subject,MAX(cum_rank) mx FROM rank_tables WHERE year=2025 GROUP BY province,subject)
+            GROUP BY province ORDER BY tot DESC LIMIT 20""").fetchall()
+        out = {"kind": "province", "year": 2025, "data": [{"label": r[0], "v": r[1]} for r in rows]}
+    else:
+        out = {"error": "unknown stats kind"}
+    con.close()
+    return out
+
 class H(BaseHTTPRequestHandler):
     def _send(self, obj, code=200):
         body = json.dumps(obj, ensure_ascii=False).encode()
@@ -201,6 +219,8 @@ class H(BaseHTTPRequestHandler):
                 yrs = q.get("years")
                 years = [int(x) for x in yrs.split(",")] if yrs else [2025, 2024, 2023]
                 return self._send(rank_curve(q["prov"], q["subj"], years))
+            if u.path == "/api/stats":
+                return self._send(stats(q.get("type", "eval")))
             return self._static(u.path)
         except Exception as e:
             return self._send({"error": f"internal: {type(e).__name__} {e}"}, 500)

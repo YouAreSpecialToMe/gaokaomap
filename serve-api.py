@@ -95,7 +95,7 @@ def uni_card(name, prov):
             """SELECT year,subject_std subj,granularity,major,min_score,min_rank
                FROM admission_lines WHERE uni_name IN (?,?) AND province=?
                  AND year>=2023 AND min_rank IS NOT NULL
-               ORDER BY year DESC, min_rank LIMIT 40""", (name, strip, prov))]
+               ORDER BY year DESC, min_rank LIMIT 400""", (name, strip, prov))]
     out = {"name": u["name"], "province": u["province"], "city": u["city"],
            "tier": "985" if u["is_985"] else "211" if u["is_211"]
                    else "双一流" if u["is_dfc"] else (u["level"] or ""),
@@ -103,6 +103,42 @@ def uni_card(name, prov):
            "masterPts": u["master_pts"], "doctorPts": u["doctor_pts"],
            "intro": (u["intro"] or "")[:120], "ll": [u["lng"], u["lat"]],
            "eval": ev, "lines": lines}
+    con.close()
+    return out
+
+def rank_curve(prov, subj, years):
+    """一分一段位次曲线:返回各年 [score, cum_rank, count_same] 点列(分数降序)。"""
+    con = db()
+    cands = ALIAS.get(subj, [subj])
+    res = []
+    for y in years:
+        rows = None
+        for c in cands:
+            r = con.execute(
+                """SELECT score_min, cum_rank, count_same FROM rank_tables
+                   WHERE province=? AND year=? AND subject=? AND cum_rank IS NOT NULL
+                   ORDER BY score_min DESC""", (prov, y, c)).fetchall()
+            if r: rows = r; break
+        if rows:
+            res.append({"year": y, "pts": [[x[0], x[1], x[2] or 0] for x in rows]})
+    con.close()
+    return {"prov": prov, "subj": subj, "years": res}
+
+def stats(kind):
+    """聚合数据看板:eval=学科评估A+榜;province=各省考生规模。"""
+    con = db()
+    if kind == "eval":
+        rows = con.execute("""SELECT u.name, SUM(s.grade='A+') ap, SUM(s.grade IN('A+','A','A-')) a
+            FROM subject_eval s JOIN universities u ON u.id=s.uni_id
+            GROUP BY s.uni_id HAVING ap>0 ORDER BY ap DESC, a DESC LIMIT 20""").fetchall()
+        out = {"kind": "eval", "data": [{"label": r[0], "v": r[1], "v2": r[2]} for r in rows]}
+    elif kind == "province":
+        rows = con.execute("""SELECT province, SUM(mx) tot FROM
+            (SELECT province,subject,MAX(cum_rank) mx FROM rank_tables WHERE year=2025 GROUP BY province,subject)
+            GROUP BY province ORDER BY tot DESC LIMIT 20""").fetchall()
+        out = {"kind": "province", "year": 2025, "data": [{"label": r[0], "v": r[1]} for r in rows]}
+    else:
+        out = {"error": "unknown stats kind"}
     con.close()
     return out
 
@@ -162,6 +198,14 @@ class H(BaseHTTPRequestHandler):
                 if not q.get("name"):
                     return self._send({"error": "参数:name 必填"}, 400)
                 return self._send(uni_card(q["name"], q.get("prov", "")))
+            if u.path == "/api/rank":
+                if not q.get("prov") or not q.get("subj"):
+                    return self._send({"error": "参数:prov/subj 必填"}, 400)
+                yrs = q.get("years")
+                years = [int(x) for x in yrs.split(",")] if yrs else [2025, 2024, 2023]
+                return self._send(rank_curve(q["prov"], q["subj"], years))
+            if u.path == "/api/stats":
+                return self._send(stats(q.get("type", "eval")))
             return self._send({"error": "not found"}, 404)
         except Exception as e:
             return self._send({"error": f"internal: {type(e).__name__} {e}"}, 500)
