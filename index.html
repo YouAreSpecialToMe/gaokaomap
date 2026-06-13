@@ -59,7 +59,7 @@
     transition:opacity .3s ease,transform .5s cubic-bezier(.34,1.56,.64,1)}
   .umk.show-flag .flag{opacity:1;transform:none;pointer-events:auto}
   .umk .dot{transition:opacity .35s ease;animation:pop .55s cubic-bezier(.34,1.56,.64,1) var(--d,0ms) backwards}
-  .umk.show-flag .dot{opacity:0}
+  .umk.show-flag .dot{opacity:0;pointer-events:none}
   @keyframes pop{from{transform:translateY(50%) scale(0)}to{transform:translateY(50%) scale(1)}}
   .banner{writing-mode:vertical-rl;font:500 12px/1 "Kaiti SC","STKaiti","KaiTi",serif;letter-spacing:2px;
     padding:7px 3px;border-radius:2px;box-shadow:1px 2px 3px rgba(80,55,20,.35);white-space:nowrap}
@@ -546,7 +546,9 @@ map.on("load",async()=>{
     markers.push({u,el,mk});
   });
   updateFlags();
+  declutterFlags();
 });
+map.on("moveend",declutterFlags);
 function lazyMarkers(list,key,mk){
   const on=list[0],data=window[key+"Data"];
   if(!data)return;
@@ -629,6 +631,7 @@ function clearRec(){
   recTemp.forEach(m=>m.remove());recTemp=[];
   markers.forEach(({el})=>{el.classList.remove("rec","rec-冲","rec-稳","rec-保");});
   if(map.getLayer("uni-dots"))map.setPaintProperty("uni-dots","circle-opacity",0.78);
+  document.body.classList.remove("rec-mode");declutterFlags();
 }
 function buildRecs(){}
 async function loadMeta(){
@@ -647,7 +650,30 @@ async function loadMeta(){
   }catch(e){document.getElementById("rp-status").textContent="⚠️ 推荐服务未启动(8787)";}
 }
 loadMeta();
-const FAN=[[0,0],[38,-8],[-38,-8],[76,-16],[-76,-16],[114,-24],[-114,-24],[152,-32]];
+const FAN=[[0,0],[40,-8],[-40,-8],[80,-16],[-80,-16],[120,-24],[-120,-24],
+           [24,-40],[-24,-40],[64,-48],[-64,-48],[104,-56]];
+// 永久双一流旗子:屏幕空间防叠压。每次 moveend 重算——投影每面可见旗子,排名高者优先占位,
+// 后来者与已放置旗面碰撞则横向(必要时上移一层)让开,直到不撞为止。缩放放大、同城高校在屏幕上
+// 拉开后偏移自动归零回到真实位置;因用 map.project 投影,天然适配俯仰视角。根治同城旗面互抢点击。
+function declutterFlags(){
+  if(document.body.classList.contains("rec-mode"))return;     // 推荐态由临时旗的扇形负责
+  const shown=markers.filter(m=>m.u.ll&&m.u.ll[0]&&m.el.classList.contains("show-flag"));
+  shown.sort((a,b)=>(a.u.rank||9999)-(b.u.rank||9999));        // 名校优先保位
+  const cand=[[0,0]],STEP=22,GAP=3,BW=18;
+  for(let t=0;t<3;t++)for(let s=1;s<=5;s++){cand.push([s*STEP,-t*42]);cand.push([-s*STEP,-t*42]);}
+  const placed=[];
+  for(const m of shown){
+    const p=map.project(m.u.ll),bh=[...String(m.u.s)].length*13+16;
+    let pick=[0,0];
+    for(const c of cand){
+      const x=p.x+c[0]-BW/2,y=p.y-bh+c[1];
+      if(!placed.some(q=>x<q.x+q.w+GAP&&x+BW+GAP>q.x&&y<q.y+q.h+GAP&&y+bh+GAP>q.y)){pick=c;break;}
+    }
+    placed.push({x:p.x+pick[0]-BW/2,y:p.y-bh+pick[1],w:BW,h:bh});
+    const o=m.mk.getOffset();
+    if(o.x!==pick[0]||o.y!==pick[1])m.mk.setOffset(pick);
+  }
+}
 function fanOffsets(items){
   const g={},off=new Map();
   items.forEach(it=>{
