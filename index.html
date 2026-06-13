@@ -313,7 +313,9 @@
   /* 选中院校时的"招录数据看板"——填中间留白,展示近三年各专业录取位次(宽屏才显示) */
   .cwb{display:flex;height:26px;border-radius:7px;overflow:hidden;margin:7px 0 11px;
     font:600 11.5px/26px "Kaiti SC","STKaiti",serif;color:#fff;text-align:center}
-  .cwb div{white-space:nowrap;min-width:42px;transition:width .4s ease}
+  .cwb div{white-space:nowrap;min-width:42px;cursor:pointer;transition:width .4s ease}
+  .cwb div:hover{filter:brightness(1.08)}
+  .cwb div.act{box-shadow:0 0 0 2px #fff inset,0 0 0 2px rgba(60,45,20,.25)}
   .detailpanel{position:absolute;left:392px;top:118px;z-index:6;width:486px;max-height:calc(100vh - 210px);
     overflow-y:auto;display:none;padding:16px 18px;border-radius:14px;
     background:linear-gradient(180deg,var(--paper-a),var(--paper-b));border:1px solid var(--gold-soft);
@@ -938,6 +940,23 @@ function trendRows(lines,prov){
 const detailpanel=document.createElement("div");detailpanel.className="detailpanel";detailpanel.id="detailpanel";document.body.appendChild(detailpanel);
 function hideDetail(){detailpanel.classList.remove("show");}
 const BCOL={"冲":"#d85a30","稳":"#e0a32e","保":"#1d9e75"};
+let bandFilter=null;
+// 招生计划专业名模糊匹配(录取线表 vs 计划表 写法常有出入:括号后缀/类/顿号等)
+function matchPlan(plans,mj){
+  if(plans[mj])return plans[mj];
+  const norm=s=>String(s).replace(/[((].*?[))]/g,'').replace(/[\s·・、]/g,'').trim();
+  const t=norm(mj);if(!t)return null;let best=null;
+  for(const k in plans){const nk=norm(k);if(!nk)continue;
+    if(nk===t)return plans[k];
+    if(best===null&&t.length>=3&&Math.min(nk.length,t.length)>=3&&(nk.startsWith(t)||t.startsWith(nk)))best=plans[k];}
+  return best;
+}
+// 点 冲/稳/保 色块 → 只看该档专业(再点取消)
+function filterBand(b){
+  bandFilter=(bandFilter===b)?null:b;
+  detailpanel.querySelectorAll(".dtab tbody tr").forEach(tr=>tr.style.display=(!bandFilter||tr.dataset.band===bandFilter)?"":"none");
+  detailpanel.querySelectorAll(".cwb div").forEach(d=>d.classList.toggle("act",!!bandFilter&&d.dataset.b===bandFilter));
+}
 // 选校助手:合并 录取位次(近年)+ 招生计划/学费/选科;若已在「我的推荐」填分,按你的位次标 冲/稳/保
 function detailTable(u,prov){
   const lines=u.lines||[],plans=u.plans||{},name=u.name;
@@ -954,19 +973,20 @@ function detailTable(u,prov){
   let h=`<h3>选校助手</h3>`;
   if(haveRank){
     const tot=(cnt.冲+cnt.稳+cnt.保)||1;
-    h+=`<p class="sub">${name} · ${prov} · 按你的位次 <b>${gk.rank.toLocaleString()}</b>(${gk.subj})划分</p>
-      <div class="cwb">${['冲','稳','保'].filter(k=>cnt[k]).map(k=>`<div style="width:${(cnt[k]/tot*100).toFixed(0)}%;background:${BCOL[k]}">${k} ${cnt[k]}</div>`).join('')}</div>`;
+    h+=`<p class="sub">${name} · ${prov} · 按你的位次 <b>${gk.rank.toLocaleString()}</b>(${gk.subj})划分 · <span style="color:#a8916a">点色块只看该档</span></p>
+      <div class="cwb">${['冲','稳','保'].filter(k=>cnt[k]).map(k=>`<div data-b="${k}" onclick="filterBand('${k}')" style="width:${(cnt[k]/tot*100).toFixed(0)}%;background:${BCOL[k]}">${k} ${cnt[k]}</div>`).join('')}</div>`;
   }else{
     h+=`<p class="sub">${name} · ${prov} · 录取位次 + 招生计划/学费/选科。<span style="color:#9c2f1b">在「我的推荐」填分数,这里会标出每个专业对你是冲/稳/保。</span></p>`;
   }
   h+=`<table class="dtab"><thead><tr><th>专业</th><th>2025</th><th>2024</th><th>计划</th><th>学费</th><th>选科</th></tr></thead><tbody>`;
-  for(const r of rows){const b=bandOf(r.latest),p=plans[r.mj];
-    h+=`<tr style="${b?`border-left:3px solid ${BCOL[b]}`:''}"><td title="${r.mj}">${r.mj}${b?` <span style="color:${BCOL[b]};font-size:10px">${b}</span>`:''}</td>`
+  for(const r of rows){const b=bandOf(r.latest),p=matchPlan(plans,r.mj);
+    h+=`<tr data-band="${b||''}" style="${b?`border-left:3px solid ${BCOL[b]}`:''}"><td title="${r.mj}">${r.mj}${b?` <span style="color:${BCOL[b]};font-size:10px">${b}</span>`:''}</td>`
       +`<td>${cell(r.y25)}</td><td>${cell(r.y24)}</td><td>${p&&p.n?p.n:'—'}</td><td>${p?tu(p.tuition):'—'}</td><td>${p?sel(p.sel):'—'}</td></tr>`;}
   return h+`</tbody></table><p class="sub" style="margin:8px 0 0">共 ${rows.length} 专业 · 位次/计划/学费/选科来自各省考试院</p>`;
 }
 function showDetail(u,prov){
   if(innerWidth<=1200){hideDetail();return;}            // 窄屏空间不足,看板不显示(小卡已含简表)
+  bandFilter=null;
   const html=detailTable(u,prov);
   if(!html){hideDetail();return;}
   detailpanel.innerHTML=`<span class="x" role="button" tabindex="0" aria-label="关闭看板" onclick="hideDetail()">✕</span>`+html;
