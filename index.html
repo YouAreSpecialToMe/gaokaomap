@@ -592,21 +592,36 @@ async function loadMeta(){
   }catch(e){document.getElementById("rp-status").textContent="⚠️ 推荐服务未启动(8787)";}
 }
 loadMeta();
+const FAN=[[0,0],[38,-8],[-38,-8],[76,-16],[-76,-16],[114,-24],[-114,-24],[152,-32]];
+function fanOffsets(items){
+  const g={},off=new Map();
+  items.forEach(it=>{
+    if(!it.ll||!it.ll[0])return;
+    const k=it.city||(Math.round(it.ll[0]*2)+","+Math.round(it.ll[1]*2));
+    (g[k]=g[k]||[]).push(it);
+  });
+  Object.values(g).forEach(arr=>arr.forEach((it,i)=>off.set(it,FAN[i%FAN.length])));
+  return off;
+}
+function makeTempFlag(it,band,offset){
+  const el=document.createElement("div");
+  el.className="umk t"+(it.tier||"ben")+" rec rec-"+band+" show-flag";
+  el.innerHTML=`<div class="flag"><div class="banner">${it.uni.slice(0,6)}</div><div class="pole"></div></div><div class="dot"></div>`;
+  el.addEventListener("click",e=>{e.stopPropagation();showUniCard(it.uni);});
+  recTemp.push(new maplibregl.Marker({element:el,anchor:"bottom",offset:offset||[0,0]})
+    .setLngLat(it.ll).addTo(map));
+}
 function applyRecToMap(bands){
   clearRec();
-  const seen=new Set();
+  const seen=new Set(),temps=[];
   for(const b of ["冲","稳","保"]) for(const it of bands[b]){
     if(seen.has(it.uni))continue;seen.add(it.uni);
     const hit=markers.find(m=>m.u.n===it.uni);
     if(hit){hit.el.classList.add("rec","rec-"+b,"show-flag");}
-    else if(it.ll&&it.ll[0]){
-      const el=document.createElement("div");
-      el.className="umk t"+(it.tier||"ben")+" rec rec-"+b+" show-flag";
-      el.innerHTML=`<div class="flag"><div class="banner">${it.uni.slice(0,6)}</div><div class="pole"></div></div><div class="dot"></div>`;
-      el.addEventListener("click",e=>{e.stopPropagation();showUniCard(it.uni);});
-      recTemp.push(new maplibregl.Marker({element:el,anchor:"bottom"}).setLngLat(it.ll).addTo(map));
-    }
+    else if(it.ll&&it.ll[0]){it._band=b;temps.push(it);}
   }
+  const off=fanOffsets(temps);
+  temps.forEach(it=>makeTempFlag(it,it._band,off.get(it)));
   if(map.getLayer("uni-dots"))map.setPaintProperty("uni-dots","circle-opacity",0.1);
   document.body.classList.add("rec-mode");
 }
@@ -717,19 +732,15 @@ async function qzFinish(){
     b.querySelectorAll(".qz-light").forEach(btn=>btn.addEventListener("click",()=>{
       const t=r.top[+btn.dataset.i];
       clearRec();
-      const seen=new Set();
+      const seen=new Set(),temps=[];
       t.unis.forEach(it=>{
         if(seen.has(it.uni)||!it.ll||!it.ll[0])return;seen.add(it.uni);
         const hit=markers.find(m=>m.u.n===it.uni);
         if(hit){hit.el.classList.add("rec","rec-稳","show-flag");}
-        else{
-          const el=document.createElement("div");
-          el.className="umk t"+(it.tier||"ben")+" rec rec-稳 show-flag";
-          el.innerHTML=`<div class="flag"><div class="banner">${it.uni.slice(0,6)}</div><div class="pole"></div></div><div class="dot"></div>`;
-          el.addEventListener("click",e=>{e.stopPropagation();showUniCard(it.uni);});
-          recTemp.push(new maplibregl.Marker({element:el,anchor:"bottom"}).setLngLat(it.ll).addTo(map));
-        }
+        else temps.push(it);
       });
+      const off=fanOffsets(temps);
+      temps.forEach(it=>makeTempFlag(it,"稳",off.get(it)));
       if(map.getLayer("uni-dots"))map.setPaintProperty("uni-dots","circle-opacity",0.1);
       document.body.classList.add("rec-mode");
       map.flyTo({center:[112,32],zoom:4.3,pitch:50,bearing:-8,duration:1600,curve:1.42});
