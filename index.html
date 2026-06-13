@@ -327,6 +327,23 @@
   .dtab td:first-child{text-align:left;color:var(--ink);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .dtab tr:hover td{background:rgba(189,154,85,.1)}
   @media(max-width:1100px){.detailpanel{display:none!important}}
+  /* 一分一段可视化面板(居中模态 + 遮罩) */
+  .vizmask{position:absolute;inset:0;z-index:8;background:rgba(60,45,20,.22);display:none}
+  .vizmask.show{display:block;animation:fadeUp .3s ease}
+  .vizpanel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.96);z-index:9;
+    width:min(700px,93vw);max-height:88vh;overflow-y:auto;display:none;opacity:0;padding:18px 22px;border-radius:16px;
+    background:linear-gradient(180deg,var(--paper-a),var(--paper-b));border:1px solid var(--gold-soft);box-shadow:var(--elev);
+    -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);transition:opacity .3s ease,transform .35s cubic-bezier(.22,1,.36,1)}
+  .vizpanel.show{display:block;opacity:1;transform:translate(-50%,-50%) scale(1)}
+  .vizpanel h3{margin:0 0 10px;font:600 17px "Kaiti SC","STKaiti",serif;color:var(--ink);letter-spacing:2px;display:flex;align-items:center;gap:8px}
+  .vizpanel h3::before{content:"";width:3px;height:16px;background:var(--zhu);border-radius:1px}
+  .vizpanel .x{position:absolute;top:10px;right:14px;cursor:pointer;color:#7d6536;font-size:17px;background:none;border:0;z-index:2}
+  .vizctl{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12.5px;flex-wrap:wrap}
+  .vizctl select{font:500 13px "Kaiti SC","STKaiti",serif;color:var(--ink);background:rgba(255,250,238,.85);
+    border:1px solid var(--gold-soft);border-radius:8px;padding:5px 9px;cursor:pointer}
+  #viz-chart svg{display:block;width:100%;height:auto}
+  .vizleg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-soft);margin-top:4px}
+  .vizleg i{display:inline-block;width:15px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
   /* ===== 无障碍:可见焦点 (WCAG 2.4.7) + 尊重 prefers-reduced-motion (2.3.3) ===== */
   :focus-visible{outline:2.5px solid var(--zhu);outline-offset:2px}
   .tbtn:focus-visible,.seg-i:focus-visible{outline:none;box-shadow:0 0 0 2.5px var(--zhu) inset}
@@ -436,7 +453,19 @@
   <div class="acts">
     <button class="actbtn" id="act-rec">✦ 我的推荐</button>
     <button class="actbtn" id="act-quiz">✦ 专业测评</button>
+    <button class="actbtn" id="act-viz">✦ 分数线</button>
   </div>
+</div>
+<div class="vizpanel" id="vizpanel">
+  <span class="x" role="button" tabindex="0" aria-label="关闭" onclick="closeViz()">✕</span>
+  <h3>一分一段 · 位次曲线</h3>
+  <div class="vizctl">
+    <select id="viz-prov"></select><select id="viz-subj"></select>
+    <span class="dim" style="margin-left:auto">2017–2025 · 各省考试院</span>
+  </div>
+  <div id="viz-chart"></div>
+  <div id="viz-legend" class="vizleg"></div>
+  <p class="dim" id="viz-note" style="margin:6px 2px 0">分数→全省累计位次。线越靠右上=同分位次越好;对比各年看"卷"的程度。</p>
 </div>
 <script>
 let UNIS=[],DOTS=[],CITYIDX=[];
@@ -1037,6 +1066,64 @@ async function loadMeta(){
   }catch(e){document.getElementById("rp-status").textContent="⚠️ 推荐服务未启动(8787)";}
 }
 loadMeta();
+// ---------- 一分一段 · 位次曲线可视化 ----------
+const vizmask=document.createElement("div");vizmask.className="vizmask";document.body.appendChild(vizmask);
+const vizpanel=document.getElementById("vizpanel");let vizInit=false;
+const fmtRank=r=>r>=1e4?(r/1e4).toFixed(r>=1e5?0:1)+"万":Math.round(r).toLocaleString();
+const rankAt=(pts,s)=>{for(const p of pts)if(p[0]<=s)return p[1];return pts.length?pts[pts.length-1][1]:0;};
+function drawRankChart(data,userScore){
+  const W=680,H=360,mL=46,mR=14,mT=16,mB=26,iw=W-mL-mR,ih=H-mT-mB;
+  const ys=(data.years||[]).filter(y=>y.pts&&y.pts.length);
+  if(!ys.length)return '<p class="dim" style="padding:24px 0;text-align:center">该省 / 科类暂无一分一段数据</p>';
+  let smin=1e9,smax=-1e9,rmax=0;
+  ys.forEach(y=>y.pts.forEach(p=>{if(p[0]<smin)smin=p[0];if(p[0]>smax)smax=p[0];if(p[1]>rmax)rmax=p[1];}));
+  const X=s=>mL+(s-smin)/((smax-smin)||1)*iw,Y=r=>mT+(r/(rmax||1))*ih;
+  const pal=['#9c2f1b','#c08a2a','#6f8f6a','#7d7fb0','#b06a8a','#4f8d99'];
+  let g='';
+  for(let i=0;i<=4;i++){const r=rmax*i/4,y=Y(r);
+    g+=`<line x1="${mL}" y1="${y.toFixed(1)}" x2="${W-mR}" y2="${y.toFixed(1)}" stroke="#d8c8a4" stroke-dasharray="3 3"/>`;
+    g+=`<text x="${mL-5}" y="${(y+3).toFixed(1)}" font-size="10" fill="#8a7350" text-anchor="end">${fmtRank(r)}</text>`;}
+  for(let s=Math.ceil(smin/50)*50;s<=smax;s+=50)g+=`<text x="${X(s).toFixed(1)}" y="${H-7}" font-size="10" fill="#8a7350" text-anchor="middle">${s}</text>`;
+  let lines='',leg=[],col={};
+  ys.forEach((y,i)=>{const c=pal[i%pal.length];col[y.year]=c;
+    const d=y.pts.map(p=>`${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(' ');
+    lines+=`<polyline points="${d}" fill="none" stroke="${c}" stroke-width="${i===0?2.4:1.5}" stroke-linejoin="round" opacity="${i===0?1:.78}"/>`;
+    leg.push(`<span><i style="background:${c}"></i>${y.year}</span>`);});
+  let mk='';
+  if(userScore&&userScore>=smin&&userScore<=smax){const x=X(userScore);
+    mk+=`<line x1="${x.toFixed(1)}" y1="${mT}" x2="${x.toFixed(1)}" y2="${H-mB}" stroke="#3f3220" stroke-dasharray="4 3"/>`;
+    mk+=`<text x="${x.toFixed(1)}" y="${(mT+9).toFixed(1)}" font-size="10" fill="#3f3220" text-anchor="middle">${userScore}分</text>`;
+    ys.forEach(y=>{const r=rankAt(y.pts,userScore);if(r)mk+=`<circle cx="${x.toFixed(1)}" cy="${Y(r).toFixed(1)}" r="3.2" fill="${col[y.year]}"/>`;});}
+  document.getElementById("viz-legend").innerHTML=leg.join('')+'<span class="dim">越靠右上=同分位次越好</span>';
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${g}${lines}${mk}</svg>`;
+}
+function rebuildVizSubj(){
+  const vp=document.getElementById("viz-prov"),vs=document.getElementById("viz-subj");
+  const p=(META||[]).find(x=>x.province===vp.value);
+  vs.innerHTML=((p&&p.subjects)||["综合"]).map(x=>`<option>${x}</option>`).join("");
+}
+async function loadViz(){
+  const prov=document.getElementById("viz-prov").value,subj=document.getElementById("viz-subj").value;
+  const ch=document.getElementById("viz-chart");ch.innerHTML='<p class="dim" style="padding:24px 0;text-align:center">载入中…</p>';
+  try{
+    const d=await (await fetch(`${API}/api/rank?prov=${encodeURIComponent(prov)}&subj=${encodeURIComponent(subj)}`)).json();
+    const rp=document.getElementById("rp-prov"),sc=+(document.getElementById("rp-score").value||0);
+    ch.innerHTML=drawRankChart(d,(rp&&rp.value===prov&&sc>=100)?sc:0);
+  }catch(e){ch.innerHTML='<p class="dim" style="padding:24px 0;text-align:center">⚠️ 数据服务未启动(8787)</p>';}
+}
+function closeViz(){vizmask.classList.remove("show");vizpanel.classList.remove("show");document.getElementById("act-viz").classList.remove("on");}
+function openViz(){
+  if(vizpanel.classList.contains("show"))return closeViz();
+  const vp=document.getElementById("viz-prov"),vs=document.getElementById("viz-subj");
+  if(!vizInit){vp.innerHTML=(META||[{province:"浙江"}]).map(p=>`<option>${p.province}</option>`).join("");
+    vp.addEventListener("change",()=>{rebuildVizSubj();loadViz();});vs.addEventListener("change",loadViz);vizInit=true;}
+  const rp=document.getElementById("rp-prov"),rs=document.getElementById("rp-subj");
+  vp.value=(rp&&rp.value)||"浙江";rebuildVizSubj();
+  if(rs&&rs.value&&[...vs.options].some(o=>o.value===rs.value))vs.value=rs.value;
+  loadViz();vizmask.classList.add("show");vizpanel.classList.add("show");document.getElementById("act-viz").classList.add("on");
+}
+document.getElementById("act-viz").addEventListener("click",openViz);
+vizmask.addEventListener("click",closeViz);
 const FAN=[[0,0],[40,-8],[-40,-8],[80,-16],[-80,-16],[120,-24],[-120,-24],
            [24,-40],[-24,-40],[64,-48],[-64,-48],[104,-56]];
 // 永久双一流旗子:屏幕空间防叠压。每次 moveend 重算——投影每面可见旗子,排名高者优先占位,

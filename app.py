@@ -106,6 +106,24 @@ def uni_card(name, prov):
     con.close()
     return out
 
+def rank_curve(prov, subj, years):
+    """一分一段位次曲线:返回各年 [score, cum_rank, count_same] 点列(分数降序)。"""
+    con = db()
+    cands = ALIAS.get(subj, [subj])
+    res = []
+    for y in years:
+        rows = None
+        for c in cands:
+            r = con.execute(
+                """SELECT score_min, cum_rank, count_same FROM rank_tables
+                   WHERE province=? AND year=? AND subject=? AND cum_rank IS NOT NULL
+                   ORDER BY score_min DESC""", (prov, y, c)).fetchall()
+            if r: rows = r; break
+        if rows:
+            res.append({"year": y, "pts": [[x[0], x[1], x[2] or 0] for x in rows]})
+    con.close()
+    return {"prov": prov, "subj": subj, "years": res}
+
 class H(BaseHTTPRequestHandler):
     def _send(self, obj, code=200):
         body = json.dumps(obj, ensure_ascii=False).encode()
@@ -177,6 +195,12 @@ class H(BaseHTTPRequestHandler):
                 if not q.get("name"):
                     return self._send({"error": "参数:name 必填"}, 400)
                 return self._send(uni_card(q["name"], q.get("prov", "")))
+            if u.path == "/api/rank":
+                if not q.get("prov") or not q.get("subj"):
+                    return self._send({"error": "参数:prov/subj 必填"}, 400)
+                yrs = q.get("years")
+                years = [int(x) for x in yrs.split(",")] if yrs else [2025, 2024, 2023]
+                return self._send(rank_curve(q["prov"], q["subj"], years))
             return self._static(u.path)
         except Exception as e:
             return self._send({"error": f"internal: {type(e).__name__} {e}"}, 500)
