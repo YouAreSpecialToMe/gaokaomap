@@ -90,19 +90,28 @@ def uni_card(name, prov):
            ORDER BY CASE grade WHEN 'A+' THEN 0 WHEN 'A' THEN 1 WHEN 'A-' THEN 2
            WHEN 'B+' THEN 3 ELSE 4 END LIMIT 6""", (u["id"],))]
     lines = []
+    plans = {}
     if prov:
         lines = [dict(r) for r in con.execute(
             """SELECT year,subject_std subj,granularity,major,min_score,min_rank
                FROM admission_lines WHERE uni_name IN (?,?) AND province=?
                  AND year>=2023 AND min_rank IS NOT NULL
                ORDER BY year DESC, min_rank LIMIT 400""", (name, strip, prov))]
+        py = con.execute("SELECT MAX(year) FROM enrollment_plans WHERE uni_name IN (?,?) AND province=?",
+                         (name, strip, prov)).fetchone()[0]
+        if py:
+            for r in con.execute(
+                """SELECT major, SUM(plan_n) pn, MAX(tuition) tu, MAX(sel_req) sr
+                   FROM enrollment_plans WHERE uni_name IN (?,?) AND province=? AND year=?
+                   GROUP BY major""", (name, strip, prov, py)):
+                plans[r[0]] = {"n": r[1], "tuition": r[2], "sel": r[3]}
     out = {"name": u["name"], "province": u["province"], "city": u["city"],
            "tier": "985" if u["is_985"] else "211" if u["is_211"]
                    else "双一流" if u["is_dfc"] else (u["level"] or ""),
            "type": u["type"], "rank": u["rank"], "baoyan": u["baoyan_rate"],
            "masterPts": u["master_pts"], "doctorPts": u["doctor_pts"],
            "intro": (u["intro"] or "")[:120], "ll": [u["lng"], u["lat"]],
-           "eval": ev, "lines": lines}
+           "eval": ev, "lines": lines, "plans": plans}
     con.close()
     return out
 

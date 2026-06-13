@@ -311,7 +311,10 @@
     border-radius:50%;background:rgba(157,47,27,.1);color:var(--zhu);font-size:11px;cursor:pointer;padding:0}
   #bgm-tip .bgm-x:hover{background:var(--zhu);color:#fbf0df}
   /* 选中院校时的"招录数据看板"——填中间留白,展示近三年各专业录取位次(宽屏才显示) */
-  .detailpanel{position:absolute;left:392px;top:118px;z-index:6;width:412px;max-height:calc(100vh - 210px);
+  .cwb{display:flex;height:26px;border-radius:7px;overflow:hidden;margin:7px 0 11px;
+    font:600 11.5px/26px "Kaiti SC","STKaiti",serif;color:#fff;text-align:center}
+  .cwb div{white-space:nowrap;min-width:42px;transition:width .4s ease}
+  .detailpanel{position:absolute;left:392px;top:118px;z-index:6;width:486px;max-height:calc(100vh - 210px);
     overflow-y:auto;display:none;padding:16px 18px;border-radius:14px;
     background:linear-gradient(180deg,var(--paper-a),var(--paper-b));border:1px solid var(--gold-soft);
     box-shadow:var(--elev);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
@@ -326,7 +329,7 @@
   .dtab td{padding:4px 6px;border-bottom:1px dashed #e0d0aa;text-align:right;font-variant-numeric:tabular-nums}
   .dtab td:first-child{text-align:left;color:var(--ink);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .dtab tr:hover td{background:rgba(189,154,85,.1)}
-  @media(max-width:1100px){.detailpanel{display:none!important}}
+  @media(max-width:1200px){.detailpanel{display:none!important}}
   /* 一分一段可视化面板(居中模态 + 遮罩) */
   .vizmask{position:absolute;inset:0;z-index:8;background:rgba(60,45,20,.22);display:none}
   .vizmask.show{display:block;animation:fadeUp .3s ease}
@@ -934,22 +937,37 @@ function trendRows(lines,prov){
 // 中间"招录数据看板":近三年各专业录取最低位次(全专业表 + 难度趋势箭头),填中间留白
 const detailpanel=document.createElement("div");detailpanel.className="detailpanel";detailpanel.id="detailpanel";document.body.appendChild(detailpanel);
 function hideDetail(){detailpanel.classList.remove("show");}
-function detailTable(lines,prov,name){
-  const m={};(lines||[]).filter(l=>l.granularity==="major"&&l.min_rank).forEach(l=>{(m[l.major]=m[l.major]||{})[l.year]=l.min_rank;});
-  const rows=Object.entries(m).map(([mj,y])=>({mj,y25:y[2025],y24:y[2024],y23:y[2023],latest:y[2025]||y[2024]||y[2023]}))
+const BCOL={"冲":"#d85a30","稳":"#e0a32e","保":"#1d9e75"};
+// 选校助手:合并 录取位次(近年)+ 招生计划/学费/选科;若已在「我的推荐」填分,按你的位次标 冲/稳/保
+function detailTable(u,prov){
+  const lines=u.lines||[],plans=u.plans||{},name=u.name;
+  const m={};lines.filter(l=>l.granularity==="major"&&l.min_rank).forEach(l=>{(m[l.major]=m[l.major]||{})[l.year]=l.min_rank;});
+  const rows=Object.entries(m).map(([mj,y])=>({mj,y25:y[2025],y24:y[2024],latest:y[2025]||y[2024]||y[2023]}))
     .filter(r=>r.latest).sort((a,b)=>a.latest-b.latest);
   if(!rows.length)return "";
+  const gk=window.GK,haveRank=gk&&gk.rank&&gk.prov===prov;
+  const bandOf=r=>{if(!haveRank)return null;const rho=r/gk.rank;return rho<1.05?"冲":rho<1.25?"稳":"保";};
+  const cnt={"冲":0,"稳":0,"保":0};rows.forEach(r=>{const b=bandOf(r.latest);if(b)cnt[b]++;});
   const cell=v=>v?v.toLocaleString():'—';
-  let h=`<h3>招录数据看板</h3><p class="sub">${name} · ${prov} · 近三年各专业录取最低位次 <span style="color:#a8916a">(数字越小越难进)</span></p>
-    <table class="dtab"><thead><tr><th>专业</th><th>2025</th><th>2024</th><th>2023</th><th>趋势</th></tr></thead><tbody>`;
-  for(const r of rows){const a=r.y25,b=r.y24;
-    const tr=(a&&b)?(a<b?'<span style="color:#9c2f1b" title="位次走低=更难">↑难</span>':a>b?'<span style="color:#1d9e75" title="位次走高=更易">↓易</span>':'—'):'—';
-    h+=`<tr><td title="${r.mj}">${r.mj}</td><td>${cell(r.y25)}</td><td>${cell(r.y24)}</td><td>${cell(r.y23)}</td><td>${tr}</td></tr>`;}
-  return h+`</tbody></table><p class="sub" style="margin:8px 0 0">共 ${rows.length} 个专业 · 数据:各省考试院公开投档线</p>`;
+  const tu=v=>!v?'—':v>=1000?(v/1000).toFixed(v%1000?1:0)+'k':v;
+  const sel=s=>{if(!s||/不限/.test(s))return'不限';s=String(s).replace(/[((].*$/,'').replace(/[选考科目要求::、\s]/g,'').replace(/和|或/g,'');return s.slice(0,6)||'不限';};
+  let h=`<h3>选校助手</h3>`;
+  if(haveRank){
+    const tot=(cnt.冲+cnt.稳+cnt.保)||1;
+    h+=`<p class="sub">${name} · ${prov} · 按你的位次 <b>${gk.rank.toLocaleString()}</b>(${gk.subj})划分</p>
+      <div class="cwb">${['冲','稳','保'].filter(k=>cnt[k]).map(k=>`<div style="width:${(cnt[k]/tot*100).toFixed(0)}%;background:${BCOL[k]}">${k} ${cnt[k]}</div>`).join('')}</div>`;
+  }else{
+    h+=`<p class="sub">${name} · ${prov} · 录取位次 + 招生计划/学费/选科。<span style="color:#9c2f1b">在「我的推荐」填分数,这里会标出每个专业对你是冲/稳/保。</span></p>`;
+  }
+  h+=`<table class="dtab"><thead><tr><th>专业</th><th>2025</th><th>2024</th><th>计划</th><th>学费</th><th>选科</th></tr></thead><tbody>`;
+  for(const r of rows){const b=bandOf(r.latest),p=plans[r.mj];
+    h+=`<tr style="${b?`border-left:3px solid ${BCOL[b]}`:''}"><td title="${r.mj}">${r.mj}${b?` <span style="color:${BCOL[b]};font-size:10px">${b}</span>`:''}</td>`
+      +`<td>${cell(r.y25)}</td><td>${cell(r.y24)}</td><td>${p&&p.n?p.n:'—'}</td><td>${p?tu(p.tuition):'—'}</td><td>${p?sel(p.sel):'—'}</td></tr>`;}
+  return h+`</tbody></table><p class="sub" style="margin:8px 0 0">共 ${rows.length} 专业 · 位次/计划/学费/选科来自各省考试院</p>`;
 }
-function showDetail(lines,prov,name){
-  if(innerWidth<=1100){hideDetail();return;}            // 窄屏空间不足,看板不显示(小卡已含简表)
-  const html=detailTable(lines,prov,name);
+function showDetail(u,prov){
+  if(innerWidth<=1200){hideDetail();return;}            // 窄屏空间不足,看板不显示(小卡已含简表)
+  const html=detailTable(u,prov);
   if(!html){hideDetail();return;}
   detailpanel.innerHTML=`<span class="x" role="button" tabindex="0" aria-label="关闭看板" onclick="hideDetail()">✕</span>`+html;
   detailpanel.classList.add("show");
@@ -962,7 +980,7 @@ async function loadTrend(name){
     const u=await (await fetch(`${API}/api/uni?name=${encodeURIComponent(name)}&prov=${encodeURIComponent(prov)}`)).json();
     if(document.getElementById("card-trend")!==el)return;     // 卡片已切换,丢弃过期结果
     el.innerHTML=trendRows(u.lines,prov);
-    showDetail(u.lines,prov,name);                            // 同步填充中间看板
+    showDetail(u,prov);                                       // 同步填充中间"选校助手"
   }catch(e){el.innerHTML="";}
 }
 // 点校聚焦:把所选学校平滑带到画面中央(避开左侧卡片留白),让中间有内容、卡片与地图相连。
@@ -970,7 +988,7 @@ async function loadTrend(name){
 function focusSchool(ll){
   if(!ll||!ll[0])return;userTouched=true;
   const tz=Math.max(map.getZoom(),6.8),
-    pad=innerWidth>1100?{left:820,top:100,right:40,bottom:50}   // 让出左卡片 + 中间数据看板
+    pad=innerWidth>1200?{left:900,top:100,right:40,bottom:50}   // 让出左卡片 + 中间选校助手
        :innerWidth>640 ?{left:330,top:90,right:30,bottom:40}
                        :{top:60,bottom:Math.round(innerHeight*0.5),left:20,right:20};
   map.flyTo({center:ll,zoom:tz,padding:pad,duration:1100,curve:1.4,essential:true});
@@ -1255,7 +1273,7 @@ async function showUniCard(name){
       <p class="dim" style="margin-top:6px">${(u.intro||"").slice(0,80)}…</p>
       <div>${cardFavHTML({n:u.name,t:/985/.test(u.tier)?"985":/211/.test(u.tier)?"211":/双一流/.test(u.tier)?"dfc":"ben",c:u.city||u.province,ll:llOf(u.name)})}</div>`;
     card.style.display="block";
-    showDetail(u.lines,prov,u.name);                          // 中间看板
+    showDetail(u,prov);                                       // 中间"选校助手"
   }catch(e){}
 }
 async function runRecommend(){
@@ -1270,6 +1288,7 @@ async function runRecommend(){
   try{
     const r=await (await fetch(`${API}/api/recommend?prov=${encodeURIComponent(prov)}&subj=${encodeURIComponent(subj)}&score=${score}${sel?"&sel="+sel:""}`)).json();
     if(r.error){st.textContent="⚠️ "+r.error;document.getElementById("reclist").innerHTML="";return;}
+    window.GK={rank:r.rank,prov,subj,score:+score};   // 存考生位次,供点校"冲稳保"可视化
     st.textContent=`位次约 ${r.rank.toLocaleString()}(${prov}·${subj})${r.notes.length?" · "+r.notes[0]:""}`;
     renderRecResult(r,document.getElementById("reclist"));
     document.getElementById("tourbtn").style.display=RECS.length?"block":"none";
