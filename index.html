@@ -750,8 +750,13 @@ map.on("load",async()=>{
     map.addLayer({id:"country-line",type:"line",source:"china",paint:{
       "line-color":"#8a6a3f","line-width":2,"line-opacity":.6}});
     try{
-      const cn=await (await fetch("geo/100000.json")).json();
-      const holes=cn.features[0].geometry.coordinates.map(poly=>poly[0]);
+      // 蒙版挖洞用详细省界(gj = 100000_full,与地形/边界/分省填色同源),而非简化国界
+      // 100000.json——后者在滇桂/北部湾一带切进真实边界内,纸色蒙版溢到陆地、且简化段是直线,
+      // 叠在分层设色上呈"白色透明三角"伪影(已定位:关蒙版即消失)。逐片取外环挖空。
+      const holes=[];
+      for(const ft of gj.features){const g=ft&&ft.geometry;if(!g)continue;
+        const polys=g.type==="MultiPolygon"?g.coordinates:[g.coordinates];
+        for(const poly of polys) if(poly&&poly[0]) holes.push(poly[0]);}
       map.addSource("mask",{type:"geojson",data:{type:"Feature",geometry:{type:"Polygon",
         coordinates:[[[-180,-85],[180,-85],[180,85],[-180,85],[-180,-85]],...holes]}}});
       map.addLayer({id:"mask",type:"fill",source:"mask",paint:{
