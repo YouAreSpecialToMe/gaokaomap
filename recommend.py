@@ -100,8 +100,8 @@ def effective_rank_year(con, prov, subj_std, target=None):
 @lru_cache(maxsize=8)
 def get_uinfo():
     con = connect()
-    u = {r[0]: (r[1], r[2], r[3], r[4], r[5], r[6]) for r in con.execute(
-        "SELECT name,lng,lat,is_985,is_211,is_dfc,city FROM universities")}
+    u = {r[0]: (r[1], r[2], r[3], r[4], r[5], r[6], r[7]) for r in con.execute(
+        "SELECT name,lng,lat,is_985,is_211,is_dfc,city,rank FROM universities")}
     con.close()
     return u
 
@@ -212,7 +212,14 @@ def _engine(prov, subj_std, score, year, sel, rank=None, mclasses=None):
         rho = sum(r[1] * wi for r, wi in zip(recs, w)) / sum(w)
         rho *= plan_factor(un)
         items.append((rho, recs[0][0], un, mj, recs[0][2]))
-    items.sort(key=lambda x: abs(x[0] - BANDS.get(band_of(x[0]) or "稳", (0, 0, 1.18))[2]))
+    # 同档内按院校层次(985>211>双一流>本科)+ 综合排名优先,再按 ρ 贴合度排序——升学语境
+    # "够得着的最好学校排最前",免得顶尖校(清北)被贴合度更高的普通校挤出每档 12 个名额。
+    def _prestige(un):
+        i = uinfo.get(un) or uinfo.get(strip_paren(un))
+        if not i: return (3, 99999)
+        return (0 if i[2] else 1 if i[3] else 2 if i[4] else 3, i[6] or 99999)
+    items.sort(key=lambda x: (_prestige(x[2]),
+                              abs(x[0] - BANDS.get(band_of(x[0]) or "稳", (0, 0, 1.18))[2])))
 
     out = {b: [] for b in BANDS}
     per_uni = defaultdict(int)
