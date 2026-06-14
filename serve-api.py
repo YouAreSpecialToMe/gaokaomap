@@ -10,16 +10,18 @@ from functools import lru_cache
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from recommend import engine, DB, ALIAS, SUBJ_EQ, get_uinfo
+from recommend import engine, DB, ALIAS, SUBJ_EQ, get_uinfo, effective_rank_year, CURRENT_YEAR
 import quiz_data as QZ
 from bisect import bisect_right
 
-def rank_of(prov, subj_std, score, year=2025):
+def rank_of(prov, subj_std, score, year=None):
     con = db()
+    eff = effective_rank_year(con, prov, subj_std, year)   # 出分日预案:按省回退最新可用年
+    if eff is None: con.close(); return None
     for cand in ALIAS.get(subj_std, [subj_std]):
         t = con.execute("""SELECT score_min,cum_rank FROM rank_tables
             WHERE province=? AND year=? AND subject=? ORDER BY score_min""",
-            (prov, year, cand)).fetchall()
+            (prov, eff, cand)).fetchall()
         if t:
             ss=[r[0] for r in t]
             i=bisect_right(ss, score)-1
@@ -176,7 +178,7 @@ class H(BaseHTTPRequestHandler):
                     return self._send({"error": "参数:prov/subj + score 或 rank 必填"}, 400)
                 sel = set(q["sel"].split(",")) if q.get("sel") else None
                 r = engine(prov, subj, int(q.get("score") or 0),
-                           int(q.get("year", 2025)), sel,
+                           int(q["year"]) if q.get("year") else None, sel,
                            rank=int(rk) if rk.isdigit() else None)
                 return self._send(r, 200 if "error" not in r else 422)
             if u.path == "/api/quiz":
@@ -200,7 +202,7 @@ class H(BaseHTTPRequestHandler):
                     mcls = [t["mclass"] for t in top[:3]]      # 取契合度前三的专业类
                     resp["matchClasses"] = mcls
                     resp["recommend"] = engine(prov, subj, int(sc) if sc.isdigit() else 0,
-                        int(q.get("year", 2025)), None,
+                        int(q["year"]) if q.get("year") else None, None,
                         rank=int(rk) if rk.isdigit() else None, mclasses=mcls)
                 return self._send(resp)
             if u.path == "/api/uni":

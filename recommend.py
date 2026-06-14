@@ -33,6 +33,7 @@ ALIAS = {"物理": ["物理类", "物理", "理科"], "历史": ["历史类", "�
          "理科": ["理科", "物理类", "物理"], "文科": ["文科", "历史类", "历史"],
          "综合": ["综合", "综合改革"]}
 BANDS = {"冲": (0.85, 1.05, 0.95), "稳": (1.05, 1.25, 1.15), "保": (1.25, 1.80, 1.45)}
+CURRENT_YEAR = 2026   # 出分日预案目标年:换算位次时按省回退到 ≤ 此年的最新可用一分一段;各省 2026 数据入库后自动升级,无需改码(入库后须重启服务清缓存)
 SUBJ_EQ = {"物理": ("物理", "理科"), "历史": ("历史", "文科"),
            "理科": ("理科", "物理"), "文科": ("文科", "历史"), "综合": ("综合",)}
 TOK = {"物理": "物", "化学": "化", "生物": "生", "历史": "史", "地理": "地", "政治": "政",
@@ -61,6 +62,18 @@ def band_of(rho):
         if lo <= rho < hi: return b
     return None
 
+def effective_rank_year(con, prov, subj_std, target=None):
+    """出分日预案核心:返回 ≤target 且该省该科有一分一段的最新年(科类别名兼容);全无则 None。
+    target 默认 CURRENT_YEAR——即"预置 2026":某省 2026 一分一段入库前自动用其最新可用年(现为 2025),
+    入库后(配合服务重启清缓存)同一查询自动升级到 2026,逐省灰度,无需改码。"""
+    target = CURRENT_YEAR if target is None else int(target)
+    for cand in ALIAS.get(subj_std, [subj_std]):
+        row = con.execute("SELECT MAX(year) FROM rank_tables WHERE province=? AND subject=? AND year<=?",
+                          (prov, cand, target)).fetchone()
+        if row and row[0]:
+            return row[0]
+    return None
+
 @lru_cache(maxsize=8)
 def get_uinfo():
     con = connect()
@@ -87,8 +100,10 @@ def _cached(prov, subj_std, score, year, sel_key, rank, mcls_key):
                    rank or None,
                    tuple(mcls_key.split("|")) if mcls_key else None)
 
-def engine(prov, subj_std, score, year=2025, sel=None, rank=None, mclasses=None):
-    """score 与 rank 二选一(rank 优先);mclasses 给定则只在这些专业类内推荐(测评×分数合并)。"""
+def engine(prov, subj_std, score, year=None, sel=None, rank=None, mclasses=None):
+    """score 与 rank 二选一(rank 优先);mclasses 给定则只在这些专业类内推荐(测评×分数合并)。
+    year=None → 取 CURRENT_YEAR(出分日预案),引擎内再按省回退到最新可用一分一段年。"""
+    year = CURRENT_YEAR if year is None else int(year)
     sel_key = ",".join(sorted(sel)) if sel else ""
     mcls_key = "|".join(sorted(mclasses)) if mclasses else ""
     return json.loads(json.dumps(_cached(prov, subj_std, int(score or 0), int(year),
@@ -106,10 +121,12 @@ def _engine(prov, subj_std, score, year, sel, rank=None, mclasses=None):
             if t: return [(r[0], r[1]) for r in t]
         return None
 
-    tbl = rank_table(year)
-    if not tbl:
-        return {"error": f"{prov} {year} 年暂无{subj_std}类一分一段,无法换算位次",
+    eff = effective_rank_year(con, prov, subj_std, year)   # 出分日预案:按省回退到最新可用年(2026 入库即自动启用)
+    if not eff:
+        return {"error": f"{prov} 暂无{subj_std}类一分一段(≤{year}),无法换算位次",
                 "degrade": "no_rank"}
+    year = eff
+    tbl = rank_table(year)
     scores = [t[0] for t in tbl]
     if rank:
         my_rank = int(rank)
@@ -198,7 +215,7 @@ def warm(background_provinces=True):
     con.close()
     def _go():
         for p in provs:
-            try: get_plan_map(p, 2025)
+            try: get_plan_map(p, CURRENT_YEAR)
             except Exception: pass
     if background_provinces:
         import threading
@@ -209,7 +226,7 @@ def warm(background_provinces=True):
 
 if __name__ == "__main__":
     prov, subj, score = sys.argv[1], sys.argv[2], int(sys.argv[3])
-    yr = int(sys.argv[4]) if len(sys.argv) > 4 else 2025
+    yr = int(sys.argv[4]) if len(sys.argv) > 4 else None
     sel = set(sys.argv[5].split(",")) if len(sys.argv) > 5 else None
     r = engine(prov, subj, score, yr, sel)
     if "error" in r: print("⚠️", r["error"]); sys.exit(1)
