@@ -10,7 +10,7 @@ from functools import lru_cache
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from recommend import engine, DB, ALIAS, SUBJ_EQ, get_uinfo, connect, warm, effective_rank_year, CURRENT_YEAR
+from recommend import engine, DB, ALIAS, SUBJ_EQ, get_uinfo, connect, warm, effective_rank_year, CURRENT_YEAR, ensure_indexes
 import quiz_data as QZ
 from bisect import bisect_right
 
@@ -117,8 +117,10 @@ def uni_card(name, prov):
     con.close()
     return out
 
+@lru_cache(maxsize=512)
 def rank_curve(prov, subj, years):
-    """一分一段位次曲线:返回各年 [score, cum_rank, count_same] 点列(分数降序)。"""
+    """一分一段位次曲线:返回各年 [score, cum_rank, count_same] 点列(分数降序)。
+    years 为元组(可哈希),结果按数据快照固定 → lru 缓存命中即免查库。"""
     con = db()
     cands = ALIAS.get(subj, [subj])
     res = []
@@ -135,8 +137,9 @@ def rank_curve(prov, subj, years):
     con.close()
     return {"prov": prov, "subj": subj, "years": res}
 
+@lru_cache(maxsize=8)
 def stats(kind):
-    """聚合数据看板:eval=学科评估A+榜;province=各省考生规模。"""
+    """聚合数据看板:eval=学科评估A+榜;province=各省考生规模。结果按快照固定 → 缓存。"""
     con = db()
     if kind == "eval":
         rows = con.execute("""SELECT u.name, SUM(s.grade='A+') ap, SUM(s.grade IN('A+','A','A-')) a
@@ -237,7 +240,7 @@ class H(BaseHTTPRequestHandler):
                 if not q.get("prov") or not q.get("subj"):
                     return self._send({"error": "参数:prov/subj 必填"}, 400)
                 yrs = q.get("years")
-                years = [int(x) for x in yrs.split(",")] if yrs else [2025, 2024, 2023]
+                years = tuple(int(x) for x in yrs.split(",")) if yrs else (2025, 2024, 2023)
                 return self._send(rank_curve(q["prov"], q["subj"], years), cache=3600)
             if u.path == "/api/stats":
                 return self._send(stats(q.get("type", "eval")), cache=3600)
@@ -248,6 +251,7 @@ class H(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
     import time as _t; _t0 = _t.perf_counter()
+    ensure_indexes()             # self-heal perf indexes if the DB was rebuilt (writable; before any reader)
     meta()                       # province metadata, served on every page load
     n = warm()                   # universities now + per-province plan maps in background
     print(f"warmed meta + universities + {n} provinces (plans warming in background) in {(_t.perf_counter()-_t0)*1000:.0f}ms", flush=True)

@@ -29,6 +29,29 @@ def connect():
     con.execute("PRAGMA temp_store=MEMORY")        # GROUP BY temp b-trees in RAM, not disk
     con.execute("PRAGMA cache_size=-65536")        # 64MB page cache
     return con
+
+INDEXES = (
+    "CREATE INDEX IF NOT EXISTS idx_plan_lookup ON enrollment_plans(province, year, uni_name, plan_n)",
+    "CREATE INDEX IF NOT EXISTS idx_um_mclass   ON uni_majors(mclass, major)",
+    "CREATE INDEX IF NOT EXISTS idx_adm_name    ON admission_lines(uni_name, province, year, min_rank)",
+)
+
+def ensure_indexes():
+    """Create the performance indexes if missing, so they survive a DB rebuild
+    (the data file isn't in git). Opens a WRITABLE connection, so call this once at
+    startup BEFORE any immutable read connection is opened (immutable readers assume
+    the file never changes). Best-effort: indexes are an optimization, not required."""
+    try:
+        con = sqlite3.connect(DB, timeout=60)
+        before = con.execute("SELECT count(*) FROM sqlite_master WHERE type='index'").fetchone()[0]
+        for sql in INDEXES:
+            con.execute(sql)
+        if con.execute("SELECT count(*) FROM sqlite_master WHERE type='index'").fetchone()[0] > before:
+            con.execute("ANALYZE")   # stats so the planner actually uses the new indexes
+        con.commit()
+        con.close()
+    except Exception:
+        pass
 ALIAS = {"物理": ["物理类", "物理", "理科"], "历史": ["历史类", "历史", "文科"],
          "理科": ["理科", "物理类", "物理"], "文科": ["文科", "历史类", "历史"],
          "综合": ["综合", "综合改革"]}
