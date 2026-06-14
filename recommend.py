@@ -151,14 +151,26 @@ def _engine(prov, subj_std, score, year, sel, rank=None, mclasses=None):
     year = eff
     tbl = rank_table(year)
     scores = [t[0] for t in tbl]
+    total = max(c for _, c in tbl)                         # 该省该科考生总数(最大累计位次)
     if rank:
         my_rank = int(rank)
+        if my_rank < 1 or my_rank > total * 1.1:          # 位次不能超出考生总数(留 10% 余量)
+            return {"error": f"位次 {my_rank:,} 超出 {prov}{subj_std}考生范围(约 {total:,} 人),请核对",
+                    "degrade": "rank_oob"}
     else:
+        cands = ALIAS.get(subj_std, [subj_std])
+        ph = ",".join("?" * len(cands))
+        topmax = con.execute(
+            f"SELECT MAX(score_max) FROM rank_tables WHERE province=? AND year=? AND subject IN ({ph})",
+            (prov, year, *cands)).fetchone()[0] or scores[-1]
+        if score > topmax + 30:                            # 满分上限:本省该年实际最高分(已含加分)+小余量,挡住 800/10000 之类不可能分数
+            return {"error": f"{score} 分超出 {prov}{subj_std}满分范围(本省最高约 {topmax} 分),请核对分数",
+                    "degrade": "above_ceiling"}
         i = bisect_right(scores, score) - 1
         if i < 0:
             return {"error": "分数低于该省统计下限", "degrade": "below_floor"}
         my_rank = tbl[i][1]
-    cohort = {year: max(c for _, c in tbl)}
+    cohort = {year: total}
     eq = {year: my_rank}
     for yr in (year - 1, year - 2):
         t = rank_table(yr)

@@ -1457,6 +1457,9 @@ async function runRecommend(){
         val=document.getElementById("rp-score").value,
         st=document.getElementById("rp-status");
   if(!val){st.textContent=recMode==="rank"?"请输入位次":"请输入分数";return;}
+  const n=Number(val);                                       // 拦明显不可能的输入(如 10000 分),精确上限由引擎按省判
+  if(recMode==="rank"){if(!Number.isFinite(n)||n<1){st.textContent="请输入有效位次(正整数)";return;}}
+  else if(!Number.isFinite(n)||n<100||n>900){st.textContent="请输入有效分数(约 100–750)";return;}
   const sel=[...document.querySelectorAll("#rp-sel input:checked")].map(i=>i.value).join(",");
   st.textContent="测算中…";
   try{
