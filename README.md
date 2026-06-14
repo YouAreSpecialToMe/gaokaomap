@@ -4,6 +4,8 @@
 
 **数据底座**(31 省 × 2017-2025):投档线 584 万行(位次 98%)· 招生计划 334 万 · 一分一段 26 万段 · 学科评估 · 开设专业图谱 11 万。
 
+**在线 demo**:[agentsfeed.org/app-demo](https://agentsfeed.org/app-demo)
+
 ## 本地运行
 
 ```bash
