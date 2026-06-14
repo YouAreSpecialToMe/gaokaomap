@@ -10,7 +10,7 @@ from functools import lru_cache
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from recommend import engine, DB, ALIAS, SUBJ_EQ, get_uinfo
+from recommend import engine, DB, ALIAS, SUBJ_EQ, get_uinfo, connect, warm
 import quiz_data as QZ
 from bisect import bisect_right
 
@@ -57,7 +57,7 @@ def quiz_unis(mclass, prov, subj, score):
     return out
 
 def db():
-    con = sqlite3.connect(DB, timeout=30)
+    con = connect()
     con.row_factory = sqlite3.Row
     return con
 
@@ -152,11 +152,16 @@ def stats(kind):
     return out
 
 class H(BaseHTTPRequestHandler):
-    def _send(self, obj, code=200):
+    def _send(self, obj, code=200, cache=0):
         body = json.dumps(obj, ensure_ascii=False).encode()
         self.send_response(code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Access-Control-Allow-Origin", "*")
+        # The read-only API is deterministic per query, so let Cloudflare edge-cache
+        # successful responses: repeat visitors are served from the edge and never
+        # touch this single-process server (the main lever for high concurrency).
+        if cache and code == 200:
+            self.send_header("Cache-Control", f"public, max-age=600, s-maxage={cache}")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -174,7 +179,11 @@ class H(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", ctype + ("; charset=utf-8" if ctype.startswith("text") or ctype.endswith("json") else ""))
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "max-age=300")
+        # Everything static except the HTML shell is immutable demo data (the
+        # ~1MB maplibre bundle, geo GeoJSON, unis.json, terrain symbols) → cache
+        # hard so Cloudflare/browsers keep it; only index.html stays short-lived.
+        is_html = path in ("/", "/index.html") or path.endswith(".html")
+        self.send_header("Cache-Control", "max-age=300" if is_html else "max-age=31536000, immutable")
         self.end_headers()
         self.wfile.write(body)
 
@@ -183,7 +192,7 @@ class H(BaseHTTPRequestHandler):
             u = urllib.parse.urlparse(self.path)
             q = {k: v[0] for k, v in urllib.parse.parse_qs(u.query).items()}
             if u.path == "/api/meta":
-                return self._send(meta())
+                return self._send(meta(), cache=3600)
             if u.path == "/api/recommend":
                 prov, subj = q.get("prov"), q.get("subj")
                 rk = q.get("rank", "")
@@ -193,10 +202,10 @@ class H(BaseHTTPRequestHandler):
                 r = engine(prov, subj, int(q.get("score") or 0),
                            int(q.get("year", 2025)), sel,
                            rank=int(rk) if rk.isdigit() else None)
-                return self._send(r, 200 if "error" not in r else 422)
+                return self._send(r, 200 if "error" not in r else 422, cache=3600)
             if u.path == "/api/quiz":
                 return self._send({"questions": QZ.QUESTIONS, "scale": QZ.SCALE,
-                                   "dims": QZ.DIM_NAMES})
+                                   "dims": QZ.DIM_NAMES}, cache=3600)
             if u.path == "/api/quiz/match":
                 try:
                     vals = [int(x) for x in q.get("scores", "").split(",")]
@@ -217,24 +226,34 @@ class H(BaseHTTPRequestHandler):
                     resp["recommend"] = engine(prov, subj, int(sc) if sc.isdigit() else 0,
                         int(q.get("year", 2025)), None,
                         rank=int(rk) if rk.isdigit() else None, mclasses=mcls)
-                return self._send(resp)
+                return self._send(resp, cache=3600)
             if u.path == "/api/uni":
                 if not q.get("name"):
                     return self._send({"error": "参数:name 必填"}, 400)
-                return self._send(uni_card(q["name"], q.get("prov", "")))
+                return self._send(uni_card(q["name"], q.get("prov", "")), cache=3600)
             if u.path == "/api/rank":
                 if not q.get("prov") or not q.get("subj"):
                     return self._send({"error": "参数:prov/subj 必填"}, 400)
                 yrs = q.get("years")
                 years = [int(x) for x in yrs.split(",")] if yrs else [2025, 2024, 2023]
-                return self._send(rank_curve(q["prov"], q["subj"], years))
+                return self._send(rank_curve(q["prov"], q["subj"], years), cache=3600)
             if u.path == "/api/stats":
-                return self._send(stats(q.get("type", "eval")))
+                return self._send(stats(q.get("type", "eval")), cache=3600)
             return self._static(u.path)
         except Exception as e:
             return self._send({"error": f"internal: {type(e).__name__} {e}"}, 500)
 
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
-    print(f"高考升学地图: http://127.0.0.1:{port}")
-    ThreadingHTTPServer(("0.0.0.0", port), H).serve_forever()
+    import time as _t; _t0 = _t.perf_counter()
+    meta()                       # province metadata, served on every page load
+    n = warm()                   # universities now + per-province plan maps in background
+    print(f"warmed meta + universities + {n} provinces (plans warming in background) in {(_t.perf_counter()-_t0)*1000:.0f}ms", flush=True)
+    print(f"高考升学地图: http://127.0.0.1:{port}", flush=True)
+    # Bigger listen backlog + daemon threads so connection bursts queue instead of
+    # being refused (the stdlib default backlog of 5 dropped connections under load).
+    class Server(ThreadingHTTPServer):
+        daemon_threads = True
+        request_queue_size = 256
+        allow_reuse_address = True
+    Server(("0.0.0.0", port), H).serve_forever()

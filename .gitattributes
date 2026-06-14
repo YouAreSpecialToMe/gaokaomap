@@ -1,0 +1,4 @@
+# Vendored assets (maplibre bundle, GeoJSON data) — preserve exact bytes,
+# no end-of-line conversion on checkout (esp. needed on Windows deploy boxes).
+/vendor/** -text
+/geo/** -text

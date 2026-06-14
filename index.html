@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>高考升学地图 · Demo</title>
-<script src="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js"></script>
-<link href="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.css" rel="stylesheet">
+<script src="vendor/maplibre-gl.js"></script>
+<link href="vendor/maplibre-gl.css" rel="stylesheet">
 <style>
   html,body{margin:0;height:100%;overflow:hidden;font-family:"PingFang SC","Microsoft YaHei",sans-serif}
   #map{position:absolute;inset:0;background:#ece2c8}
@@ -585,7 +585,7 @@ const markers=[];
 map.on("load",async()=>{
   const unisP=fetch("unis.json").then(r=>r.json()).catch(()=>[]);
   try{
-    const gj=await (await fetch("https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json")).json();
+    const gj=await (await fetch("geo/100000_full.json")).json();
     map.addSource("china",{type:"geojson",data:gj});
     const DEMCR={type:"raster-dem",encoding:"terrarium",
       tiles:["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
@@ -629,7 +629,7 @@ map.on("load",async()=>{
     map.addLayer({id:"country-line",type:"line",source:"china",paint:{
       "line-color":"#8a6a3f","line-width":2,"line-opacity":.6}});
     try{
-      const cn=await (await fetch("https://geo.datav.aliyun.com/areas_v3/bound/100000.json")).json();
+      const cn=await (await fetch("geo/100000.json")).json();
       const holes=cn.features[0].geometry.coordinates.map(poly=>poly[0]);
       map.addSource("mask",{type:"geojson",data:{type:"Feature",geometry:{type:"Polygon",
         coordinates:[[[-180,-85],[180,-85],[180,85],[-180,85],[-180,-85]],...holes]}}});
@@ -651,7 +651,7 @@ map.on("load",async()=>{
     try{
       const CITY_CODES=[110000,310000,330100,420100,510100];
       const dist=await Promise.all(CITY_CODES.map(c=>
-        fetch(`https://geo.datav.aliyun.com/areas_v3/bound/${c}_full.json`).then(r=>r.json())));
+        fetch(`geo/${c}_full.json`).then(r=>r.json())));
       const feats=dist.flatMap(d=>d.features);
       map.addSource("districts",{type:"geojson",data:{type:"FeatureCollection",features:feats}});
       map.addLayer({id:"district-line",type:"line",source:"districts",paint:{
@@ -662,7 +662,7 @@ map.on("load",async()=>{
       window._distMks=null;
     }catch(e){}
     try{
-      const RV="https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/50m/physical/";
+      const RV="geo/";
       const before=map.getLayer("mask")?"mask":"prov-line";
       const [rivers,lakes]=await Promise.all([
         fetch(RV+"ne_50m_rivers_lake_centerlines.json").then(r=>r.json()),
@@ -1123,7 +1123,7 @@ actQuiz.addEventListener("click",()=>{
 });
 
 let RECS=[];
-const API=(location.port==="8765")?`http://${location.hostname||"127.0.0.1"}:8787`:"";
+const API=(location.port==="8765")?`http://${location.hostname||"127.0.0.1"}:8787`:location.pathname.replace(/\/[^\/]*$/,"");
 let recTemp=[];
 function clearRec(){
   recTemp.forEach(m=>m.remove());recTemp=[];

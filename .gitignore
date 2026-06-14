@@ -1,4 +1,7 @@
-gaokao-data/
+# The data lives in a sibling repo; locally it's a junction/symlink into it
+# (env-specific path — see README). Never track it, so deploys/resets can't
+# clobber the local junction.
+/gaokao-data
 nohup.out
 __pycache__/
 *.pyc

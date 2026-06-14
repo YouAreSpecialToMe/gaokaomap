@@ -11,12 +11,24 @@ CLI: python3 recommend.py <省份> <科类> <分数> [年份=2025] [选科如 �
 5) 招生计划扩缩招修正(校级计划同比,ρ*factor^0.2)
 6) 缺最新年标注 (据YYYY);专业级薄省提示参考院校线
 """
-import json, math, os, re, sqlite3, sys
+import json, math, os, pathlib, re, sqlite3, sys
 from bisect import bisect_right
 from collections import defaultdict
 from functools import lru_cache
 
 DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gaokao-data", "gaokao.db")
+DB_URI = pathlib.Path(DB).as_uri() + "?immutable=1"   # static snapshot: skip all locking/change-detection → max read concurrency
+
+def connect():
+    """Read-only connection tuned for this ~2.4GB snapshot.
+    mmap_size memory-maps the file so index/data pages are served from the shared OS
+    page cache across every per-request connection and thread (big win for repeat reads;
+    the default 2MB per-connection cache was discarded each request)."""
+    con = sqlite3.connect(DB_URI, uri=True, timeout=30)
+    con.execute("PRAGMA mmap_size=3000000000")   # ~3GB: map the whole db
+    con.execute("PRAGMA temp_store=MEMORY")        # GROUP BY temp b-trees in RAM, not disk
+    con.execute("PRAGMA cache_size=-65536")        # 64MB page cache
+    return con
 ALIAS = {"物理": ["物理类", "物理", "理科"], "历史": ["历史类", "历史", "文科"],
          "理科": ["理科", "物理类", "物理"], "文科": ["文科", "历史类", "历史"],
          "综合": ["综合", "综合改革"]}
@@ -51,7 +63,7 @@ def band_of(rho):
 
 @lru_cache(maxsize=8)
 def get_uinfo():
-    con = sqlite3.connect(DB, timeout=30)
+    con = connect()
     u = {r[0]: (r[1], r[2], r[3], r[4], r[5], r[6]) for r in con.execute(
         "SELECT name,lng,lat,is_985,is_211,is_dfc,city FROM universities")}
     con.close()
@@ -59,7 +71,7 @@ def get_uinfo():
 
 @lru_cache(maxsize=128)
 def get_plan_map(prov, year):
-    con = sqlite3.connect(DB, timeout=30)
+    con = connect()
     plan = {}
     for un, yr, n in con.execute("""SELECT uni_name,year,SUM(plan_n) FROM enrollment_plans
         WHERE province=? AND year IN (?,?) GROUP BY uni_name,year""",
@@ -83,7 +95,7 @@ def engine(prov, subj_std, score, year=2025, sel=None, rank=None, mclasses=None)
                                          sel_key, int(rank) if rank else 0, mcls_key)))
 
 def _engine(prov, subj_std, score, year, sel, rank=None, mclasses=None):
-    con = sqlite3.connect(DB, timeout=30)
+    con = connect()
     con.row_factory = sqlite3.Row
 
     def rank_table(yr):
@@ -174,6 +186,26 @@ def _engine(prov, subj_std, score, year, sel, rank=None, mclasses=None):
     return {"province": prov, "subject": subj_std, "score": score, "year": year,
             "rank": my_rank, "eq": {str(k): v for k, v in eq.items()},
             "bands": out, "notes": notes}
+
+def warm(background_provinces=True):
+    """Cache-first warmup so the first user request is instant.
+    Loads all universities now, then pre-fills each province's enrollment-plan map
+    (the formerly ~370ms scan, now indexed) in a daemon thread so server bind isn't delayed.
+    Returns the province count."""
+    get_uinfo()
+    con = connect()
+    provs = [r[0] for r in con.execute("SELECT province FROM rank_tables GROUP BY province")]
+    con.close()
+    def _go():
+        for p in provs:
+            try: get_plan_map(p, 2025)
+            except Exception: pass
+    if background_provinces:
+        import threading
+        threading.Thread(target=_go, name="warm-plans", daemon=True).start()
+    else:
+        _go()
+    return len(provs)
 
 if __name__ == "__main__":
     prov, subj, score = sys.argv[1], sys.argv[2], int(sys.argv[3])
