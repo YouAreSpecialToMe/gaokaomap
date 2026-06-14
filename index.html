@@ -483,6 +483,18 @@
     .toast{bottom:96px}
     .maplibregl-ctrl-top-right{transform:scale(.85);transform-origin:top right}
   }
+  /* 工具条收纳:默认只显 视角/投影/更多,其余(画风/天气/地形/配乐)收进「更多」 */
+  .toolbar #stylebtn,.toolbar #wxbtn,.toolbar #t3dbtn,.toolbar #musbtn{display:none}
+  .toolbar.more-open #stylebtn,.toolbar.more-open #wxbtn,.toolbar.more-open #t3dbtn,.toolbar.more-open #musbtn{display:flex}
+  #tb-toggle.on{background:rgba(189,154,85,.18)}
+  /* 空间筛选下拉(按省份聚焦)+ 移动端底部抽屉抓手 */
+  .region-sel{font:500 13px "Kaiti SC","STKaiti",serif;color:var(--ink-soft);background:linear-gradient(180deg,var(--paper-a),var(--paper-b));border:1px solid var(--gold-soft);border-radius:999px;padding:8px 14px;box-shadow:var(--elev);cursor:pointer;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);max-width:42vw}
+  .region-sel:focus-visible{outline:none;box-shadow:0 0 0 2.5px var(--zhu) inset}
+  .card::before,.recpanel::before,.quizpanel::before,.favpanel::before{content:"";display:none}
+  @media(max-width:640px){
+    .card,.recpanel,.quizpanel,.favpanel{padding-top:20px}
+    .card::before,.recpanel::before,.quizpanel::before,.favpanel::before{display:block;position:absolute;top:7px;left:50%;transform:translateX(-50%);width:38px;height:4px;border-radius:2px;background:rgba(140,110,60,.32);content:""}
+  }
 </style>
 </head>
 <body>
@@ -496,6 +508,7 @@
   <button class="tbtn" id="t3dbtn" aria-label="地形:平面 / 立体 3D" title="地形:平面(超流畅)— 点按切换立体 3D"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3 21 7.5 12 12 3 7.5Z"/><path d="M3 12 12 16.5 21 12"/><path d="M3 16.5 12 21 21 16.5"/></svg></button>
   <button class="tbtn" id="musbtn" aria-label="配乐:关 — 点按播放" title="配乐:萨蒂《Gymnopédie No.1》(钢琴 · Kevin MacLeod / CC-BY)— 点按播放 / 静音"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17V5l10-2v12"/><circle cx="6.5" cy="17" r="2.5"/><circle cx="16.5" cy="15" r="2.5"/></svg></button>
   <button class="tbtn on" id="globebtn" aria-label="投影:地球 / 平面画卷" title="投影:地球(概览微曲)— 点按切平面画卷"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18"/></svg></button>
+  <button class="tbtn" id="tb-toggle" aria-label="更多显示设置:画风 / 天气 / 地形 / 配乐" title="更多:画风 / 天气 / 地形 / 配乐" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg></button>
 </div>
 <button id="cfgbtn" class="cfgbtn" aria-label="设置:画风 / 视角 / 天气 / 地形" title="画风/视角/天气/地形">⚙</button>
 <div id="search">
@@ -564,6 +577,7 @@
 </div>
 <div class="toast" id="toast"></div>
 <div class="botbar" id="botbar">
+  <select class="region-sel" id="region-sel" aria-label="按省份聚焦地图"><option value="">全国</option></select>
   <div class="seg" id="filter-seg">
     <button class="seg-i on" data-f="all">全部院校</button>
     <button class="seg-i" data-f="985">985 巡礼</button>
@@ -624,7 +638,11 @@ function applyProjection(on){globeOn=on;
   const b=document.getElementById("globebtn");if(b){b.classList.toggle("on",on);
     b.title=on?"投影:地球(概览微曲)— 点按切平面画卷":"投影:平面画卷 — 点按切地球";}
   flyHome(700);}
-addEventListener("DOMContentLoaded",()=>document.getElementById("globebtn")?.addEventListener("click",()=>applyProjection(!globeOn)));
+addEventListener("DOMContentLoaded",()=>{
+  document.getElementById("globebtn")?.addEventListener("click",()=>applyProjection(!globeOn));
+  const tbt=document.getElementById("tb-toggle");
+  tbt?.addEventListener("click",()=>{const o=document.getElementById("toolbar").classList.toggle("more-open");tbt.classList.toggle("on",o);tbt.setAttribute("aria-expanded",o);hap();});
+});
 let userTouched=false;
 const STYLES={
   wc:{ramp:["interpolate",["linear"],["elevation"],
@@ -957,12 +975,16 @@ map.on("load",async()=>{
       if(TOP15.has(u.n))u.top=1;
       return u;});
     DOTS=all.filter(u=>u.t==="ben"||isCampus(u.n));
+    const _provs=[...new Set(all.map(u=>u.p).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"zh"));
+    const _rs=document.getElementById("region-sel");
+    if(_rs){_rs.innerHTML='<option value="">全国</option>'+_provs.map(p=>`<option>${p}</option>`).join("");
+      _rs.addEventListener("change",e=>applyRegion(e.target.value));}
     buildCityIndex();
     document.querySelector(".titlebar p").textContent=`山河为卷 · 收录 ${all.length} 所大学 · 填分数,点亮够得着的`;
     try{
       map.addSource("unidots",{type:"geojson",data:{type:"FeatureCollection",
         features:DOTS.map(u=>({type:"Feature",
-          properties:{u:JSON.stringify(u),cs:u.cs||0,med:u.med||0,fin:u.fin||0},
+          properties:{u:JSON.stringify(u),p:u.p||"",cs:u.cs||0,med:u.med||0,fin:u.fin||0},
           geometry:{type:"Point",coordinates:u.ll}}))}});
       map.addLayer({id:"uni-dots",type:"circle",source:"unidots",paint:{
         "circle-color":"#9a5b2d","circle-opacity":0.78,
@@ -1008,6 +1030,22 @@ function cullMarkers(){
 // 本科名称标签:放大到省/市级时,视野内的本科点阵浮出校名(碰撞去重叠 + 数量上限 + 增量更新防闪)。
 // 仅"全部院校"态显示(筛选态点阵本身即子集);用 DOTS 的 rank 决定挤占时谁优先。
 let curFilter="all",uniLabels=new Map(),recMode="score";
+let provFilter=null;                                         // 空间筛选:当前聚焦省份(空=全国)
+const hap=(ms=12)=>{try{navigator.vibrate&&navigator.vibrate(ms);}catch(e){}};   // 移动端轻触感
+function flyToProvince(prov){
+  const pts=UNIS.concat(DOTS).filter(u=>u.p===prov&&u.ll&&u.ll[0]).map(u=>u.ll);
+  if(!pts.length){flyHome(900);return;}
+  let mnx=180,mny=90,mxx=-180,mxy=-90;
+  for(const[x,y]of pts){if(x<mnx)mnx=x;if(y<mny)mny=y;if(x>mxx)mxx=x;if(y>mxy)mxy=y;}
+  map.fitBounds([[mnx,mny],[mxx,mxy]],{padding:{top:120,bottom:130,left:70,right:70},maxZoom:8.5,duration:1100,pitch:globeOn?0:37});
+}
+function applyRegion(prov){
+  provFilter=prov||null; hap();
+  const rp=document.getElementById("rp-prov");
+  if(provFilter&&rp&&[...rp.options].some(o=>o.value===provFilter))rp.value=provFilter;   // 同步「我的推荐」省份
+  applyFilter(curFilter);                                    // 叠加省份+层次重算可见
+  if(provFilter)flyToProvince(provFilter);else flyHome(900);
+}
 const ULABEL_Z=7.3,ULABEL_CAP=48;
 function updateUniLabels(){
   const z=map.getZoom(),want=new Map();
@@ -1168,7 +1206,7 @@ async function loadTrend(name){
 // 点校聚焦:把所选学校平滑带到画面中央(避开左侧卡片留白),让中间有内容、卡片与地图相连。
 // 不缩小(zoom 取 max),太远则拉近到城市级;卡片侧留 padding 使学校落在卡片右侧的空白区。
 function focusSchool(ll){
-  if(!ll||!ll[0])return;userTouched=true;
+  if(!ll||!ll[0])return;userTouched=true;hap();
   const tz=Math.max(map.getZoom(),6.8),
     pad=innerWidth>1200?{left:900,top:100,right:40,bottom:50}   // 让出左卡片 + 中间选校助手
        :innerWidth>640 ?{left:330,top:90,right:30,bottom:40}
@@ -1207,17 +1245,20 @@ function applyFilter(f){
     if(f==="985")vis=u.t==="985";
     else if(f==="211")vis=u.t==="211"||u.t==="dfc";
     else if(f==="cs"||f==="med"||f==="fin")vis=u.g.includes(f);
+    if(provFilter)vis=vis&&u.p===provFilter;                 // 叠加省份空间筛选
     el.style.display=vis?"":"none";
   });
   if(map.getLayer("uni-dots")){
     if(f==="985"||f==="211"){map.setLayoutProperty("uni-dots","visibility","none");}
     else{map.setLayoutProperty("uni-dots","visibility","visible");
-      map.setFilter("uni-dots",(f==="cs"||f==="med"||f==="fin")?["==",["get",f],1]:null);}
+      const fx=[];if(provFilter)fx.push(["==",["get","p"],provFilter]);
+      if(f==="cs"||f==="med"||f==="fin")fx.push(["==",["get",f],1]);
+      map.setFilter("uni-dots",fx.length?["all",...fx]:null);}
   }
   updateFlags();cullMarkers();updateUniLabels();
 }
 document.querySelectorAll("#filter-seg .seg-i").forEach(ch=>
-  ch.addEventListener("click",()=>{userTouched=true;applyFilter(ch.dataset.f);}));
+  ch.addEventListener("click",()=>{userTouched=true;hap();applyFilter(ch.dataset.f);}));
 // 主操作:开/合 推荐与测评面板(与筛选互不干扰)
 const actRec=document.getElementById("act-rec"),actQuiz=document.getElementById("act-quiz");
 function syncActs(){
@@ -1961,7 +2002,7 @@ const llOf=name=>{const u=UNIS.concat(DOTS).find(x=>x.n===name);return u?u.ll:nu
 const tierZh=t=>t==="985"?"985":t==="211"?"211":t==="dfc"?"双一流":"本科";
 function favSave(){try{localStorage.setItem("gk_fav",JSON.stringify(FAV));}catch(e){}favRender();}
 function favToggle(it){const k=favKey(it),i=FAV.findIndex(x=>favKey(x)===k);
-  const added=i<0;if(added)FAV.push(it);else FAV.splice(i,1);favSave();
+  const added=i<0;if(added){FAV.push(it);hap();}else FAV.splice(i,1);favSave();
   toast(added?"已加入志愿表":"已移出志愿表");return added;}
 let favDragI=null;
 function favRender(){
