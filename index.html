@@ -138,6 +138,11 @@
   .recform button:hover{background:#a13a22}
   .rfsel{display:flex;gap:8px;flex-wrap:wrap;font-size:12px;color:#6b5226}
   .rfsel label{display:flex;align-items:center;gap:2px;cursor:pointer}
+  .rfmode{display:flex;border:1px solid #c5ab7c;border-radius:6px;overflow:hidden;margin-bottom:2px}
+  .rfm{flex:1;padding:5px 0;border:0;background:#fdf8ea;color:#6b5226;
+    font:500 12.5px "Kaiti SC","STKaiti",serif;letter-spacing:1px;cursor:pointer;transition:background .2s,color .2s}
+  .rfm+.rfm{border-left:1px solid #c5ab7c}
+  .rfm.on{background:#8c2f1b;color:#f7e8d6}
   .recgroup{font:600 13px "Kaiti SC","STKaiti",serif;letter-spacing:2px;margin:8px 0 2px}
   .recgroup.冲{color:#d85a30}.recgroup.稳{color:#b8860b}.recgroup.保{color:#1d9e75}
   .recrow small{color:#7d6536;margin-left:4px}
@@ -455,6 +460,7 @@
   <h3>我的推荐</h3>
   <div class="recform">
     <div class="rfrow"><select id="rp-prov"></select><select id="rp-subj"></select></div>
+    <div class="rfmode" id="rp-mode"><button type="button" class="rfm on" data-m="score">按分数</button><button type="button" class="rfm" data-m="rank">按位次</button></div>
     <div class="rfrow"><input id="rp-score" type="number" placeholder="高考分数" min="100" max="750">
       <button id="rp-go">测一测</button></div>
     <div class="rfsel" id="rp-sel">
@@ -463,7 +469,7 @@
       <label><input type="checkbox" value="物">物</label><label><input type="checkbox" value="史">史</label>
     </div>
   </div>
-  <p class="sub" id="rp-status">选择省份科类,输入分数</p>
+  <p class="sub" id="rp-status">选择省份科类,输入分数或位次</p>
   <div id="reclist"></div>
   <button class="tourbtn" id="tourbtn" style="display:none">开 始 巡 游</button>
   <p class="dim" style="margin:8px 0 0">数据来自各省考试院等公开信息整理,仅供参考</p>
@@ -896,7 +902,7 @@ function cullMarkers(){
 }
 // 本科名称标签:放大到省/市级时,视野内的本科点阵浮出校名(碰撞去重叠 + 数量上限 + 增量更新防闪)。
 // 仅"全部院校"态显示(筛选态点阵本身即子集);用 DOTS 的 rank 决定挤占时谁优先。
-let curFilter="all",uniLabels=new Map();
+let curFilter="all",uniLabels=new Map(),recMode="score";
 const ULABEL_Z=7.3,ULABEL_CAP=48;
 function updateUniLabels(){
   const z=map.getZoom(),want=new Map();
@@ -1209,7 +1215,7 @@ async function loadRank(){
   try{
     const d=await (await fetch(`${API}/api/rank?prov=${encodeURIComponent(prov)}&subj=${encodeURIComponent(subj)}`)).json();
     const rp=document.getElementById("rp-prov"),sc=+(document.getElementById("rp-score").value||0);
-    ch.innerHTML=drawRankChart(d,(rp&&rp.value===prov&&sc>=100)?sc:0);
+    ch.innerHTML=drawRankChart(d,(recMode==="score"&&rp&&rp.value===prov&&sc>=100)?sc:0);
   }catch(e){ch.innerHTML='<p class="dim" style="padding:24px 0;text-align:center">⚠️ 数据服务未启动(8787)</p>';}
 }
 function renderRank(){
@@ -1382,15 +1388,16 @@ async function runRecommend(){
   userTouched=true;
   const prov=document.getElementById("rp-prov").value,
         subj=document.getElementById("rp-subj").value,
-        score=document.getElementById("rp-score").value,
+        val=document.getElementById("rp-score").value,
         st=document.getElementById("rp-status");
-  if(!score){st.textContent="请输入分数";return;}
+  if(!val){st.textContent=recMode==="rank"?"请输入位次":"请输入分数";return;}
   const sel=[...document.querySelectorAll("#rp-sel input:checked")].map(i=>i.value).join(",");
   st.textContent="测算中…";
   try{
-    const r=await (await fetch(`${API}/api/recommend?prov=${encodeURIComponent(prov)}&subj=${encodeURIComponent(subj)}&score=${score}${sel?"&sel="+sel:""}`)).json();
+    const qp=recMode==="rank"?`rank=${val}`:`score=${val}`;
+    const r=await (await fetch(`${API}/api/recommend?prov=${encodeURIComponent(prov)}&subj=${encodeURIComponent(subj)}&${qp}${sel?"&sel="+sel:""}`)).json();
     if(r.error){st.textContent="⚠️ "+r.error;document.getElementById("reclist").innerHTML="";return;}
-    window.GK={rank:r.rank,prov,subj,score:+score};   // 存考生位次,供点校"冲稳保"可视化
+    window.GK={rank:r.rank,prov,subj,score:recMode==="score"?+val:0};   // 存考生位次,供点校"冲稳保"可视化
     st.textContent=`位次约 ${r.rank.toLocaleString()}(${prov}·${subj})${r.notes.length?" · "+r.notes[0]:""}`;
     renderRecResult(r,document.getElementById("reclist"));
     document.getElementById("tourbtn").style.display=RECS.length?"block":"none";
@@ -1566,6 +1573,15 @@ cv.addEventListener("wheel",_nudgeQ,{passive:true});
 document.getElementById("qz-start").addEventListener("click",qzStart);
 document.getElementById("rp-go").addEventListener("click",runRecommend);
 document.getElementById("rp-score").addEventListener("keydown",e=>{if(e.key==="Enter")runRecommend();});
+document.querySelectorAll("#rp-mode .rfm").forEach(b=>b.addEventListener("click",()=>{
+  recMode=b.dataset.m;
+  document.querySelectorAll("#rp-mode .rfm").forEach(x=>x.classList.toggle("on",x===b));
+  const inp=document.getElementById("rp-score");
+  if(recMode==="rank"){inp.placeholder="全省位次,如 50000";inp.min=1;inp.removeAttribute("max");}
+  else{inp.placeholder="高考分数";inp.min=100;inp.max=750;}
+  inp.value="";inp.focus();
+  document.getElementById("rp-status").textContent=recMode==="rank"?"输入全省位次(比分数更精准)":"选择省份科类,输入分数";
+}));
 let tourTimer=null,touring=false;
 const tourbtn=document.getElementById("tourbtn");
 function stopTour(){touring=false;clearTimeout(tourTimer);tourbtn.textContent="开 始 巡 游";}
