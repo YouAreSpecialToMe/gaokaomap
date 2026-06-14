@@ -321,6 +321,44 @@
   #bgm-tip .bgm-x{width:22px;height:22px;display:flex;align-items:center;justify-content:center;border:0;
     border-radius:50%;background:rgba(157,47,27,.1);color:var(--zhu);font-size:11px;cursor:pointer;padding:0}
   #bgm-tip .bgm-x:hover{background:var(--zhu);color:#fbf0df}
+  /* 首访引导:三步漏斗(填分→点校→志愿表)一次性欢迎卡 */
+  .ob-mask{position:absolute;inset:0;z-index:13;background:rgba(60,45,20,.36);display:none;
+    -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+  .ob-mask.show{display:block;animation:fadeUp .3s ease}
+  .onboard{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.96);z-index:14;
+    width:min(440px,92vw);display:none;opacity:0;padding:22px 24px 20px;border-radius:16px;
+    background:linear-gradient(180deg,var(--paper-a),var(--paper-b));border:1px solid var(--gold-soft);
+    box-shadow:var(--elev);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+    transition:opacity .35s ease,transform .4s cubic-bezier(.22,1,.36,1)}
+  .onboard.show{display:block;opacity:1;transform:translate(-50%,-50%) scale(1)}
+  .onboard .x{position:absolute;top:9px;right:13px;cursor:pointer;color:#7d6536;font-size:17px;background:none;border:0}
+  .onboard h3{margin:0 0 4px;font:600 19px "Kaiti SC","STKaiti",serif;color:var(--ink);letter-spacing:2px;
+    display:flex;align-items:center;gap:8px}
+  .onboard h3::before{content:"";width:3px;height:18px;background:var(--zhu);border-radius:1px;flex:0 0 auto}
+  .ob-sub{margin:0 0 14px;font:500 13px "Kaiti SC","STKaiti",serif;color:var(--ink-soft);line-height:1.5}
+  .ob-steps{list-style:none;margin:0 0 13px;padding:0;display:flex;flex-direction:column;gap:11px}
+  .ob-steps li{display:flex;gap:11px;align-items:flex-start}
+  .ob-n{flex:0 0 auto;width:26px;height:26px;border-radius:50%;background:#9c2f1b;color:#fbf0df;
+    font:600 14px "Kaiti SC","STKaiti",serif;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 2px 6px rgba(156,47,27,.3)}
+  .ob-steps b{display:block;font:600 14px "Kaiti SC","STKaiti",serif;color:var(--ink)}
+  .ob-steps em{font:500 12.5px "Kaiti SC","STKaiti",serif;color:var(--ink-soft);line-height:1.45;font-style:normal}
+  .ob-bgm{display:flex;align-items:center;gap:7px;margin:0 0 14px;cursor:pointer;
+    font:500 12.5px "Kaiti SC","STKaiti",serif;color:var(--ink-soft)}
+  .ob-bgm input{accent-color:#9c2f1b;width:15px;height:15px;cursor:pointer;flex:0 0 auto}
+  .ob-acts{display:flex;gap:10px}
+  .ob-go{flex:1;padding:11px;border:1px solid var(--gold);border-radius:999px;cursor:pointer;
+    color:#fbf0df;font:600 14px "Kaiti SC","STKaiti",serif;letter-spacing:2px;
+    background:linear-gradient(180deg,#a8392a,#8c2f1b);
+    box-shadow:0 4px 12px rgba(156,47,27,.3),0 0 0 1px rgba(216,192,138,.4) inset;
+    transition:transform .25s cubic-bezier(.34,1.56,.64,1),box-shadow .25s}
+  .ob-go:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(156,47,27,.4),0 0 0 1px rgba(216,192,138,.55) inset}
+  .ob-skip{flex:0 0 auto;padding:11px 16px;border:1px solid var(--gold-soft);border-radius:999px;cursor:pointer;
+    background:#fdf8ea;color:var(--ink-soft);font:500 13px "Kaiti SC","STKaiti",serif;letter-spacing:1px;
+    transition:background .2s,color .2s}
+  .ob-skip:hover{background:#9c2f1b;color:#fbf0df;border-color:#9c2f1b}
+  @media(max-width:640px){.onboard{left:12px;right:12px;width:auto;transform:translate(0,-50%) scale(.96)}
+    .onboard.show{transform:translate(0,-50%) scale(1)}}
   /* 选中院校时的"招录数据看板"——填中间留白,展示近三年各专业录取位次(宽屏才显示) */
   .cwb{display:flex;height:26px;border-radius:7px;overflow:hidden;margin:7px 0 11px;
     font:600 11.5px/26px "Kaiti SC","STKaiti",serif;color:#fff;text-align:center}
@@ -449,6 +487,22 @@
   <div id="search-results" role="listbox" aria-label="搜索结果"></div>
 </div>
 <div id="bgm-tip" role="button" tabindex="0" aria-label="开启古典配乐"><span>🎵 开启古典配乐</span><button class="bgm-x" aria-label="不用了,关闭提示">✕</button></div>
+<div id="ob-mask" class="ob-mask"></div>
+<div id="onboard" class="onboard" role="dialog" aria-modal="true" aria-labelledby="ob-title">
+  <button class="x" id="ob-x" aria-label="跳过引导">✕</button>
+  <h3 id="ob-title">欢迎来到高考升学地图</h3>
+  <p class="ob-sub">一幅可交互的山河画卷,按你的分数找到能上的大学。三步即可:</p>
+  <ol class="ob-steps">
+    <li><span class="ob-n">壹</span><div><b>填分数 / 位次,或做专业测评</b><em>立得「冲 · 稳 · 保」院校推荐</em></div></li>
+    <li><span class="ob-n">贰</span><div><b>点地图上的学校</b><em>看近年录取位次、招生计划、学费、选科要求</em></div></li>
+    <li><span class="ob-n">叁</span><div><b>收藏进「志愿表」</b><em>自动按冲稳保梯度成表,并提示滑档风险</em></div></li>
+  </ol>
+  <label class="ob-bgm"><input type="checkbox" id="ob-bgm-chk"> 🎵 开启古典配乐(萨蒂《Gymnopédie》)</label>
+  <div class="ob-acts">
+    <button class="ob-go" id="ob-go">填分数开始</button>
+    <button class="ob-skip" id="ob-skip">先逛逛地图</button>
+  </div>
+</div>
 <div class="loading" id="loading">正在铺开山河画卷⋯</div>
 <div class="titlebar">
   <h1>高考升学地图</h1>
@@ -1686,13 +1740,32 @@ if(localStorage.getItem("gk_bgm")==="1"){               // 记忆上次开启:�
   ["pointerdown","keydown","touchstart"].forEach(e=>addEventListener(e,resume,{once:true,passive:true}));}
 // 首访引导:配乐无自动播放且按钮折叠进 ⚙,给一次轻提示(点=开+消失,×=不再提示)
 (function(){const tip=document.getElementById("bgm-tip");
-  if(RM||localStorage.getItem("gk_bgm")!=null||localStorage.getItem("gk_bgm_tip")==="1")return;
+  // 让位首访引导:仅在引导已看过(gk_onboard)后,音乐轻提示才作为兜底出现(避免两个首访弹层叠)
+  if(RM||localStorage.getItem("gk_bgm")!=null||localStorage.getItem("gk_bgm_tip")==="1"||localStorage.getItem("gk_onboard")!=="1")return;
   setTimeout(()=>tip.classList.add("show"),1800);
   const done=()=>{tip.classList.remove("show");try{localStorage.setItem("gk_bgm_tip","1");}catch(e){}};
   tip.addEventListener("click",e=>{
     if(e.target.closest(".bgm-x")){done();try{localStorage.setItem("gk_bgm","0");}catch(e){}return;}
     setBgm(true);done();});
   setTimeout(()=>{if(tip.classList.contains("show"))done();},12000);})();
+// 首访引导:一次性欢迎卡,讲清 填分→点校→志愿表 三步漏斗(localStorage gk_onboard 只来一次;RM 跳过运镜不影响其显示)
+(function(){
+  const mask=document.getElementById("ob-mask"),ob=document.getElementById("onboard");
+  if(!ob)return;
+  let seen=false;try{seen=localStorage.getItem("gk_onboard")==="1";}catch(e){}
+  const close=()=>{ob.classList.remove("show");mask.classList.remove("show");try{localStorage.setItem("gk_onboard","1");}catch(e){}};
+  if(!seen)setTimeout(()=>{mask.classList.add("show");ob.classList.add("show");},1400);   // 等开场运镜/loading 淡出
+  document.getElementById("ob-x").addEventListener("click",close);
+  document.getElementById("ob-skip").addEventListener("click",close);
+  mask.addEventListener("click",close);
+  document.getElementById("ob-bgm-chk").addEventListener("change",e=>{if(e.target.checked&&typeof setBgm==="function")setBgm(true);});
+  document.getElementById("ob-go").addEventListener("click",()=>{
+    close();
+    const rec=document.getElementById("recpanel"),actRec=document.getElementById("act-rec");
+    if(rec&&rec.style.display!=="block"&&actRec)actRec.click();    // 复用 act-rec 开面板(applyFilter+syncActs)
+    const inp=document.getElementById("rp-score");if(inp)setTimeout(()=>inp.focus(),350);
+  });
+})();
 // ---------- 学校搜索(全 1598 所:校名/简称/城市 即时联想)----------
 (function(){
   const wrap=document.getElementById("search"),inp=document.getElementById("search-input"),
