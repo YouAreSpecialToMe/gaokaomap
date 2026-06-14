@@ -342,6 +342,20 @@
   .dtab td:first-child{text-align:left;color:var(--ink);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .dtab tr:hover td{background:rgba(189,154,85,.1)}
   @media(max-width:1200px){.detailpanel{display:none!important}}
+  /* 院校对比模态 */
+  .cmppanel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.96);z-index:9;
+    width:min(720px,94vw);max-height:88vh;overflow:auto;display:none;opacity:0;padding:18px 20px;border-radius:16px;
+    background:linear-gradient(180deg,var(--paper-a),var(--paper-b));border:1px solid var(--gold-soft);box-shadow:var(--elev);
+    -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);transition:opacity .3s ease,transform .35s cubic-bezier(.22,1,.36,1)}
+  .cmppanel.show{display:block;opacity:1;transform:translate(-50%,-50%) scale(1)}
+  .cmppanel h3{margin:0 0 10px;font:600 17px "Kaiti SC","STKaiti",serif;color:var(--ink);letter-spacing:2px;display:flex;align-items:center;gap:8px}
+  .cmppanel h3::before{content:"";width:3px;height:16px;background:var(--zhu);border-radius:1px}
+  .cmppanel .x{position:absolute;top:10px;right:14px;cursor:pointer;color:#7d6536;font-size:17px;background:none;border:0;z-index:2}
+  .cmptab{width:100%;border-collapse:collapse;font-size:12.5px;color:var(--ink-soft)}
+  .cmptab th{padding:8px 6px;border-bottom:2px solid var(--gold-soft);font:600 12.5px "Kaiti SC",serif;color:var(--ink);vertical-align:bottom;line-height:1.3}
+  .cmptab th img{display:block;margin:0 auto 3px}
+  .cmptab td{padding:7px 8px;border-bottom:1px dashed #e0d0aa;text-align:center}
+  .cmptab td.cl{text-align:left;color:var(--ink);font-weight:600;white-space:nowrap;background:rgba(189,154,85,.07)}
   /* 一分一段可视化面板(居中模态 + 遮罩) */
   .vizmask{position:absolute;inset:0;z-index:8;background:rgba(60,45,20,.22);display:none}
   .vizmask.show{display:block;animation:fadeUp .3s ease}
@@ -458,7 +472,7 @@
 <div class="favpanel" id="favpanel">
   <h3>我的志愿表</h3>
   <div id="fav-list"></div>
-  <div class="fav-actions"><button id="fav-export">复制清单</button><button id="fav-clear">清空</button></div>
+  <div class="fav-actions"><button id="fav-compare">对比</button><button id="fav-export">复制清单</button><button id="fav-clear">清空</button></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="botbar" id="botbar">
@@ -1231,6 +1245,41 @@ document.querySelectorAll(".viztab").forEach(b=>b.addEventListener("click",()=>{
   vizTab=b.dataset.t;document.querySelectorAll(".viztab").forEach(x=>x.classList.toggle("on",x===b));renderViz();}));
 document.getElementById("act-viz").addEventListener("click",openViz);
 vizmask.addEventListener("click",closeViz);
+// ---------- 跨校对比 ----------
+const cmpmask=document.createElement("div");cmpmask.className="vizmask";document.body.appendChild(cmpmask);
+const cmppanel=document.createElement("div");cmppanel.className="cmppanel";cmppanel.id="cmppanel";
+cmppanel.innerHTML='<span class="x" role="button" tabindex="0" aria-label="关闭" onclick="closeCompare()">✕</span><h3>院校对比</h3><div id="cmp-body"></div>';
+document.body.appendChild(cmppanel);
+function closeCompare(){cmpmask.classList.remove("show");cmppanel.classList.remove("show");}
+cmpmask.addEventListener("click",closeCompare);
+function buildCompare(ds,prov){
+  if(ds.length<2)return '<p class="dim" style="padding:20px;text-align:center">数据不足</p>';
+  const aplus=u=>(u.eval||[]).filter(e=>e.grade==='A+').map(e=>e.discipline);
+  const rng=(arr,fmt)=>{if(!arr.length)return '—';const mn=Math.min(...arr),mx=Math.max(...arr);return mn===mx?fmt(mn):fmt(mn)+'–'+fmt(mx);};
+  const rankR=u=>rng((u.lines||[]).filter(l=>l.granularity==='major'&&l.min_rank).map(l=>l.min_rank),v=>v.toLocaleString());
+  const tuR=u=>rng(Object.values(u.plans||{}).map(p=>p.tuition).filter(Boolean),v=>v);
+  const rows=[["层次",u=>u.tier||'—'],["城市",u=>u.city||u.province||'—'],["综合排名参考",u=>u.rank?'#'+u.rank:'—'],
+    ["保研率",u=>u.baoyan?u.baoyan+'%':'—'],["硕/博点",u=>`${u.masterPts||0}/${u.doctorPts||0}`],
+    ["A+ 学科",u=>{const a=aplus(u);return a.length?a.slice(0,3).join('、')+(a.length>3?`…(${a.length})`:''):'—';}],
+    [`${prov}录取位次`,u=>rankR(u)],["学费(元)",u=>tuR(u)]];
+  let h='<table class="cmptab"><thead><tr><th></th>'+ds.map(u=>`<th>${badge(u.name,30)}${u.name}</th>`).join('')+'</tr></thead><tbody>';
+  rows.forEach(([lab,fn])=>{h+=`<tr><td class="cl">${lab}</td>`+ds.map(u=>`<td>${fn(u)}</td>`).join('')+'</tr>';});
+  return h+'</tbody></table><p class="dim" style="margin:8px 2px 0">数据来自各省考试院 / 教育部名单 · 第四轮学科评估;位次/学费为'+prov+'本省口径</p>';
+}
+async function openCompare(names){
+  names=[...new Set(names)].slice(0,4);
+  if(names.length<2){toast("至少 2 所学校才能对比(志愿表里多收藏几所)");return;}
+  const prov=(document.getElementById("rp-prov")||{}).value||"浙江";
+  document.getElementById("cmp-body").innerHTML='<p class="dim" style="padding:24px;text-align:center">载入中…</p>';
+  cmpmask.classList.add("show");cmppanel.classList.add("show");
+  const ds=(await Promise.all(names.map(n=>fetch(`${API}/api/uni?name=${encodeURIComponent(n)}&prov=${encodeURIComponent(prov)}`).then(r=>r.json()).catch(()=>null)))).filter(Boolean);
+  document.getElementById("cmp-body").innerHTML=buildCompare(ds,prov);
+}
+document.getElementById("fav-compare").addEventListener("click",()=>{
+  const names=[...new Set(FAV.map(x=>x.n))];
+  if(names.length<2){toast("志愿表里至少收藏 2 所学校再对比");return;}
+  openCompare(names);
+});
 const FAN=[[0,0],[40,-8],[-40,-8],[80,-16],[-80,-16],[120,-24],[-120,-24],
            [24,-40],[-24,-40],[64,-48],[-64,-48],[104,-56]];
 // 永久双一流旗子:屏幕空间防叠压。每次 moveend 重算——投影每面可见旗子,排名高者优先占位,
