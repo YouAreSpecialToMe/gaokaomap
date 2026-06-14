@@ -78,25 +78,28 @@
   .maplibregl-marker{will-change:transform}
 
   .umk{cursor:pointer}
-  .umk .flag{display:flex;flex-direction:column;align-items:center;opacity:0;pointer-events:none;
+  .umk .flag{position:absolute;left:0;bottom:0;opacity:0;pointer-events:none;
     transform:scale(.55) translateY(8px);transform-origin:bottom center;
     transition:opacity .3s ease,transform .5s cubic-bezier(.34,1.56,.64,1)}
   .umk.show-flag .flag{opacity:1;transform:none;pointer-events:auto}
-  .umk .dot{transition:opacity .35s ease;animation:pop .55s cubic-bezier(.34,1.56,.64,1) var(--d,0ms) backwards}
+  .umk .dot{position:absolute;left:0;bottom:0;transition:opacity .35s ease;animation:pop .55s cubic-bezier(.34,1.56,.64,1) var(--d,0ms) backwards}
   .umk.show-flag .dot{opacity:0;pointer-events:none}
-  @keyframes pop{from{transform:translateY(50%) scale(0)}to{transform:translateY(50%) scale(1)}}
-  .banner{writing-mode:vertical-rl;font:500 12px/1 "Kaiti SC","STKaiti","KaiTi",serif;letter-spacing:2px;
+  @keyframes pop{from{transform:translate(-50%,50%) scale(0)}to{transform:translate(-50%,50%) scale(1)}}
+  /* 斜引线:点(杆底)留真实坐标,横幅按 --lx 横向让位 / --bh 抬高,杆 --plen 长 --lean 倾斜回连——沿海校横幅可让到内陆而锚点不移进海 */
+  .banner{position:absolute;left:0;bottom:var(--bh,13px);transform:translateX(calc(-50% + var(--lx,0px)));
+    writing-mode:vertical-rl;font:500 12px/1 "Kaiti SC","STKaiti","KaiTi",serif;letter-spacing:2px;
     padding:7px 3px;border-radius:2px;box-shadow:1px 2px 3px rgba(80,55,20,.35);white-space:nowrap}
-  .pole{width:2px;height:12px}
+  .pole{position:absolute;left:0;bottom:0;width:2px;margin-left:-1px;height:var(--plen,13px);
+    transform-origin:bottom center;transform:rotate(var(--lean,0deg))}
   .dot{width:9px;height:9px;border-radius:50%;border:1.5px solid rgba(255,250,235,.9);
-    box-shadow:0 1px 2px rgba(80,55,20,.4);transform:translateY(50%)}
+    box-shadow:0 1px 2px rgba(80,55,20,.4);transform:translate(-50%,50%)}
   .t985 .banner,.t985 .pole{background:#8c2f1b;color:#f7e8d6}
   .t211 .banner,.t211 .pole{background:#96660f;color:#f7e8d6}
   .tdfc .banner,.tdfc .pole{background:#564a85;color:#ece9f7}
   .t985 .dot{background:#c34a26}.t211 .dot{background:#c08a2a}.tdfc .dot{background:#8077c9}
-  .umk:hover{z-index:10!important}
+  /* z-index 由 hover-z(updateFlagZ)按光标距离动态排序,叠压旗子最近者浮顶可点 */
   .banner{transition:transform .35s cubic-bezier(.34,1.56,.64,1)}
-  .umk:hover .banner{transform:scale(1.13) rotate(2.5deg)}
+  .umk:hover .banner{transform:translateX(calc(-50% + var(--lx,0px))) scale(1.13) rotate(2.5deg)}
 
   body.rec-mode .umk .dot{opacity:.12}
   body.rec-mode .umk.show-flag .flag{opacity:.12}
@@ -990,9 +993,11 @@ const ULABEL_Z=7.3,ULABEL_CAP=48;
 function updateUniLabels(){
   const z=map.getZoom(),want=new Map();
   if(z>=ULABEL_Z&&curFilter==="all"){
-    const W=innerWidth,H=innerHeight,PAD=40,inview=[];
+    const W=innerWidth,H=innerHeight,PAD=40,cx=W/2,cy=H/2,R=Math.min(W,H)*.46,inview=[];
     for(const u of DOTS){if(!u.ll||!u.ll[0])continue;
-      const p=map.project(u.ll);if(p.x<-PAD||p.x>W+PAD||p.y<-PAD||p.y>H+PAD)continue;inview.push({u,p});}
+      const p=map.project(u.ll);if(p.x<-PAD||p.x>W+PAD||p.y<-PAD||p.y>H+PAD)continue;
+      if(Math.hypot(p.x-cx,p.y-cy)>R)continue;                  // 只标注视野中心焦点区(当前区域),边缘只留点阵,免全图 messy
+      inview.push({u,p});}
     inview.sort((a,b)=>(a.u.rank||99999)-(b.u.rank||99999));     // 名校优先挤位
     const placed=[];
     for(const m of markers){                                     // 先占位双一流旗子,本科标签避开它们
@@ -1389,31 +1394,35 @@ function updateRecFlagZoom(z){      // 推荐旗低缩放收成圆点+偏移归�
     mk.setOffset(banner?(mk._fan||[0,0]):[0,0]);});            // 成点时贴真实坐标(在陆上)
   markers.forEach(m=>{if(m.el.classList.contains("rec")&&!banner){const o=m.mk.getOffset();if(o.x||o.y)m.mk.setOffset([0,0]);}});
 }
-// 永久双一流旗子:屏幕空间防叠压。每次 moveend 重算——投影每面可见旗子,排名高者优先占位,
-// 后来者与已放置旗面碰撞则横向(必要时上移一层)让开,直到不撞为止。缩放放大、同城高校在屏幕上
-// 拉开后偏移自动归零回到真实位置;因用 map.project 投影,天然适配俯仰视角。根治同城旗面互抢点击。
+// 永久双一流旗子:保持真实坐标(竖直杆),允许互相叠压——不再位移/斜引线(那样会把沿海旗推进海)。
+// 叠压时的"点错"由 hover-z 消解:鼠标附近的旗按到光标距离排前后,最近的浮到最上、可点(见 updateFlagZ)。
 function declutterFlags(){
-  if(document.body.classList.contains("rec-mode"))return;     // 推荐态由临时旗的扇形负责
-  const shown=markers.filter(m=>m.u.ll&&m.u.ll[0]&&m.mounted&&m.el.classList.contains("show-flag"));
-  shown.sort((a,b)=>(a.u.rank||9999)-(b.u.rank||9999));        // 名校优先保位
-  const STEP=Math.round(22*Math.max(.3,Math.min(1,(map.getZoom()-2.8)/2.4))),GAP=3,BW=18;  // 低缩放收窄展开
-  const cx=map.getContainer().clientWidth/2;
-  const placed=[];
-  for(const m of shown){
-    const p=map.project(m.u.ll),bh=[...String(m.u.s)].length*13+16;
-    const dir=p.x>cx?-1:1;                              // 让位优先朝屏幕中心:东部沿海旗推向内陆,不甩进海
-    const cand=[[0,0]];
-    for(let t=0;t<3;t++)for(let s=1;s<=5;s++){cand.push([dir*s*STEP,-t*42]);cand.push([-dir*s*STEP,-t*42]);}
-    let pick=[0,0];
-    for(const c of cand){
-      const x=p.x+c[0]-BW/2,y=p.y-bh+c[1];
-      if(!placed.some(q=>x<q.x+q.w+GAP&&x+BW+GAP>q.x&&y<q.y+q.h+GAP&&y+bh+GAP>q.y)){pick=c;break;}
-    }
-    placed.push({x:p.x+pick[0]-BW/2,y:p.y-bh+pick[1],w:BW,h:bh});
-    const o=m.mk.getOffset();
-    if(o.x!==pick[0]||o.y!==pick[1])m.mk.setOffset(pick);
+  if(document.body.classList.contains("rec-mode"))return;
+  for(const m of markers){
+    if(!m.mounted||!m.el.classList.contains("show-flag"))continue;
+    if(m.mk.getOffset().x!==0||m.mk.getOffset().y!==0)m.mk.setOffset([0,0]);   // 回真实坐标
+    const st=m.el.style;                                                       // 清旧斜引线变量→恢复竖直
+    if(st.getPropertyValue("--lx")){st.removeProperty("--lx");st.removeProperty("--bh");st.removeProperty("--plen");st.removeProperty("--lean");}
   }
 }
+// 叠压点选消解:鼠标移动时把光标附近(72px)的可见旗按到光标的距离排前后——最近的 z 最高浮到最上且可点,
+// 移动鼠标即"灵活切换前后顺序",既不必把旗推开(不进海),也不会点错被遮住的那面。
+let _fzRAF=0,_fzXY=null,_fzRaised=[];
+function updateFlagZ(){
+  _fzRAF=0; if(!_fzXY)return; const[mx,my]=_fzXY;
+  _fzRaised.forEach(el=>el.style.zIndex=""); _fzRaised=[];
+  const near=[];
+  for(const m of markers){
+    if(!m.mounted||!m.el.classList.contains("show-flag"))continue;
+    const b=m.el.querySelector(".banner"); if(!b)continue;
+    const r=b.getBoundingClientRect(), d=Math.hypot(r.left+r.width/2-mx, r.top+r.height/2-my);
+    if(d<72)near.push({el:m.el,d});
+  }
+  if(near.length<2)return;                       // 不叠压不干预
+  near.sort((a,b)=>b.d-a.d);                      // 远→近,z 递增,最近最上
+  near.forEach((c,i)=>{c.el.style.zIndex=String(40+i);_fzRaised.push(c.el);});
+}
+map.getContainer().addEventListener("mousemove",e=>{_fzXY=[e.clientX,e.clientY];if(!_fzRAF)_fzRAF=requestAnimationFrame(updateFlagZ);});
 function fanOffsets(items){
   const g={},off=new Map();
   items.forEach(it=>{
@@ -1713,6 +1722,15 @@ const WEATHER=[
   {type:"haze",c:[104.4,30.5],rx:2.8,ry:2.0,tint:"214,218,222"}]; // 成都平原·川西多雾
 WEATHER.forEach(r=>{r.parts=[];for(let i=0;i<46;i++)r.parts.push(
   {u:Math.random()*2-1,v:Math.random()*2.2-1.1,l:6+Math.random()*8,s:.6+Math.random()*.7});});
+// 全图飘云:让整张地图"有气在动",不止三处天气区(西风带 W→E 缓慢漂移,出东缘则回西缘重生)——根治"太死气"
+const CLOUDS=[];
+for(let i=0;i<12;i++)CLOUDS.push({lng:74+Math.random()*60,lat:21+Math.random()*31,
+  rx:4.5+Math.random()*4.5,ry:3+Math.random()*3,drift:.05+Math.random()*.1,ph:Math.random()*6.283,sp:.04+Math.random()*.06});
+// 飞鸟(国风 雁/鸥):屏幕空间缓缓掠过,全缩放可见,给天空一点生气
+const BIRDS=[];
+for(let i=0;i<8;i++)BIRDS.push({lng:73+Math.random()*62,lat:24+Math.random()*26,
+  drift:(Math.random()<.5?-1:1)*(.06+Math.random()*.1),wing:.12+Math.random()*.12,
+  vy:(Math.random()*2-1)*.015,fl:Math.random()*6.283,fs:5+Math.random()*4});
 function wxResize(){const d=Math.min(devicePixelRatio||1,2);
   WX.width=innerWidth*d;WX.height=innerHeight*d;WX.style.width=innerWidth+"px";WX.style.height=innerHeight+"px";
   wctx.setTransform(d,0,0,d,0,0);}
@@ -1733,6 +1751,15 @@ function wxFrame(ts){
     const g=wctx.createRadialGradient(0,0,0,0,0,1);
     g.addColorStop(0,`rgba(${tint},${al})`);g.addColorStop(.6,`rgba(${tint},${al*.55})`);g.addColorStop(1,`rgba(${tint},0)`);
     wctx.fillStyle=g;wctx.beginPath();wctx.arc(0,0,1,0,7);wctx.fill();wctx.restore();};
+  // 背景飘云(全图氛围)——最先画,垫在分区天气之下;持续漂移让地图随时"有气在动"
+  const cloudA=.1*zA;
+  for(const cl of CLOUDS){
+    cl.lng+=cl.drift*dt/1000;
+    if(cl.lng>136){cl.lng=72;cl.lat=21+Math.random()*31;cl.rx=4.5+Math.random()*4.5;cl.ry=3+Math.random()*3;}
+    const [RX,RY,p]=wxRadii([cl.lng,cl.lat],cl.rx,cl.ry);
+    if(RX<8||p.x<-RX-90||p.x>innerWidth+RX+90||p.y<-RY-90||p.y>innerHeight+RY+90)continue;
+    blob(p.x, p.y+Math.sin(t*cl.sp+cl.ph)*RY*.16, RX, RY*.7, "248,244,233", cloudA);
+  }
   for(const r of WEATHER){
     const [RX,RY,p]=wxRadii(r.c,r.rx,r.ry);
     if(RX<6||p.x<-RX-60||p.x>innerWidth+RX+60||p.y<-RY-60||p.y>innerHeight+RY+60)continue;
@@ -1740,7 +1767,7 @@ function wxFrame(ts){
     blob(p.x,p.y,RX,RY,r.tint,a);                                    // 底雾
     const nW=r.type==="rain"?2:3;                                    // 飘动雾缕
     for(let k=0;k<nW;k++){const ph=k*2.3;
-      blob(p.x+Math.sin(t*.06+ph)*RX*.45, p.y+Math.cos(t*.045+ph*1.3)*RY*.34,
+      blob(p.x+Math.sin(t*.10+ph)*RX*.52, p.y+Math.cos(t*.075+ph*1.3)*RY*.40,
            RX*.6,RY*.6, r.tint, a*.6);}
     if(r.type==="rain"&&RY>90){
       wctx.strokeStyle=`rgba(198,210,221,${.5*zA})`;wctx.lineWidth=1;wctx.beginPath();
@@ -1752,6 +1779,19 @@ function wxFrame(ts){
       }
       wctx.stroke();
     }
+  }
+  // 飞鸟(纳入天气系统):经纬定位→随缩放放大、城市级随 zA 渐隐;缓飞、出图回卷、拍翅
+  wctx.strokeStyle=`rgba(58,48,36,${(.62*zA).toFixed(3)})`;wctx.lineWidth=zA>.6?1.7:1.3;wctx.lineCap="round";
+  for(const b of BIRDS){
+    b.lng+=b.drift*dt/1000;b.lat+=b.vy*dt/1000;b.fl+=dt/1000*b.fs;
+    if(b.lng>137){b.lng=71;b.lat=24+Math.random()*26;}else if(b.lng<71){b.lng=137;b.lat=24+Math.random()*26;}
+    const p=map.project([b.lng,b.lat]);
+    if(p.x<-40||p.x>innerWidth+40||p.y<-40||p.y>innerHeight+40)continue;
+    const sz=Math.max(3.5,Math.min(30,b.wing*(map.project([b.lng+1,b.lat]).x-p.x)));   // 翼展随每度像素缩放
+    const dip=sz*(.5+(Math.sin(b.fl)*.5+.5)*.85);
+    wctx.beginPath();wctx.moveTo(p.x-sz,p.y);
+    wctx.quadraticCurveTo(p.x-sz*.28,p.y-dip,p.x,p.y);
+    wctx.quadraticCurveTo(p.x+sz*.28,p.y-dip,p.x+sz,p.y);wctx.stroke();
   }
 }
 function wxStart(){if(wxOn&&!wxRAF){wxPrev=0;wxRAF=requestAnimationFrame(wxFrame);}}
