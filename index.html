@@ -341,7 +341,13 @@
   .dtab td{padding:4px 6px;border-bottom:1px dashed #e0d0aa;text-align:right;font-variant-numeric:tabular-nums}
   .dtab td:first-child{text-align:left;color:var(--ink);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .dtab tr:hover td{background:rgba(189,154,85,.1)}
-  @media(max-width:1200px){.detailpanel{display:none!important}}
+  @media(max-width:1200px){
+    .detailpanel{display:none!important}                       /* ≤1200:选校助手并入卡片(底部抽屉) */
+    .card{left:0;right:0;bottom:0;top:auto;width:auto;max-width:none;max-height:82vh;
+      border-radius:16px 16px 0 0;box-sizing:border-box}
+    .card #card-trend{overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .card .dtab{min-width:420px}                               /* 手机窄屏时表格横向滚动 */
+  }
   /* 院校对比模态 */
   .cmppanel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.96);z-index:9;
     width:min(720px,94vw);max-height:88vh;overflow:auto;display:none;opacity:0;padding:18px 20px;border-radius:16px;
@@ -979,8 +985,8 @@ function matchPlan(plans,mj){
 // 点 冲/稳/保 色块 → 只看该档专业(再点取消)
 function filterBand(b){
   bandFilter=(bandFilter===b)?null:b;
-  detailpanel.querySelectorAll(".dtab tbody tr").forEach(tr=>tr.style.display=(!bandFilter||tr.dataset.band===bandFilter)?"":"none");
-  detailpanel.querySelectorAll(".cwb div").forEach(d=>d.classList.toggle("act",!!bandFilter&&d.dataset.b===bandFilter));
+  document.querySelectorAll(".dtab tbody tr").forEach(tr=>tr.style.display=(!bandFilter||tr.dataset.band===bandFilter)?"":"none");
+  document.querySelectorAll(".cwb div").forEach(d=>d.classList.toggle("act",!!bandFilter&&d.dataset.b===bandFilter));
 }
 // 选校助手:合并 录取位次(近年)+ 招生计划/学费/选科;若已在「我的推荐」填分,按你的位次标 冲/稳/保
 function detailTable(u,prov){
@@ -1024,7 +1030,7 @@ function showDetail(u,prov){
 function favAddVisible(){
   const d=window.DETAIL;if(!d)return;
   let added=0;
-  detailpanel.querySelectorAll(".dtab tbody tr").forEach(tr=>{
+  document.querySelectorAll(".dtab tbody tr").forEach(tr=>{
     if(tr.style.display==="none"||!tr.dataset.band)return;
     const it={n:d.name,major:tr.dataset.mj,band:tr.dataset.band,t:d.t,c:d.c,ll:d.ll};
     if(!favHas(favKey(it))){FAV.push(it);added++;}});
@@ -1038,8 +1044,10 @@ async function loadTrend(name){
   try{
     const u=await (await fetch(`${API}/api/uni?name=${encodeURIComponent(name)}&prov=${encodeURIComponent(prov)}`)).json();
     if(document.getElementById("card-trend")!==el)return;     // 卡片已切换,丢弃过期结果
-    el.innerHTML=trendRows(u.lines,prov);
-    showDetail(u,prov);                                       // 同步填充中间"选校助手"
+    const t=/985/.test(u.tier)?"985":/211/.test(u.tier)?"211":/双一流/.test(u.tier)?"dfc":"ben";
+    window.DETAIL={name:u.name,t,c:u.city||u.province,ll:u.ll};   // 供批量加志愿表(桌面/移动通用)
+    if(innerWidth<=1200){bandFilter=null;el.innerHTML=detailTable(u,prov)||trendRows(u.lines,prov);}  // 移动/平板:完整选校助手嵌进卡片
+    else{el.innerHTML=trendRows(u.lines,prov);showDetail(u,prov);}                                     // 桌面:卡内简表 + 侧边看板
   }catch(e){el.innerHTML="";}
 }
 // 点校聚焦:把所选学校平滑带到画面中央(避开左侧卡片留白),让中间有内容、卡片与地图相连。
