@@ -495,6 +495,7 @@
   <button class="tbtn on" id="wxbtn" aria-label="分区天气开关" title="天气:江南烟雨 — 点按关闭分区天气"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14.5a3.4 3.4 0 0 1 .4-6.8 4.5 4.5 0 0 1 8.7 1.2A3 3 0 0 1 16 14.5Z"/><path d="M8 17.5l-1 2.6M12 17.5l-1 2.6M16 17.5l-1 2.6"/></svg></button>
   <button class="tbtn" id="t3dbtn" aria-label="地形:平面 / 立体 3D" title="地形:平面(超流畅)— 点按切换立体 3D"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3 21 7.5 12 12 3 7.5Z"/><path d="M3 12 12 16.5 21 12"/><path d="M3 16.5 12 21 21 16.5"/></svg></button>
   <button class="tbtn" id="musbtn" aria-label="配乐:关 — 点按播放" title="配乐:萨蒂《Gymnopédie No.1》(钢琴 · Kevin MacLeod / CC-BY)— 点按播放 / 静音"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17V5l10-2v12"/><circle cx="6.5" cy="17" r="2.5"/><circle cx="16.5" cy="15" r="2.5"/></svg></button>
+  <button class="tbtn on" id="globebtn" aria-label="投影:地球 / 平面画卷" title="投影:地球(概览微曲)— 点按切平面画卷"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18"/></svg></button>
 </div>
 <button id="cfgbtn" class="cfgbtn" aria-label="设置:画风 / 视角 / 天气 / 地形" title="画风/视角/天气/地形">⚙</button>
 <div id="search">
@@ -612,7 +613,18 @@ const HOME={center:[110,34],zoom:3.5,pitch:37,bearing:0};      // 后备代表�
 // 开场/复位取景:框"院校密集核心区"(留白的西/北不框),用 fitBounds 自适应竖屏/横屏,
 // 避免固定 center/zoom 在窄窗下把东部沿海甩到海上。pitch 37 保留立体感但不过度倾斜。
 const CHINA=[[97,20.5],[123,45]],HOME_PAD={top:96,bottom:84,left:26,right:26};
-function flyHome(duration){map.fitBounds(CHINA,{pitch:37,bearing:0,padding:HOME_PAD,duration:duration||0});}
+let globeOn=true;                                            // 默认球面:概览微曲地球,放大(z≳5)自动摊平为画卷;平面可一键切回
+const SKY_GLOBE={"sky-color":"#a7c1dd","horizon-color":"#e2e9ec","fog-color":"#eef2f0","sky-horizon-blend":.6,"atmosphere-blend":.55};
+const SKY_FLAT={"sky-color":"#e8d9b5","horizon-color":"#f3e8c9","fog-color":"#e3d4ad","sky-horizon-blend":.6,"horizon-fog-blend":.6,"fog-ground-blend":.85};
+function flyHome(duration){map.fitBounds(CHINA,{pitch:globeOn?0:37,bearing:0,padding:HOME_PAD,duration:duration||0});}
+function applyProjection(on){globeOn=on;
+  map.setProjection({type:on?"globe":"mercator"});
+  map.setPaintProperty("bg","background-color",on?"#c3d3cf":"#ece2c8");   // 球面:淡青海/球体;平面:宣纸
+  try{map.setSky(on?SKY_GLOBE:SKY_FLAT);}catch(e){}
+  const b=document.getElementById("globebtn");if(b){b.classList.toggle("on",on);
+    b.title=on?"投影:地球(概览微曲)— 点按切平面画卷":"投影:平面画卷 — 点按切地球";}
+  flyHome(700);}
+addEventListener("DOMContentLoaded",()=>document.getElementById("globebtn")?.addEventListener("click",()=>applyProjection(!globeOn)));
 let userTouched=false;
 const STYLES={
   wc:{ramp:["interpolate",["linear"],["elevation"],
@@ -647,8 +659,8 @@ function applyStyle(){
 }
 const map=new maplibregl.Map({
   container:"map",
-  style:{version:8,sources:{},layers:[{id:"bg",type:"background",paint:{"background-color":"#ece2c8"}}]},
-  center:[110,34],zoom:3.4,pitch:37,bearing:0,minZoom:2.8,maxZoom:12.5,maxPitch:75,
+  style:{version:8,projection:{type:"globe"},sources:{},layers:[{id:"bg",type:"background",paint:{"background-color":"#c3d3cf"}}]},
+  center:[105,34],zoom:2.7,pitch:0,bearing:0,minZoom:2.4,maxZoom:12.5,maxPitch:75,
   renderWorldCopies:false,attributionControl:false
 });
 map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),"top-right");
@@ -710,12 +722,11 @@ map.on("load",async()=>{
     else map.on("sourcedata",e=>{if(!terrainOn&&e.sourceId==="dem"&&e.isSourceLoaded)enableTerrain();});
     setTimeout(enableTerrain,9000);
     // 开场运镜:远景飞入,自适应取景(fitBounds 框核心区,竖屏/横屏都把全国摆正)
-    map.jumpTo({center:[107,33],zoom:2.7,pitch:24,bearing:0});
+    map.jumpTo({center:[105,34],zoom:2.5,pitch:0,bearing:0});
     const lo=document.getElementById("loading");
     lo.style.opacity=0;setTimeout(()=>lo.style.display="none",1000);
     setTimeout(()=>flyHome(2800),200);
-    try{map.setSky({"sky-color":"#e8d9b5","horizon-color":"#f3e8c9","fog-color":"#e3d4ad",
-      "sky-horizon-blend":0.6,"horizon-fog-blend":0.6,"fog-ground-blend":0.85});}catch(e){}
+    try{map.setSky(globeOn?SKY_GLOBE:SKY_FLAT);}catch(e){}
     map.addLayer({id:"prov-line",type:"line",source:"china",paint:{
       "line-color":"#a98e5f","line-width":0.8}});
     map.addLayer({id:"country-line",type:"line",source:"china",paint:{
