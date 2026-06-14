@@ -3,7 +3,24 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>高考升学地图 · Demo</title>
+<title>高考升学地图 · 山河为卷,院校为星</title>
+<meta name="description" content="一幅可漫游的山河画卷,把全国 1500+ 所大学落在真实山川之间。填一个分数或位次,看哪些大学为你点亮——冲、稳、保一目了然。" />
+<meta name="theme-color" content="#ece2c8" />
+<link rel="icon" type="image/png" href="assets/favicon.png" />
+<link rel="apple-touch-icon" href="assets/favicon.png" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="高考升学地图" />
+<meta property="og:locale" content="zh_CN" />
+<meta property="og:title" content="高考升学地图 · 山河为卷,院校为星" />
+<meta property="og:description" content="把全国大学落在真实山河上的一幅画卷:填分数或位次,看冲稳保为你点亮,找到你能上的大学。" />
+<meta property="og:url" content="https://agentsfeed.org/app-demo/" />
+<meta property="og:image" content="https://agentsfeed.org/app-demo/assets/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="高考升学地图 · 山河为卷,院校为星" />
+<meta name="twitter:description" content="填分数或位次,看冲稳保为你点亮,找到你能上的大学。1500+ 所大学落于真实山川。" />
+<meta name="twitter:image" content="https://agentsfeed.org/app-demo/assets/og-card.png" />
 <script src="vendor/maplibre-gl.js"></script>
 <link href="vendor/maplibre-gl.css" rel="stylesheet">
 <style>
@@ -507,7 +524,7 @@
 <div class="loading" id="loading">正在铺开山河画卷⋯</div>
 <div class="titlebar">
   <h1>高考升学地图</h1>
-  <p>收录 52 所双一流 · 覆盖 31 省市 · 交互 DEMO</p>
+  <p>山河为卷,院校为星 · 填分数,看大学为你点亮</p>
 </div>
 <div class="card" id="card"></div>
 <div class="recpanel" id="recpanel">
@@ -919,7 +936,7 @@ map.on("load",async()=>{
       return u;});
     DOTS=all.filter(u=>u.t==="ben"||isCampus(u.n));
     buildCityIndex();
-    document.querySelector(".titlebar p").textContent=`收录 ${all.length} 所本科 · 双一流 ${UNIS.length} · 数据:教育部名单+学科评估`;
+    document.querySelector(".titlebar p").textContent=`山河为卷,院校为星 · 收录 ${all.length} 所大学 · 填分数即见冲稳保`;
     try{
       map.addSource("unidots",{type:"geojson",data:{type:"FeatureCollection",
         features:DOTS.map(u=>({type:"Feature",
