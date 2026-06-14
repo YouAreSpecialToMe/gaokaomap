@@ -3,22 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>高考升学地图 · 山河为卷,院校为星</title>
+<title>山河志愿 · 高考选校 | 填分数看冲稳保</title>
 <meta name="description" content="一幅可漫游的山河画卷,把全国 1500+ 所大学落在真实山川之间。填一个分数或位次,看哪些大学为你点亮——冲、稳、保一目了然。" />
 <meta name="theme-color" content="#ece2c8" />
 <link rel="icon" type="image/png" href="assets/favicon.png" />
 <link rel="apple-touch-icon" href="assets/favicon.png" />
 <meta property="og:type" content="website" />
-<meta property="og:site_name" content="高考升学地图" />
+<meta property="og:site_name" content="山河志愿" />
 <meta property="og:locale" content="zh_CN" />
-<meta property="og:title" content="高考升学地图 · 山河为卷,院校为星" />
+<meta property="og:title" content="山河志愿 · 高考选校" />
 <meta property="og:description" content="把全国大学落在真实山河上的一幅画卷:填分数或位次,看冲稳保为你点亮,找到你能上的大学。" />
 <meta property="og:url" content="https://agentsfeed.org/app-demo/" />
 <meta property="og:image" content="https://agentsfeed.org/app-demo/assets/og-card.png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="高考升学地图 · 山河为卷,院校为星" />
+<meta name="twitter:title" content="山河志愿 · 高考选校" />
 <meta name="twitter:description" content="填分数或位次,看冲稳保为你点亮,找到你能上的大学。1500+ 所大学落于真实山川。" />
 <meta name="twitter:image" content="https://agentsfeed.org/app-demo/assets/og-card.png" />
 <script src="vendor/maplibre-gl.js"></script>
@@ -512,7 +512,7 @@
 <div id="ob-mask" class="ob-mask"></div>
 <div id="onboard" class="onboard" role="dialog" aria-modal="true" aria-labelledby="ob-title">
   <button class="x" id="ob-x" aria-label="跳过引导">✕</button>
-  <h3 id="ob-title">欢迎来到高考升学地图</h3>
+  <h3 id="ob-title">欢迎来到山河志愿</h3>
   <p class="ob-sub">一幅可交互的山河画卷,按你的分数找到能上的大学。三步即可:</p>
   <ol class="ob-steps">
     <li><span class="ob-n">壹</span><div><b>填分数 / 位次,或做专业测评</b><em>立得「冲 · 稳 · 保」院校推荐</em></div></li>
@@ -527,8 +527,8 @@
 </div>
 <div class="loading" id="loading">正在铺开山河画卷⋯</div>
 <div class="titlebar">
-  <h1>高考升学地图</h1>
-  <p>山河为卷,院校为星 · 填分数,看大学为你点亮</p>
+  <h1>山河志愿</h1>
+  <p>山河为卷 · 为你点亮够得着的大学</p>
 </div>
 <div class="card" id="card"></div>
 <div class="recpanel" id="recpanel">
@@ -958,7 +958,7 @@ map.on("load",async()=>{
       return u;});
     DOTS=all.filter(u=>u.t==="ben"||isCampus(u.n));
     buildCityIndex();
-    document.querySelector(".titlebar p").textContent=`山河为卷,院校为星 · 收录 ${all.length} 所大学 · 填分数即见冲稳保`;
+    document.querySelector(".titlebar p").textContent=`山河为卷 · 收录 ${all.length} 所大学 · 填分数,点亮够得着的`;
     try{
       map.addSource("unidots",{type:"geojson",data:{type:"FeatureCollection",
         features:DOTS.map(u=>({type:"Feature",
