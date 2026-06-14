@@ -632,6 +632,17 @@ const map=new maplibregl.Map({
   renderWorldCopies:false,attributionControl:false
 });
 map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),"top-right");
+// 海外瓦片兜底:DEM 地形(s3)与街道(cartocdn)瓦片在部分网络(如国内移动)慢或不可达。
+// 统一捕获瓦片错误并静默(不刷屏控制台);同一来源连续多次失败即移除其图层,让地图干净
+// 落定(自托管的边界+分层设色始终可用),而非无休止重试、半渲染卡住。
+const _tileFail={}, _foreignLayers={"dem-cr":["relief"],"dem-hs":["hillshade"],"streets":["streets"]};
+map.on("error",e=>{
+  const sid=e&&e.sourceId; if(!sid) return;            // 非瓦片错误,忽略
+  if((_tileFail[sid]=(_tileFail[sid]||0)+1)===6){        // 连续失败 → 判定来源不可达,撤下其图层
+    (_foreignLayers[sid]||[]).forEach(l=>{try{if(map.getLayer(l))map.removeLayer(l);}catch(_){}});
+    if(sid==="dem"){try{if(map.getTerrain&&map.getTerrain())map.setTerrain(null);}catch(_){}}
+  }
+});
 // 无障碍:尊重 prefers-reduced-motion——运镜改为瞬移、关花瓣/降级动效(CSS 已配合)
 const RM=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
 if(RM){const _fly=map.flyTo.bind(map),_ease=map.easeTo.bind(map);
