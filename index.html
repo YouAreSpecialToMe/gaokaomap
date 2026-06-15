@@ -47,6 +47,10 @@
     pointer-events:none;opacity:.78;white-space:nowrap;text-shadow:0 1px 2px rgba(245,238,220,.8)}
   .rlabel{font:italic 500 12px "Kaiti SC","STKaiti","KaiTi",serif;color:#4f7a6e;letter-spacing:4px;pointer-events:none;opacity:.9}
   .decor{pointer-events:none;opacity:.9}
+  /* 骆驼踱步:脚不动、身子轻微起伏+左右摇,配 JS 缓缓东行=丝路驼队 */
+  .decor.camel-walk svg{animation:camelBob 1.05s ease-in-out infinite;transform-origin:bottom center}
+  @keyframes camelBob{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-1.4px) rotate(-.8deg)}75%{transform:translateY(-1.4px) rotate(.8deg)}}
+  @media(prefers-reduced-motion:reduce){.decor.camel-walk svg{animation:none}}
   .spot{display:flex;flex-direction:column;align-items:center;pointer-events:none}
   .spot>*{opacity:0;transition:opacity .7s ease}
   .spot span{font:500 11px "Kaiti SC","STKaiti","KaiTi",serif;color:#6b5226;letter-spacing:1px;margin-top:1px;white-space:nowrap}
@@ -952,6 +956,7 @@ map.on("load",async()=>{
       const el=document.createElement("div");el.className="nick";el.textContent=t;
       new maplibregl.Marker({element:el}).setLngLat([lng,lat]).addTo(map);
     });
+    const CAMELS=[];
     [[83.8,38.9,CAMEL],[88.3,40.1,CAMEL],[98.5,40.2,CAMEL],[104.8,41.2,CAMEL],
      [123.5,30.5,BOAT],[119.8,38.5,BOAT],[112.5,16.5,BOAT],
      [103.0,30.9,PANDA],[107.9,33.55,PANDA],
@@ -968,9 +973,26 @@ map.on("load",async()=>{
      [100.3,37.05,GEESE],[116.4,29.35,GEESE],
      [119.16,36.8,KITE]
     ].forEach(([lng,lat,svg])=>{
-      const el=document.createElement("div");el.className="decor";el.innerHTML=svg;
-      new maplibregl.Marker({element:el,anchor:"bottom"}).setLngLat([lng,lat]).addTo(map);
+      const el=document.createElement("div");el.className="decor"+(svg===CAMEL?" camel-walk":"");el.innerHTML=svg;
+      const mk=new maplibregl.Marker({element:el,anchor:"bottom"}).setLngLat([lng,lat]).addTo(map);
+      if(svg===CAMEL)CAMELS.push({mk,el,lat,lng0:lng,lng,sp:0.06+Math.random()*0.05});
     });
+    // 沙漠驼队:骆驼缓缓东行(丝路向东),走到头淡出、回起点淡入(接缝藏在淡出里),配 CSS 踱步起伏——给西北大漠添灵动
+    let camelRAF=0,camelPrev=0;
+    function camelFrame(ts){
+      camelRAF=requestAnimationFrame(camelFrame);
+      const dt=Math.min(60,(ts-camelPrev)||16);camelPrev=ts;
+      if(map.getZoom()>=6.5)return;                        // 城市级看不到大漠,歇着省电
+      const RANGE=5.5;
+      for(const c of CAMELS){
+        c.lng+=c.sp*dt/1000; let span=c.lng-c.lng0;
+        if(span>RANGE){c.lng=c.lng0;span=0;}               // 回起点(此刻已淡出,接缝不可见)
+        c.mk.setLngLat([c.lng,c.lat]);
+        const p=span/RANGE,op=p<0.12?p/0.12:p>0.88?(1-p)/0.12:1;
+        c.el.style.opacity=(0.9*Math.max(0,Math.min(1,op))).toFixed(2);
+      }
+    }
+    if(!RM&&CAMELS.length)requestAnimationFrame(camelFrame);
     const WALL=`<svg width="34" height="20" viewBox="0 0 34 20"><g fill="#8a6a45"><rect x="2" y="8" width="6" height="10"/><rect x="1" y="6" width="8" height="3"/><rect x="26" y="6" width="6" height="12"/><rect x="25" y="4" width="8" height="3"/><path d="M8 12 L26 9 L26 13 L8 16 Z"/></g></svg>`;
     const PALACE=`<svg width="34" height="20" viewBox="0 0 34 20"><g fill="#8c2f1b"><path d="M4 9 Q17 3 30 9 L27 9 L27 11 L7 11 L7 9 Z"/><path d="M2 15 Q17 10 32 15 L29 15 L29 17 L5 17 L5 15 Z"/></g><rect x="9" y="11" width="16" height="3" fill="#c9a86a"/><rect x="7" y="17" width="20" height="2.5" fill="#c9a86a"/></svg>`;
     const POTALA=`<svg width="32" height="22" viewBox="0 0 32 22"><path d="M2 20 L8 12 L24 12 L30 20 Z" fill="#cdb896"/><rect x="8" y="8" width="16" height="8" fill="#f2ead8" stroke="#8a6a45" stroke-width=".8"/><rect x="12" y="4" width="8" height="8" fill="#8c2f1b"/><rect x="14" y="2" width="4" height="2.5" fill="#f2ead8"/></svg>`;
