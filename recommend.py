@@ -237,9 +237,37 @@ def _engine(prov, subj_std, score, year, sel, rank=None, mclasses=None):
             "tier": ("985" if info and info[2] else "211" if info and info[3]
                      else "dfc" if info and info[4] else "ben") if info else None,
             "city": info[5] if info else None})
+    top_fb = False
+    if not any(out.values()):
+        # 位次极高(如 1–10):候选窗 eq*0.6~2.4 几乎无专业、且 ρ 多 <0.85 被判"深冲"剔除 → 常规档全空。
+        # 兜底:取该省该科目"最难进"的专业作为"冲"呈现,别让顶尖考生面对空白。
+        eqv = eq.get(year) or (min(eq.values()) if eq else 1)
+        fb = con.execute(f"""SELECT uni_name,major,min_score,min_rank,enroll_n,sel_req
+            FROM admission_lines WHERE province=? AND year=? AND granularity='major'
+              AND subject_std IN (?,?) AND min_rank IS NOT NULL{mcls_clause}
+            ORDER BY min_rank ASC LIMIT 80""",
+            (prov, year, *(SUBJ_EQ.get(subj_std, (subj_std,)) + (subj_std,))[:2], *mcls_params)).fetchall()
+        fb_uni = defaultdict(int)
+        for r in fb:
+            if not sel_ok(r["sel_req"], sel): continue
+            un = r["uni_name"]
+            if fb_uni[un] >= 2 or len(out["冲"]) >= 12: continue
+            fb_uni[un] += 1
+            info = uinfo.get(un) or uinfo.get(strip_paren(un))
+            out["冲"].append({
+                "uni": un, "major": r["major"], "minScore": r["min_score"],
+                "minRank": r["min_rank"], "rho": round(r["min_rank"] / eqv, 3), "year": year,
+                "note": "", "selReq": r["sel_req"], "enroll": r["enroll_n"],
+                "ll": [info[0], info[1]] if info and info[0] else None,
+                "tier": ("985" if info and info[2] else "211" if info and info[3]
+                         else "dfc" if info and info[4] else "ben") if info else None,
+                "city": info[5] if info else None})
+        top_fb = bool(out["冲"])
     total = sum(len(v) for v in out.values())
     notes = []
-    if total < 12:
+    if top_fb:
+        notes.append("你的位次极高,常规冲稳保暂无匹配——下列为该省该科目最难进的顶尖专业(均作「冲」供参考)。")
+    elif total < 12:
         notes.append("该省该分段专业级数据较薄,建议同时参考院校投档线")
     con.close()
     return {"province": prov, "subject": subj_std, "score": score, "year": year,

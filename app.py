@@ -90,7 +90,8 @@ def uni_card(name, prov):
     ev = [{"discipline": r["discipline"], "grade": r["grade"]} for r in con.execute(
         """SELECT discipline,grade FROM subject_eval WHERE uni_id=?
            ORDER BY CASE grade WHEN 'A+' THEN 0 WHEN 'A' THEN 1 WHEN 'A-' THEN 2
-           WHEN 'B+' THEN 3 ELSE 4 END LIMIT 6""", (u["id"],))]
+           WHEN 'B+' THEN 3 WHEN 'B' THEN 4 WHEN 'B-' THEN 5 WHEN 'C+' THEN 6
+           WHEN 'C' THEN 7 ELSE 8 END LIMIT 100""", (u["id"],))]   # 全量学科评估(供院校对比 head-to-head;卡片端自行截断)
     lines = []
     plans = {}
     if prov:
