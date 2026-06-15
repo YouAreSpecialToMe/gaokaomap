@@ -87,8 +87,12 @@
   @keyframes pop{from{transform:translate(-50%,50%) scale(0)}to{transform:translate(-50%,50%) scale(1)}}
   /* 斜引线:点(杆底)留真实坐标,横幅按 --lx 横向让位 / --bh 抬高,杆 --plen 长 --lean 倾斜回连——沿海校横幅可让到内陆而锚点不移进海 */
   .banner{position:absolute;left:0;bottom:var(--bh,13px);transform:translateX(calc(-50% + var(--lx,0px)));
-    writing-mode:vertical-rl;font:500 12px/1 "Kaiti SC","STKaiti","KaiTi",serif;letter-spacing:2px;
-    padding:7px 3px;border-radius:2px;box-shadow:1px 2px 3px rgba(80,55,20,.35);white-space:nowrap}
+    display:flex;flex-direction:column;align-items:center;gap:3px;font:500 12px/1 "Kaiti SC","STKaiti","KaiTi",serif;
+    padding:6px 3px;border-radius:2px;box-shadow:1px 2px 3px rgba(80,55,20,.35);white-space:nowrap}
+  .bname{writing-mode:vertical-rl;letter-spacing:2px}
+  .bdg{width:21px;height:21px;border-radius:50%;background:rgba(255,250,238,.96);display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 1px 2px rgba(60,40,15,.35);flex:none}
+  .bdg:empty{display:none}
+  .bdg img,.bdg svg{width:17px;height:17px;object-fit:contain;display:block}
   .pole{position:absolute;left:0;bottom:0;width:2px;margin-left:-1px;height:var(--plen,13px);
     transform-origin:bottom center;transform:rotate(var(--lean,0deg))}
   .dot{width:9px;height:9px;border-radius:50%;border:1.5px solid rgba(255,250,235,.9);
@@ -1071,13 +1075,14 @@ map.on("load",async()=>{
     const el=document.createElement("div");
     el.className="umk t"+u.t+(u.rec?" rec rec-"+u.rec:"");
     el.style.setProperty("--d",(Math.random()*700|0)+"ms");
-    el.innerHTML=`<div class="flag"><div class="banner">${u.s}</div><div class="pole"></div></div><div class="dot"></div>`;
+    el.innerHTML=`<div class="flag"><div class="banner"><span class="bdg"></span><span class="bname">${u.s}</span></div><div class="pole"></div></div><div class="dot"></div>`;
     el.addEventListener("click",e=>{e.stopPropagation();showCard(u);focusSchool(u.ll);});
     const mk=new maplibregl.Marker({element:el,anchor:"bottom"}).setLngLat(u.ll).addTo(map);
     markers.push({u,el,mk,mounted:true});
   });
   updateFlags();
   declutterFlags();
+  injectBadges();
 });
 // 视口裁剪(LOD):放大到某省时只挂载视野内的旗子,屏外的卸载——大幅减少每帧 DOM 重投影压力。
 // 屏幕空间判定(map.project),天然兼容俯仰/旋转;留 PAD 像素边距,平移不闪。
@@ -1180,7 +1185,7 @@ function updateUniLabels(){
 }
 // 防叠压只在运动停止后跑一次——jumpTo 每次都会同步触发 moveend,旋转时若每帧都重算+setOffset 会顿挫
 let declutterTimer=0;
-map.on("moveend",()=>{clearTimeout(declutterTimer);declutterTimer=setTimeout(()=>{cullMarkers();declutterFlags();updateUniLabels();},130);});
+map.on("moveend",()=>{clearTimeout(declutterTimer);declutterTimer=setTimeout(()=>{cullMarkers();declutterFlags();updateUniLabels();injectBadges();},130);});
 function lazyMarkers(list,key,mk){
   const on=list[0],data=window[key+"Data"];
   if(!data)return;
@@ -1209,6 +1214,19 @@ function updateFlags(){
   const recMode=document.body.classList.contains("rec-mode");
   markers.forEach(({u,el})=>el.classList.toggle("show-flag",z>=5||!!u.top||(!!u.rec&&recMode&&z>=4)));  // 推荐旗 z<4 收成点
   updateRecFlagZoom(z);
+}
+// 校徽懒注入:只给"已显形 + 视口内"的旗注入校徽 img(badge 带 sealSVG 兜底),每旗一次,
+// 避免一次性拉 1500+ 个 logo(11MB)。随缩放/平移逐个补,出视口的不动。
+function injectBadges(){
+  if(typeof markers==='undefined')return;
+  const W=innerWidth,H=innerHeight;
+  for(const m of markers){
+    if(m.badged||!m.u||!m.u.ll||!m.el.classList.contains("show-flag"))continue;
+    const p=map.project(m.u.ll);
+    if(p.x<-80||p.x>W+80||p.y<-110||p.y>H+40)continue;
+    const bdg=m.el.querySelector(".bdg");
+    if(bdg){bdg.innerHTML=badge(m.u.n,18);m.badged=true;}
+  }
 }
 map.on("zoom",updateFlags);
 
@@ -1393,7 +1411,7 @@ function applyFilter(f){
       if(f==="cs"||f==="med"||f==="fin")fx.push(["==",["get",f],1]);
       map.setFilter("uni-dots",fx.length?["all",...fx]:null);}
   }
-  updateFlags();cullMarkers();updateUniLabels();
+  updateFlags();cullMarkers();updateUniLabels();injectBadges();
 }
 document.querySelectorAll("#filter-seg .seg-i").forEach(ch=>
   ch.addEventListener("click",()=>{userTouched=true;hap();applyFilter(ch.dataset.f);}));
@@ -1655,7 +1673,7 @@ function fanOffsets(items){
 function makeTempFlag(it,band,offset){
   const el=document.createElement("div");
   el.className="umk t"+(it.tier||"ben")+" rec rec-"+band+" show-flag";
-  el.innerHTML=`<div class="flag"><div class="banner">${it.uni.slice(0,6)}</div><div class="pole"></div></div><div class="dot"></div>`;
+  el.innerHTML=`<div class="flag"><div class="banner"><span class="bdg">${badge(it.uni,17)}</span><span class="bname">${it.uni.slice(0,6)}</span></div><div class="pole"></div></div><div class="dot"></div>`;
   el.addEventListener("click",e=>{e.stopPropagation();showUniCard(it.uni);});
   const mk=new maplibregl.Marker({element:el,anchor:"bottom",offset:offset||[0,0]}).setLngLat(it.ll).addTo(map);
   mk._fan=offset||[0,0];                                       // 记住扇形偏移:放大显旗复用,缩小成点归零
