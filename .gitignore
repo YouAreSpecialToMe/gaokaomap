@@ -6,3 +6,5 @@ nohup.out
 __pycache__/
 *.pyc
 .DS_Store
+# 预下载的地形 DEM 瓦片(fetch-dem-tiles.py 生成,~14MB+);在自托管机上按需跑,不入库
+tiles/

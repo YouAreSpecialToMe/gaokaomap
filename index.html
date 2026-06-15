@@ -93,6 +93,12 @@
   .bdg{width:21px;height:21px;border-radius:50%;background:rgba(255,250,238,.96);display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 1px 2px rgba(60,40,15,.35);flex:none}
   .bdg:empty{display:none}
   .bdg img,.bdg svg{width:17px;height:17px;object-fit:contain;display:block}
+  /* 旗标默认简称,hover 浮出全称(点旗仍出全称卡片);旗成点时整面 flag opacity:0 自动连带隐藏 */
+  .bfull{position:absolute;left:50%;bottom:calc(100% + 6px);transform:translateX(-50%) rotate(-2.5deg);
+    background:rgba(47,35,18,.93);color:#f7ecd9;font:500 11px/1.1 "Kaiti SC","STKaiti",serif;letter-spacing:1px;
+    padding:4px 9px;border-radius:6px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .18s ease;
+    box-shadow:0 2px 7px rgba(60,40,15,.42);z-index:6}
+  .umk:hover .bfull{opacity:1}
   .pole{position:absolute;left:0;bottom:0;width:2px;margin-left:-1px;height:var(--plen,13px);
     transform-origin:bottom center;transform:rotate(var(--lean,0deg))}
   .dot{width:9px;height:9px;border-radius:50%;border:1.5px solid rgba(255,250,235,.9);
@@ -779,9 +785,15 @@ map.on("load",async()=>{
   try{
     const gj=await (await fetch("geo/100000_full.json")).json();
     map.addSource("china",{type:"geojson",data:gj});
-    const DEMCR={type:"raster-dem",encoding:"terrarium",
-      tiles:["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
-      tileSize:256,maxzoom:12};
+    // 地形瓦片(DEM,海外 s3,较慢)未到位时,先以与陆地同色的底铺满中国版图,免得露出蓝灰背景成"加载方块";
+    // relief 一到位即整片覆盖——载入观感从"蓝块跳出"变为"绿底渐显地貌"。只盖陆地,海洋仍是背景色。
+    map.addLayer({id:"relief-base",type:"fill",source:"china",paint:{"fill-color":"#aebd8a","fill-opacity":1}});
+    // 自托管地形瓦片:存在 tiles/terrarium/ready(由 fetch-dem-tiles.py 预下载)即用本地源(maxzoom 取其值),
+    // 否则回退 AWS s3——"没下也能跑、下了自动加速、无加载方块",零改码切换。
+    let DEM_TILES="https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png", DEM_MAXZ=12;
+    try{const rr=await fetch("tiles/terrarium/ready",{cache:"no-store"});
+      if(rr.ok){DEM_MAXZ=parseInt((await rr.text()).trim())||8; DEM_TILES="tiles/terrarium/{z}/{x}/{y}.png";}}catch(e){}
+    const DEMCR={type:"raster-dem",encoding:"terrarium",tiles:[DEM_TILES],tileSize:256,maxzoom:DEM_MAXZ};
     map.addSource("dem-cr",DEMCR);
     try{
       map.addLayer({id:"relief",type:"color-relief",source:"dem-cr",paint:{
@@ -791,9 +803,7 @@ map.on("load",async()=>{
       "fill-color":["match",["%",["floor",["/",["to-number",["get","adcode"]],10000]],5],
         0,PALETTE[0],1,PALETTE[1],2,PALETTE[2],3,PALETTE[3],PALETTE[4]],
       "fill-opacity":0.15}});
-    const DEM={type:"raster-dem",encoding:"terrarium",
-      tiles:["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
-      tileSize:256,maxzoom:12};
+    const DEM={type:"raster-dem",encoding:"terrarium",tiles:[DEM_TILES],tileSize:256,maxzoom:DEM_MAXZ};
     map.addSource("dem",DEM);
     map.addSource("dem-hs",{...DEM});
     map.addLayer({id:"hillshade",type:"hillshade",source:"dem-hs",paint:{
@@ -834,14 +844,14 @@ map.on("load",async()=>{
     }catch(e){}
     try{
       map.addSource("streets",{type:"raster",tileSize:256,maxzoom:18,
-        tiles:["https://a.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png",
-               "https://b.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png",
-               "https://c.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png"],
+        tiles:["https://a.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png",
+               "https://b.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png",
+               "https://c.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png"],
         attribution:'© CARTO © OpenStreetMap'});
+      // 城市级彩色底图:Voyager 无注记(柔彩道路/公园绿/水蓝),放大渐显;轻去饱和以协调水墨,不抢自绘国风标
       map.addLayer({id:"streets",type:"raster",source:"streets",paint:{
-        "raster-opacity":["interpolate",["linear"],["zoom"],8.4,0,10,0.6,12,0.72],
-        "raster-saturation":-1,"raster-contrast":0.12,
-        "raster-brightness-min":0.12,"raster-brightness-max":0.96}},
+        "raster-opacity":["interpolate",["linear"],["zoom"],8.4,0,10,0.58,12,0.82],
+        "raster-saturation":-0.1,"raster-contrast":0.0}},
         map.getLayer("mask")?"mask":"prov-line");
     }catch(e){}
     try{
@@ -1075,7 +1085,7 @@ map.on("load",async()=>{
     const el=document.createElement("div");
     el.className="umk t"+u.t+(u.rec?" rec rec-"+u.rec:"");
     el.style.setProperty("--d",(Math.random()*700|0)+"ms");
-    el.innerHTML=`<div class="flag"><div class="banner"><span class="bdg"></span><span class="bname">${u.s}</span></div><div class="pole"></div></div><div class="dot"></div>`;
+    el.innerHTML=`<div class="flag"><div class="banner"><div class="bfull">${u.n}</div><span class="bdg"></span><span class="bname">${u.s}</span></div><div class="pole"></div></div><div class="dot"></div>`;
     el.addEventListener("click",e=>{e.stopPropagation();showCard(u);focusSchool(u.ll);});
     const mk=new maplibregl.Marker({element:el,anchor:"bottom"}).setLngLat(u.ll).addTo(map);
     markers.push({u,el,mk,mounted:true});
@@ -1673,7 +1683,7 @@ function fanOffsets(items){
 function makeTempFlag(it,band,offset){
   const el=document.createElement("div");
   el.className="umk t"+(it.tier||"ben")+" rec rec-"+band+" show-flag";
-  el.innerHTML=`<div class="flag"><div class="banner"><span class="bdg">${badge(it.uni,17)}</span><span class="bname">${it.uni.slice(0,6)}</span></div><div class="pole"></div></div><div class="dot"></div>`;
+  el.innerHTML=`<div class="flag"><div class="banner"><div class="bfull">${it.uni}</div><span class="bdg">${badge(it.uni,17)}</span><span class="bname">${it.uni.slice(0,6)}</span></div><div class="pole"></div></div><div class="dot"></div>`;
   el.addEventListener("click",e=>{e.stopPropagation();showUniCard(it.uni);});
   const mk=new maplibregl.Marker({element:el,anchor:"bottom",offset:offset||[0,0]}).setLngLat(it.ll).addTo(map);
   mk._fan=offset||[0,0];                                       // 记住扇形偏移:放大显旗复用,缩小成点归零
