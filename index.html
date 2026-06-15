@@ -251,6 +251,19 @@
   .card-fav{margin-top:8px;border:1px solid #c5ab7c;background:#fdf8ea;color:#8c2f1b;border-radius:6px;
     padding:5px 13px;font:500 13px "Kaiti SC","STKaiti",serif;cursor:pointer;transition:all .2s}
   .card-fav.on{background:#8c2f1b;color:#f7e8d6;border-color:#8c2f1b}
+  .card-btns{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .card-cmp{margin-top:8px;border:1px solid #c5ab7c;background:#fdf8ea;color:#6b5630;border-radius:6px;padding:5px 13px;font:500 13px "Kaiti SC","STKaiti",serif;cursor:pointer;transition:all .2s}
+  .card-cmp.on{background:#bd9a55;color:#fff7e8;border-color:#bd9a55}
+  /* 对比购物车:浮动栏,从院校卡片勾选 2–4 所 → 开始对比 */
+  .cmptray{position:fixed;left:50%;transform:translateX(-50%);bottom:118px;z-index:8;display:flex;align-items:center;gap:9px;max-width:min(92vw,560px);padding:8px 10px 8px 15px;border-radius:999px;background:linear-gradient(180deg,rgba(252,246,231,.97),rgba(244,235,214,.97));border:1px solid var(--gold-soft);box-shadow:var(--elev);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);animation:cmpUp .18s cubic-bezier(.22,1,.36,1)}
+  .cmptray[hidden]{display:none}
+  @keyframes cmpUp{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translateX(-50%)}}
+  .cmptray-lab{font:600 13px "Kaiti SC","STKaiti",serif;color:var(--zhu);flex:none}
+  .cmptray-chips{display:flex;gap:6px;flex-wrap:wrap;flex:1;min-width:0}
+  .cmpchip{display:inline-flex;align-items:center;gap:4px;font:500 12px "Kaiti SC","STKaiti",serif;color:var(--ink);background:rgba(189,154,85,.16);border:1px solid var(--gold-soft);border-radius:999px;padding:3px 7px 3px 11px;white-space:nowrap}
+  .cmpchip i{cursor:pointer;color:#9c2f1b;font-style:normal;font-size:13px;line-height:1}
+  .cmptray-go{flex:none;font:600 12.5px "Kaiti SC","STKaiti",serif;color:#fff7e8;background:linear-gradient(180deg,#a8392a,#8c2f1b);border:0;border-radius:999px;padding:7px 15px;cursor:pointer}
+  .cmptray-go:disabled{opacity:.5;cursor:default;background:#b9a574}
   .rec-fav{margin-left:6px;cursor:pointer;color:#cbb47e;font-size:14px;flex:0 0 auto;background:none;border:none;padding:0;line-height:1}
   .rec-fav.on,.rec-fav:hover{color:#e0a32e}
   .toast{position:absolute;bottom:74px;left:50%;transform:translateX(-50%) translateY(8px);z-index:9;
@@ -1236,6 +1249,8 @@ function filterBand(b){if(!DT)return;DT.band=(DT.band===b)?null:b;rerenderDT();}
 let DT=null;
 const _selShort=s=>{if(!s||/不限/.test(s))return'不限';s=String(s).replace(/[((].*$/,'').replace(/[选考科目要求::、\s]/g,'').replace(/和|或/g,'');return s.slice(0,6)||'不限';};
 const _selType=s=>!s?'不限':/物理/.test(s)?'物理':/历史/.test(s)?'历史':'不限';
+const cnMoney=v=>{if(!v)return'—';if(v<10000)return v+'元';const wan=Math.floor(v/10000),rem=v%10000;   // 中式:<1万→元,≥1万→万
+  return rem===0?wan+'万':rem%1000===0?wan+'万'+rem/1000:(v/10000).toFixed(1)+'万';};
 const bandOfRank=r=>{if(!DT||!DT.haveRank||!r)return null;const rho=r/DT.rank;return rho<1.05?"冲":rho<1.25?"稳":"保";};
 function detailTable(u,prov){
   const lines=u.lines||[],plans=u.plans||{},name=u.name;
@@ -1276,8 +1291,7 @@ function tableHTML(){
     const av=a[k]||(d>0?1e9:-1e9),bv=b[k]||(d>0?1e9:-1e9);return d*(av-bv);});
   const cell=v=>v?v.toLocaleString():'—';
   const cellR=(lo,hi)=>!lo?'—':hi>lo?`${lo.toLocaleString()}–${hi.toLocaleString()}`:lo.toLocaleString();   // 多专业组显示区间
-  const tu=v=>{if(!v)return'—';if(v<10000)return v+'元';const wan=Math.floor(v/10000),rem=v%10000;   // 中式:万 / 元
-    return rem===0?wan+'万':rem%1000===0?wan+'万'+rem/1000:(v/10000).toFixed(1)+'万';};
+  const tu=cnMoney;
   const sar=key=>`<span class="sar">${sort.k===key?(sort.d>0?'▲':'▼'):'⇅'}</span>`;
   const TH=(key,lab)=>`<th class="sortable${sort.k===key?' act':''}" onclick="sortDT('${key}')">${lab}${sar(key)}</th>`;
   const CAP=6,more=rs.length>CAP,show=DT.expanded?rs:rs.slice(0,CAP);   // 默认只示前几条,避免一屏堆满
@@ -1351,7 +1365,7 @@ function showCard(u){
     ${(u.mp||u.dp)?`<p class="dim" style="margin:2px 0">${u.mp?`硕士点 ${u.mp}`:""}${u.mp&&u.dp?" · ":""}${u.dp?`博士点 ${u.dp}`:""}</p>`:""}
     ${u.intro?`<p class="dim" style="margin-top:6px">${u.intro}…</p>`:""}
     <div id="card-trend"></div>
-    <div>${cardFavHTML({n:u.n,t:u.t,c:u.c||u.p,ll:u.ll})}</div>
+    <div class="card-btns">${cardFavHTML({n:u.n,t:u.t,c:u.c||u.p,ll:u.ll})}${cardCmpHTML({n:u.n,t:u.t,c:u.c||u.p,ll:u.ll})}</div>
     <p class="dim">※ 教育部名单 · 第四轮学科评估${u.approx?" · 坐标为城市近似":""}</p>`;
   card.style.display="block";document.body.classList.add("has-card");
   loadTrend(u.n);
@@ -1545,11 +1559,11 @@ function buildCompare(ds,prov){
   const aplus=u=>(u.eval||[]).filter(e=>e.grade==='A+').map(e=>e.discipline);
   const rng=(arr,fmt)=>{if(!arr.length)return '—';const mn=Math.min(...arr),mx=Math.max(...arr);return mn===mx?fmt(mn):fmt(mn)+'–'+fmt(mx);};
   const rankR=u=>rng((u.lines||[]).filter(l=>l.granularity==='major'&&l.min_rank).map(l=>l.min_rank),v=>v.toLocaleString());
-  const tuR=u=>rng(Object.values(u.plans||{}).map(p=>p.tuition).filter(Boolean),v=>v);
+  const tuR=u=>rng(Object.values(u.plans||{}).map(p=>p.tuition).filter(Boolean),cnMoney);
   const rows=[["层次",u=>u.tier||'—'],["城市",u=>u.city||u.province||'—'],["综合排名参考",u=>u.rank?'#'+u.rank:'—'],
     ["保研率",u=>u.baoyan?u.baoyan+'%':'—'],["硕/博点",u=>`${u.masterPts||0}/${u.doctorPts||0}`],
     ["A+ 学科",u=>{const a=aplus(u);return a.length?a.slice(0,3).join('、')+(a.length>3?`…(${a.length})`:''):'—';}],
-    [`${prov}录取位次`,u=>rankR(u)],["学费(元)",u=>tuR(u)]];
+    [`${prov}录取位次`,u=>rankR(u)],["学费",u=>tuR(u)]];
   let h='<table class="cmptab"><thead><tr><th></th>'+ds.map(u=>`<th>${badge(u.name,30)}${u.name}</th>`).join('')+'</tr></thead><tbody>';
   rows.forEach(([lab,fn])=>{h+=`<tr><td class="cl">${lab}</td>`+ds.map(u=>`<td>${fn(u)}</td>`).join('')+'</tr>';});
   return h+'</tbody></table><p class="dim" style="margin:8px 2px 0">数据来自各省考试院 / 教育部名单 · 第四轮学科评估;位次/学费为'+prov+'本省口径</p>';
@@ -1568,6 +1582,27 @@ document.getElementById("fav-compare").addEventListener("click",()=>{
   if(names.length<2){toast("志愿表里至少收藏 2 所学校再对比");return;}
   openCompare(names);
 });
+// 对比购物车:院校卡片「⇄ 对比」勾选 2–4 所 → 浮动对比栏 → 复用 openCompare
+let CMP=[];
+const cmptrayEl=document.createElement("div");cmptrayEl.className="cmptray";cmptrayEl.id="cmptray";cmptrayEl.hidden=true;
+cmptrayEl.innerHTML='<span class="cmptray-lab">⇄ 对比</span><div class="cmptray-chips" id="cmptray-chips"></div><button class="cmptray-go" id="cmptray-go" onclick="cmpStart()">开始对比</button>';
+document.body.appendChild(cmptrayEl);
+function cmpHas(n){return CMP.some(x=>x.n===n);}
+function cmpToggle(it){const i=CMP.findIndex(x=>x.n===it.n);
+  if(i>=0)CMP.splice(i,1);
+  else{if(CMP.length>=4){toast("最多对比 4 所,先移除一所");return;}CMP.push({n:it.n,t:it.t,c:it.c,ll:it.ll});hap();}
+  renderCmpTray();syncCmpBtns();}
+window.cmpRemove=function(n){const i=CMP.findIndex(x=>x.n===n);if(i>=0){CMP.splice(i,1);renderCmpTray();syncCmpBtns();}};
+function syncCmpBtns(){document.querySelectorAll(".card-cmp").forEach(b=>{try{const it=JSON.parse(b.dataset.it.replace(/&#39;/g,"'")),on=cmpHas(it.n);b.classList.toggle("on",on);b.textContent=on?"✓ 在对比":"⇄ 对比";}catch(e){}});}
+function renderCmpTray(){const tray=document.getElementById("cmptray");if(!tray)return;
+  if(!CMP.length){tray.hidden=true;return;}
+  tray.hidden=false;
+  document.getElementById("cmptray-chips").innerHTML=CMP.map(x=>`<span class="cmpchip">${x.n}<i role="button" tabindex="0" aria-label="移出对比" onclick='cmpRemove(${JSON.stringify(x.n)})'>✕</i></span>`).join("");
+  const go=document.getElementById("cmptray-go");go.disabled=CMP.length<2;go.textContent=CMP.length>=2?`开始对比 (${CMP.length})`:`再选 ${2-CMP.length} 所`;}
+function cmpStart(){if(CMP.length<2){toast("至少选 2 所学校才能对比");return;}openCompare(CMP.map(x=>x.n));}
+function cardCmpHTML(it){const on=cmpHas(it.n);
+  return `<button class="card-cmp${on?" on":""}" data-it='${JSON.stringify(it).replace(/'/g,"&#39;")}' onclick="cardCmpClick(this)">${on?"✓ 在对比":"⇄ 对比"}</button>`;}
+window.cardCmpClick=function(btn){try{cmpToggle(JSON.parse(btn.dataset.it.replace(/&#39;/g,"'")));}catch(e){}};
 const FAN=[[0,0],[40,-8],[-40,-8],[80,-16],[-80,-16],[120,-24],[-120,-24],
            [24,-40],[-24,-40],[64,-48],[-64,-48],[104,-56]];
 function updateRecFlagZoom(z){      // 推荐旗低缩放收成圆点+偏移归零(rec 点已按冲稳保上色),免低缩放扇形把沿海校甩进海
