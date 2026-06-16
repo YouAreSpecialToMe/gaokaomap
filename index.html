@@ -25,7 +25,7 @@
 <link href="vendor/maplibre-gl.css" rel="stylesheet">
 <style>
   html,body{margin:0;height:100%;overflow:hidden;font-family:"PingFang SC","Microsoft YaHei",sans-serif}
-  #map{position:absolute;inset:0;background:#ece2c8}
+  #map{position:absolute;inset:0;background:#ece2c8;z-index:0}   /* 自成层叠上下文:选中牌子(.sel z-80)只在地图内置顶,不再窜到选校助手/对比面板之上 */
   .vignette{position:absolute;inset:0;pointer-events:none;z-index:2;
     background:radial-gradient(ellipse at center,transparent 55%,rgba(92,68,30,.28) 100%)}
   .stylebtn{position:absolute;top:14px;left:14px;z-index:10;cursor:pointer;
