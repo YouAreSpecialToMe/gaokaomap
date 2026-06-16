@@ -9,7 +9,6 @@
 <link rel="icon" type="image/png" href="assets/favicon.png" />
 <link rel="apple-touch-icon" href="assets/favicon.png" />
 <link rel="preload" as="image" href="assets/relief-cn.webp" />   <!-- 47K 山水底:加载页背景即用它,进门即山水(不等 1MB 引擎) -->
-<link rel="preload" as="image" href="assets/shanshui-3d.webp" />  <!-- 111K 掠光动态山水:进场动效层,放大前的门面 -->
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="山河志愿" />
 <meta property="og:locale" content="zh_CN" />
@@ -323,13 +322,10 @@
   .qz-light:hover{background:#8c2f1b;color:#f7e8d6}
   .loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:9;
     font:500 16px "Kaiti SC","STKaiti","KaiTi",serif;color:#7a5f33;letter-spacing:4px;
-    /* 加载页即铺 47K 山水底(relief-cn.webp 占位图,瞬显);其上叠 111K 掠光"动态山水"动效(进场即灵动,= 放大前的门面);题字加纸色光晕保证可读 */
+    /* 加载页即铺 47K 山水底(relief-cn.webp,与地图揭开后同源烤图,故几乎无缝);淡纸色蒙版压一层保证题字可读 */
     background:linear-gradient(rgba(236,226,200,.32),rgba(236,226,200,.32)),url("assets/relief-cn.webp") no-repeat center/contain,#ece2c8;
     text-shadow:0 1px 7px rgba(236,226,200,.95),0 0 3px rgba(236,226,200,.9);
-    transition:opacity .6s ease}
-  #ssanim{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;transition:opacity .8s ease;pointer-events:none}
-  #ssanim.in{opacity:1}
-  #loadtext{position:relative;z-index:1;transition:opacity .5s ease}
+    transition:opacity .95s ease}
   /* ===== 国风设计精修:金线镶边 · 宣纸磨砂 · 留白呼吸 · 朱砂题首 ===== */
   :root{--paper-a:rgba(251,244,228,.95);--paper-b:rgba(243,234,213,.95);
     --ink:#3f3220;--ink-soft:#6b5630;--zhu:#9c2f1b;--gold:#bd9a55;--gold-soft:#d8c08a;
@@ -680,7 +676,7 @@
   </div>
   <label class="ob-bgm" style="margin:12px 0 0;justify-content:center"><input type="checkbox" id="ob-bgm-chk"> 🎵 开启古典配乐</label>
 </div>
-<div class="loading" id="loading"><img id="ssanim" src="assets/shanshui-3d.webp" alt="" onload="this.classList.add('in')"><span id="loadtext">正在铺开山河画卷⋯</span></div>
+<div class="loading" id="loading">正在铺开山河画卷⋯</div>
 <div class="titlebar">
   <h1>山河志愿</h1>
   <p>山河为卷 · 为你点亮够得着的大学</p>
@@ -928,18 +924,12 @@ map.on("load",async()=>{
     // 中国矢量地理(省界+分层填色+院校)data 已就绪,首帧即出 → ~0.3s 立刻揭开蒙版(不等 3.2MB 地形);
     // 揭开后再挂地形图层,让"地理部分"秒显、地形随后补。1.2s 兜底。
     const lo=document.getElementById("loading");
-    // 揭开 = 地图已就绪:此刻【不】撤"动态山水"层——它就是"放大前"的动态门面;只淡掉题字 + 放行手势(pointer-events:none),
-    // 地图已在其下渲染待命。用户一旦真正放大/平移,再淡出动效层,露出底下可交互的 2D 山水("放大后维持 2D")。
-    const reveal=()=>{if(lo._done)return;lo._done=true;
-      const lt=document.getElementById("loadtext"); if(lt)lt.style.opacity=0;
-      lo.style.pointerEvents="none";
+    const reveal=()=>{if(lo._done)return;lo._done=true;lo.style.opacity=0;setTimeout(()=>lo.style.display="none",300);
       requestAnimationFrame(()=>setTimeout(window._addTerrain,60));
       // 首屏闲下来后预热城市底图(CartoCDN)连接:提前把 DNS+TLS 握手做掉,首次放大时瓦片直接开下、免握手往返。
+      // 只暖连接、不预下瓦片——概览级要猜全国上千张,得不偿失;暖连接通用、不费流量。
       (window.requestIdleCallback||(f=>setTimeout(f,1200)))(()=>{["a","b","c"].forEach(h=>{
         const l=document.createElement("link");l.rel="preconnect";l.href="https://"+h+".basemaps.cartocdn.com";l.crossOrigin="anonymous";document.head.appendChild(l);});});};
-    // 首次真实交互(滚轮/拖拽/触摸地图)→ 淡出"动态山水",露出可交互 2D 地图
-    const dismissSS=()=>{if(lo._gone)return;lo._gone=true;lo.style.opacity=0;setTimeout(()=>{lo.style.display="none";},650);};
-    ["wheel","pointerdown","touchstart"].forEach(ev=>map.getCanvas().addEventListener(ev,dismissSS,{passive:true,once:true}));
     map.once("render",()=>setTimeout(reveal,50)); setTimeout(reveal,1200);
     try{map.setSky(globeOn?SKY_GLOBE:SKY_FLAT);}catch(e){}
     map.addLayer({id:"prov-line",type:"line",source:"china",paint:{
