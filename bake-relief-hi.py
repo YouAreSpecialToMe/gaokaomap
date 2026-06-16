@@ -7,7 +7,7 @@ import os, math, json, numpy as np
 from PIL import Image, ImageDraw
 
 Z = 6
-REPO = r"D:\Desktop\repos\gaokaomap"
+REPO = os.path.dirname(os.path.abspath(__file__))   # 脚本所在仓(原硬编码 D:\… 只限那台盒子;改用脚本目录,跨机可跑)
 TILES = os.path.join(REPO, "tiles", "terrarium", str(Z))
 OUT = os.path.join(REPO, "assets", "relief-cn2.webp")
 GJ = os.path.join(REPO, "geo", "100000_full.json")
@@ -60,7 +60,7 @@ for ft in gj.get("features", []):
         pts = [((c[0] - west) / (east - west) * OW, (mercY(c[1]) - mt) / (mb - mt) * OH) for c in poly[0]]
         if len(pts) >= 3: dr.polygon(pts, fill=255)
 img = img.convert("RGBA"); img.putalpha(alpha)
-img.save(OUT, "WEBP", quality=88, method=6)
+img.save(OUT, "WEBP", quality=68, method=6)   # q68:平滑地形+山影降质几乎无损,体积 ~156K→~66K(占位图,真 DEM 随后覆盖)
 print("z%d tiles %d-%d  out %dx%d  %dKB" % (Z, xs[0], xs[-1], OW, OH, os.path.getsize(OUT) // 1024))
 print("COORDS [[%.5f,%.5f],[%.5f,%.5f],[%.5f,%.5f],[%.5f,%.5f]]" % (
     west, north, east, north, east, south, west, south))
