@@ -1496,6 +1496,7 @@ async function loadTrend(name){
   try{
     const u=await (await fetch(`${API}/api/uni?name=${encodeURIComponent(name)}&prov=${encodeURIComponent(prov)}`)).json();
     if(document.getElementById("card-trend")!==el)return;     // 卡片已切换,丢弃过期结果
+    const _ci=document.getElementById("card-intro");if(_ci&&u.intro){_ci.textContent=u.intro+"…";_ci.style.display="";}   // intro 已从 unis.json 摘除,改由 API 懒填(首屏 unis.json 砍 54%)
     const t=/985/.test(u.tier)?"985":/211/.test(u.tier)?"211":/双一流/.test(u.tier)?"dfc":"ben";
     window.DETAIL={name:u.name,t,c:u.city||u.province,ll:u.ll};   // 供批量加志愿表(桌面/移动通用)
     if(innerWidth<=1200){bandFilter=null;el.innerHTML=detailTable(u,prov)||trendRows(u.lines,prov);}  // 移动/平板:完整选校助手嵌进卡片
@@ -1524,7 +1525,7 @@ function showCard(u){
     ${disc?`<div class="tags" style="margin-top:4px">${disc}</div>`:""}
     ${u.by?`<div class="stat"><span>保研率</span><div class="statbar"><i style="width:${Math.min(100,u.by*2.5).toFixed(0)}%"></i></div><b>${u.by}%</b></div>`:""}
     ${(u.mp||u.dp)?`<p class="dim" style="margin:2px 0">${u.mp?`硕士点 ${u.mp}`:""}${u.mp&&u.dp?" · ":""}${u.dp?`博士点 ${u.dp}`:""}</p>`:""}
-    ${u.intro?`<p class="dim" style="margin-top:6px">${u.intro}…</p>`:""}
+    <p class="dim" id="card-intro" style="margin-top:6px;display:none"></p>
     <div id="card-trend"></div>
     <div class="card-btns">${cardFavHTML({n:u.n,t:u.t,c:u.c||u.p,ll:u.ll})}${cardCmpHTML({n:u.n,t:u.t,c:u.c||u.p,ll:u.ll})}</div>
     <p class="dim">※ 教育部名单 · 第四轮学科评估${u.approx?" · 坐标为城市近似":""}</p>`;
