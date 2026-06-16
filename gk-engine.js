@@ -22,6 +22,7 @@
   }
   function recommend(slice, uinfo, opt) {
     uinfo = uinfo || {}; opt = opt || {};
+    var SU = slice.uinfo || {};                                 // 切片自带的完整 prestige(含冷门校)优先,unis.json 的 UINFO 兜底 → 与服务端 get_uinfo 对齐
     var subj = opt.subj || slice.subj, sel = opt.sel || null, cands = SUBJ_EQ[subj] || [subj], year = slice.years[0];
     var rt = rankTbl(slice, subj, year); if (!rt) return { error: "no_rank" };
     var pts = rt.pts, total = 0; for (var i = 0; i < pts.length; i++) if (pts[i][1] > total) total = pts[i][1];
@@ -35,6 +36,12 @@
     [year - 1, year - 2].forEach(function (yr) { var t = rankTbl(slice, subj, yr); if (t) { var c = 0; for (var j = 0; j < t.pts.length; j++) if (t.pts[j][1] > c) c = t.pts[j][1]; cohort[yr] = c; eq[yr] = Math.max(1, Math.round(myRank * c / total)); } });
     var pf = function (un) { var p = slice.plan[un] || slice.plan[strip(un)]; if (!p || !p[year] || !p[year - 1]) return 1; return Math.pow(Math.max(0.7, Math.min(1.4, p[year] / p[year - 1])), 0.2); };
     var subjOk = new Set(); slice.subjs.forEach(function (s, i) { if (cands.indexOf(s) >= 0) subjOk.add(i); });
+    var mcWant = null;                                          // 测评×分数:只在 profile 命中的招生专业类内推荐(与服务端 engine mclasses 同源 uni_majors)
+    if (opt.mclasses && opt.mclasses.length && slice.mcls && slice.mmc) {
+      var mcIx = {}; slice.mcls.forEach(function (mc, i) { mcIx[mc] = i; });
+      var ws = new Set(); opt.mclasses.forEach(function (mc) { if (mc in mcIx) ws.add(mcIx[mc]); });
+      if (ws.size) mcWant = function (mi) { var arr = slice.mmc[mi]; if (!arr) return false; for (var z = 0; z < arr.length; z++) if (ws.has(arr[z])) return true; return false; };
+    }
     var A = slice.adm, n = A.r.length, cmap = {};
     [year, year - 1, year - 2].forEach(function (yr) {          // 必须按 year→y-2 降序(与服务端 dict 插入序一致),否则 cmap 键序不同 → 平局 tie-break 不同 → 个别项错位
       if (!(yr in eq)) return;
@@ -43,6 +50,7 @@
         if (A.y[i] !== y2 || !subjOk.has(A.j[i])) continue;
         var rr = A.r[i]; if (rr == null || rr < a || rr > b) continue;
         if (!selOk(slice.sels[A.sl[i]], sel)) continue;
+        if (mcWant && !mcWant(A.m[i])) continue;
         var k = A.u[i] + "|" + A.m[i];
         (cmap[k] = cmap[k] || []).push([yr, rr / eq[yr], i]);
       }
@@ -56,12 +64,15 @@
       rho *= pf(un);
       items.push([rho, un, slice.majs[A.m[idx]], idx, recs[0][0]]);
     }
-    var pres = function (un) { var f = uinfo[un] || uinfo[strip(un)]; return f ? [f.t === "985" ? 0 : f.t === "211" ? 1 : f.t === "dfc" ? 2 : 3, f.rank || 99999] : [3, 99999]; };
+    var pres = function (un) { var f = SU[un] || uinfo[un] || SU[strip(un)] || uinfo[strip(un)]; return f ? [f.t === "985" ? 0 : f.t === "211" ? 1 : f.t === "dfc" ? 2 : 3, f.rank || 99999] : [3, 99999]; };
     items.sort(function (x, y) {
       var a = pres(x[1]), b = pres(y[1]); if (a[0] !== b[0]) return a[0] - b[0]; if (a[1] !== b[1]) return a[1] - b[1];
-      return Math.abs(x[0] - BANDS[bandOf(x[0]) || "稳"][2]) - Math.abs(y[0] - BANDS[bandOf(y[0]) || "稳"][2]);
+      var dx = Math.abs(x[0] - BANDS[bandOf(x[0]) || "稳"][2]), dy = Math.abs(y[0] - BANDS[bandOf(y[0]) || "稳"][2]); if (dx !== dy) return dx - dy;
+      var rx = A.r[x[3]], ry = A.r[y[3]]; if (rx !== ry) return rx - ry;     // 确定性兜底序(与服务端一致):min_rank→校名→专业,免平局依赖扫描/切片序
+      if (x[1] !== y[1]) return x[1] < y[1] ? -1 : 1;
+      return x[2] < y[2] ? -1 : x[2] > y[2] ? 1 : 0;
     });
-    var ui = function (un) { return uinfo[un] || uinfo[strip(un)]; };
+    var ui = function (un) { return SU[un] || uinfo[un] || SU[strip(un)] || uinfo[strip(un)]; };
     var mk = function (ix, rho, fr) { var f = ui(slice.unis[A.u[ix]]); return { uni: slice.unis[A.u[ix]], major: slice.majs[A.m[ix]], minScore: A.sc[ix] / 10, minRank: A.r[ix], rho: Math.round(rho * 1000) / 1000, year: fr, note: fr === year ? "" : "据" + fr, selReq: slice.sels[A.sl[ix]] || "", enroll: A.e[ix] || null, ll: f && f.ll && f.ll[0] ? f.ll : null, tier: f ? f.t : null, city: f ? f.c : null }; };
     var out = { "冲": [], "稳": [], "保": [] }, pu = {};
     for (var t = 0; t < items.length; t++) {
@@ -73,7 +84,7 @@
     var top_fb = false;                                          // 位次极高:常规三档全空 → 取该省该科最难进的顶尖专业作「冲」(对齐服务端兜底)
     if (!out["冲"].length && !out["稳"].length && !out["保"].length) {
       var eqv = eq[year] || 1, fb = [];
-      for (var i2 = 0; i2 < n; i2++) { if (A.y[i2] !== year % 100 || !subjOk.has(A.j[i2]) || A.r[i2] == null) continue; if (!selOk(slice.sels[A.sl[i2]], sel)) continue; fb.push(i2); }
+      for (var i2 = 0; i2 < n; i2++) { if (A.y[i2] !== year % 100 || !subjOk.has(A.j[i2]) || A.r[i2] == null) continue; if (!selOk(slice.sels[A.sl[i2]], sel)) continue; if (mcWant && !mcWant(A.m[i2])) continue; fb.push(i2); }
       fb.sort(function (a, b) { return A.r[a] - A.r[b]; });
       var fbu = {};
       for (var g = 0; g < fb.length && out["冲"].length < 12; g++) {

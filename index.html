@@ -2132,14 +2132,21 @@ async function qzRecommend(){
         st=document.getElementById("qz-rec-status");
   if(!val){st.textContent="请输入"+(qzMode==="score"?"分数":"位次");return;}
   st.textContent="测算中…";
-  const s=QZ.sums,sc=["R","I","A","S","E","C"].map(d=>s[d]).join(",");
-  const qs=`scores=${sc}&prov=${encodeURIComponent(prov)}&subj=${encodeURIComponent(subj)}&${qzMode}=${val}`;
+  const num=Number(val), mcls=((window.PROFILE&&PROFILE.top)||[]).slice(0,3);
   try{
-    const r=await (await fetch(`${API}/api/quiz/match?${qs}`)).json();
-    const rec=r.recommend;
+    let rec,mc;
+    const slice=(typeof GKEngine!=="undefined"&&mcls.length)?await loadSlice(prov):null;
+    if(slice){                                                  // 本地优先:用已存测评方向(PROFILE.top)在客户端限类算(免跨境)
+      rec=GKEngine.recommend(slice,UINFO,{subj,score:qzMode==="score"?num:undefined,rank:qzMode==="rank"?num:undefined,mclasses:mcls});
+      mc=mcls;
+    }else{                                                      // 兜底:服务端 quiz/match(由其重算方向 + 推荐)
+      const s=QZ.sums,sc=["R","I","A","S","E","C"].map(d=>s[d]).join(",");
+      const r=await (await fetch(`${API}/api/quiz/match?scores=${sc}&prov=${encodeURIComponent(prov)}&subj=${encodeURIComponent(subj)}&${qzMode}=${val}`)).json();
+      rec=r.recommend; mc=r.matchClasses||[];
+    }
     if(!rec||rec.error){st.textContent="⚠️ "+((rec&&rec.error)||"暂无匹配");document.getElementById("qz-reclist").innerHTML="";return;}
-    const tot=["冲","稳","保"].reduce((n,bb)=>n+(rec.bands[bb]?rec.bands[bb].length:0),0);
-    st.textContent=`位次约 ${rec.rank.toLocaleString()} · 限定你契合的 ${(r.matchClasses||[]).join("/")}${tot<6?" · 此分段较薄,可参看「我的推荐」全部":""}`;
+    const tot=["冲","稳","保"].reduce((nn,bb)=>nn+(rec.bands[bb]?rec.bands[bb].length:0),0);
+    st.textContent=`位次约 ${rec.rank.toLocaleString()} · 限定你契合的 ${(mc||[]).join("/")}${tot<6?" · 此分段较薄,可参看「我的推荐」全部":""}`;
     renderRecResult(rec,document.getElementById("qz-reclist"));
     map.flyTo({center:[112,32],zoom:4.3,pitch:50,bearing:-8,duration:1600,curve:1.42});
   }catch(e){st.textContent="⚠️ 无法连接推荐服务";}

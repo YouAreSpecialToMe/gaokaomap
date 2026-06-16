@@ -219,7 +219,8 @@ def _engine(prov, subj_std, score, year, sel, rank=None, mclasses=None):
         if not i: return (3, 99999)
         return (0 if i[2] else 1 if i[3] else 2 if i[4] else 3, i[6] or 99999)
     items.sort(key=lambda x: (_prestige(x[2]),
-                              abs(x[0] - BANDS.get(band_of(x[0]) or "稳", (0, 0, 1.18))[2])))
+                              abs(x[0] - BANDS.get(band_of(x[0]) or "稳", (0, 0, 1.18))[2]),
+                              x[4]["min_rank"], x[2], x[3]))   # 确定性兜底序(min_rank→校名→专业):免平局依赖 SQL 扫描序,与客户端切片对齐
 
     out = {b: [] for b in BANDS}
     per_uni = defaultdict(int)
