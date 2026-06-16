@@ -321,11 +321,8 @@
   .qz-light{font-size:12px;padding:3px 10px;border:1px solid #8c2f1b;border-radius:999px;background:none;color:#8c2f1b;cursor:pointer}
   .qz-light:hover{background:#8c2f1b;color:#f7e8d6}
   .loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:9;
-    font:500 16px "Kaiti SC","STKaiti","KaiTi",serif;color:#7a5f33;letter-spacing:4px;
-    /* 加载页即铺 47K 山水底(relief-cn.webp,与地图揭开后同源烤图,故几乎无缝);淡纸色蒙版压一层保证题字可读 */
-    background:linear-gradient(rgba(236,226,200,.32),rgba(236,226,200,.32)),url("assets/relief-cn.webp") no-repeat center/contain,#ece2c8;
-    text-shadow:0 1px 7px rgba(236,226,200,.95),0 0 3px rgba(236,226,200,.9);
-    transition:opacity .95s ease}
+    font:500 16px "Kaiti SC","STKaiti","KaiTi",serif;color:#7a5f33;letter-spacing:4px;background:#ece2c8;
+    transition:opacity .6s ease}   /* 取消过渡"山水"占位图:加载页改纯纸色,直接等真实地形 */
   /* ===== 国风设计精修:金线镶边 · 宣纸磨砂 · 留白呼吸 · 朱砂题首 ===== */
   :root{--paper-a:rgba(251,244,228,.95);--paper-b:rgba(243,234,213,.95);
     --ink:#3f3220;--ink-soft:#6b5630;--zhu:#9c2f1b;--gold:#bd9a55;--gold-soft:#d8c08a;
@@ -2250,6 +2247,14 @@ function wxResize(){const d=Math.min(devicePixelRatio||1,2);
 addEventListener("resize",wxResize);wxResize();
 function wxRadii(c,rx,ry){const p0=map.project(c),px=map.project([c[0]+rx,c[1]]),py=map.project([c[0],c[1]+ry]);
   return [Math.hypot(px.x-p0.x,px.y-p0.y),Math.hypot(py.x-p0.x,py.y-p0.y),p0];}
+// blob 精灵缓存:每个 tint 预渲一张径向渐变小图(含 1→.55→0 衰减),wxFrame 每帧只 drawImage 缩放盖章,
+// 不再每帧每朵云 createRadialGradient —— 那是"看 demo 发烫 + 地形被 CPU 饿到 30-60s 才出"的主因。
+const _blobSP={};
+function _blobSprite(tint){ if(_blobSP[tint])return _blobSP[tint];
+  const s=128,c=document.createElement("canvas");c.width=c.height=s;const x=c.getContext("2d");
+  const g=x.createRadialGradient(s/2,s/2,0,s/2,s/2,s/2);
+  g.addColorStop(0,`rgba(${tint},1)`);g.addColorStop(.6,`rgba(${tint},.55)`);g.addColorStop(1,`rgba(${tint},0)`);
+  x.fillStyle=g;x.fillRect(0,0,s,s);return _blobSP[tint]=c; }
 function wxFrame(ts){
   wxRAF=wxOn?requestAnimationFrame(wxFrame):0;
   const el=(ts-wxPrev)||16;
@@ -2261,11 +2266,8 @@ function wxFrame(ts){
   const z=map.getZoom(),t=wxT/1000,
     zA=z<5.5?Math.max(.4,Math.min(1,(z-2.8)/2.4)):Math.max(0,1-(z-5.5)/1.5);
   if(zA<=0.01)return;   // 城市级:画布已清空,直接收工(rAF 仍转,缩回自动恢复)
-  const blob=(x,y,rx,ry,tint,al)=>{
-    wctx.save();wctx.translate(x,y);wctx.scale(rx,ry);
-    const g=wctx.createRadialGradient(0,0,0,0,0,1);
-    g.addColorStop(0,`rgba(${tint},${al})`);g.addColorStop(.6,`rgba(${tint},${al*.55})`);g.addColorStop(1,`rgba(${tint},0)`);
-    wctx.fillStyle=g;wctx.beginPath();wctx.arc(0,0,1,0,7);wctx.fill();wctx.restore();};
+  const blob=(x,y,rx,ry,tint,al)=>{ if(al<=0)return;     // 盖章预渲精灵(替代每帧 createRadialGradient,效果一致但廉价得多)
+    wctx.globalAlpha=al; wctx.drawImage(_blobSprite(tint), x-rx, y-ry, rx*2, ry*2); wctx.globalAlpha=1; };
   // 背景飘云(全图氛围)——最先画,垫在分区天气之下;持续漂移让地图随时"有气在动"
   const cloudA=.4*zA;    // 提亮:全图飘云此前 .1*zA 在概览几乎不可见(zA≈.4 → 4%),加密到 28 朵并提到 .4 以覆盖全图
   for(const cl of CLOUDS){
