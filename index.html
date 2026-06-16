@@ -2093,11 +2093,11 @@ WEATHER.forEach(r=>{r.parts=[];for(let i=0;i<46;i++)r.parts.push(
   {u:Math.random()*2-1,v:Math.random()*2.2-1.1,l:6+Math.random()*8,s:.6+Math.random()*.7});});
 // 全图飘云:让整张地图"有气在动",不止三处天气区(西风带 W→E 缓慢漂移,出东缘则回西缘重生)——根治"太死气"
 const CLOUDS=[];
-for(let i=0;i<12;i++)CLOUDS.push({lng:74+Math.random()*60,lat:21+Math.random()*31,
+for(let i=0;i<28;i++)CLOUDS.push({lng:73+Math.random()*62,lat:19+Math.random()*35,
   rx:4.5+Math.random()*4.5,ry:3+Math.random()*3,drift:.05+Math.random()*.1,ph:Math.random()*6.283,sp:.04+Math.random()*.06});
 // 飞鸟(国风 雁/鸥):屏幕空间缓缓掠过,全缩放可见,给天空一点生气
 const BIRDS=[];
-for(let i=0;i<8;i++)BIRDS.push({lng:73+Math.random()*62,lat:24+Math.random()*26,
+for(let i=0;i<16;i++)BIRDS.push({lng:73+Math.random()*62,lat:24+Math.random()*26,
   drift:(Math.random()<.5?-1:1)*(.06+Math.random()*.1),wing:.12+Math.random()*.12,
   vy:(Math.random()*2-1)*.015,fl:Math.random()*6.283,fs:5+Math.random()*4});
 function wxResize(){const d=Math.min(devicePixelRatio||1,2);
@@ -2120,7 +2120,7 @@ function wxFrame(ts){
     g.addColorStop(0,`rgba(${tint},${al})`);g.addColorStop(.6,`rgba(${tint},${al*.55})`);g.addColorStop(1,`rgba(${tint},0)`);
     wctx.fillStyle=g;wctx.beginPath();wctx.arc(0,0,1,0,7);wctx.fill();wctx.restore();};
   // 背景飘云(全图氛围)——最先画,垫在分区天气之下;持续漂移让地图随时"有气在动"
-  const cloudA=.1*zA;
+  const cloudA=.4*zA;    // 提亮:全图飘云此前 .1*zA 在概览几乎不可见(zA≈.4 → 4%),加密到 28 朵并提到 .4 以覆盖全图
   for(const cl of CLOUDS){
     cl.lng+=cl.drift*dt/1000;
     if(cl.lng>136){cl.lng=72;cl.lat=21+Math.random()*31;cl.rx=4.5+Math.random()*4.5;cl.ry=3+Math.random()*3;}
