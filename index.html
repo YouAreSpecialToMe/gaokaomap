@@ -508,6 +508,7 @@
   .cmp-dir-rk{font-size:13px;font-weight:600}
   .cmp-dir-gl{font-size:10.5px;color:#8a7656;font-weight:400;margin-top:1px}
   .cmp-dir-gl b{font-weight:700}
+  .cmp-val{display:inline-block;font-size:9.5px;font-weight:700;color:#fff;background:var(--zhu);border-radius:4px;padding:1px 6px;margin-top:3px;letter-spacing:.5px}
   .cmp-ctrl-row td{text-align:center!important;background:none!important;border-bottom:0;padding:9px}
   .cmp-expand{font:600 12px "Kaiti SC",serif;color:var(--zhu);background:rgba(157,47,27,.07);border:1px dashed var(--gold-soft);border-radius:8px;padding:5px 12px;cursor:pointer}
   .cmp-expand:hover{background:rgba(157,47,27,.14)}
@@ -1722,7 +1723,9 @@ function cmpDirBody(ds,sel){
       const rlead=e&&e.r===br&&rties===1, glead=gr&&bgv>0&&GRADE_V[gr.g]===bgv&&gties===1;
       const rk=e?`<div class="cmp-dir-rk">${e.r.toLocaleString()}${rlead?' <span class="lead" style="color:#1d9e75">▲</span>':''}</div>`:'<div class="cmp-dir-rk dim">位次 —</div>';
       const gd=gr?`<div class="cmp-dir-gl" title="${gr.d} · 第四轮 ${gr.g}">学科 <b style="color:${GRADE_C[gr.g]||'#8a7a5a'}">${gr.g}</b>${glead?' <span class="lead" style="color:#9c2f1b">★</span>':''}</div>`:'<div class="cmp-dir-gl dim">学科 —</div>';
-      return `<td title="${e?e.n+' · '+e.y+'年最难组':''}">${rk}${gd}</td>`;}).join('')+'</tr>';}
+      const value=gr&&glead&&e&&e.r>br;   // 学科最强却非最难进 → 专业更好却更好进 = 性价比
+      const vt=value?'<div class="cmp-val" title="学科评级更强,录取位次反而更好进 —— 同分捡漏之选">✦ 性价比</div>':'';
+      return `<td title="${e?e.n+' · '+e.y+'年最难组':''}">${rk}${gd}${vt}</td>`;}).join('')+'</tr>';}
   return h;}
 window.cmpToggleDir=function(c){const s=new Set(CMPV.dirs||cmpDirAvail(CMPV.ds||[]).slice(0,2));s.has(c)?s.delete(c):s.add(c);CMPV.dirs=[...s];renderCompareBody();};
 window.cmpToggleDiff=function(){CMPV.onlyDiff=!CMPV.onlyDiff;renderCompareBody();};
@@ -1744,7 +1747,7 @@ function buildCompare(ds,prov){
   if(avail.length){
     const sel=(CMPV.dirs||avail.slice(0,2)).filter(c=>avail.includes(c));
     const chips=avail.map(c=>`<button class="cmpdir-chip${sel.includes(c)?' on':''}" onclick="cmpToggleDir('${c}')">${c}</button>`).join('');
-    h+=`<tr class="cmp-sec-row cmp-dir-head"><td colspan="${span}">你的方向 · 按你的测评 <span>(位次越小越难进 · ▲ 更高)</span><div class="cmpdir-chips">${chips}</div></td></tr>`;
+    h+=`<tr class="cmp-sec-row cmp-dir-head"><td colspan="${span}">你的方向 · 按你的测评 <span>(▲ 录取位次更高 · ★ 学科更强 · ✦ 学科强却更好进=性价比)</span><div class="cmpdir-chips">${chips}</div></td></tr>`;
     h+=sel.length?cmpDirBody(ds,sel):`<tr><td colspan="${span}" class="cmp-note">点上面的方向,看两校在该方向的录取位次</td></tr>`;
     h+=`<tr class="cmp-ctrl-row"><td colspan="${span}"><button class="cmp-expand" onclick="cmpToggleExpand()">${CMPV.expanded?'收起全部学科 / 专业对比 ▴':'展开全部学科 / 专业对比 ▾'}</button>${CMPV.expanded?` <label class="cmp-diff"><input type="checkbox" ${CMPV.onlyDiff?'checked':''} onchange="cmpToggleDiff()"> 只看有差异</label>`:''}</td></tr>`;
     if(CMPV.expanded)h+=cmpEvalRows(ds,span)+cmpMajorRows(ds,prov,span);
