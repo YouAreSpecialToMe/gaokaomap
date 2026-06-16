@@ -421,16 +421,23 @@
     box-shadow:0 2px 6px rgba(156,47,27,.3)}
   .ob-steps b{display:block;font:600 14px "Kaiti SC","STKaiti",serif;color:var(--ink)}
   .ob-steps em{font:500 12.5px "Kaiti SC","STKaiti",serif;color:var(--ink-soft);line-height:1.45;font-style:normal}
+  .ob-hero{background:rgba(157,47,27,.06);border:1px solid var(--gold-soft);border-radius:12px;padding:14px;margin:0 0 11px;text-align:center}
+  .ob-hero-t{font:600 15.5px "Kaiti SC","STKaiti",serif;color:var(--ink);letter-spacing:1px;margin-bottom:3px}
+  .ob-hero-s{font-size:11.5px;color:var(--ink-soft);margin-bottom:12px}
+  .ob-quiz{display:block;width:100%;padding:12px;border:0;border-radius:10px;cursor:pointer;color:#fbf0df;background:var(--zhu);
+    font:600 15px "Kaiti SC","STKaiti",serif;letter-spacing:1.5px;box-shadow:0 4px 14px rgba(156,47,27,.32);
+    transition:transform .2s cubic-bezier(.34,1.56,.64,1),box-shadow .2s,background .15s}
+  .ob-quiz:hover{background:#882819;transform:translateY(-2px);box-shadow:0 8px 20px rgba(156,47,27,.42)}
+  .ob-hero-note{font-size:10.5px;color:#a8916a;margin-top:9px;line-height:1.4}
+  .ob-funnel{font-size:11px;color:#a8916a;text-align:center;margin:0 0 9px}
   .ob-bgm{display:flex;align-items:center;gap:7px;margin:0 0 14px;cursor:pointer;
     font:500 12.5px "Kaiti SC","STKaiti",serif;color:var(--ink-soft)}
   .ob-bgm input{accent-color:#9c2f1b;width:15px;height:15px;cursor:pointer;flex:0 0 auto}
   .ob-acts{display:flex;gap:10px}
-  .ob-go{flex:1;padding:11px;border:1px solid var(--gold);border-radius:999px;cursor:pointer;
-    color:#fbf0df;font:600 14px "Kaiti SC","STKaiti",serif;letter-spacing:2px;
-    background:linear-gradient(180deg,#a8392a,#8c2f1b);
-    box-shadow:0 4px 12px rgba(156,47,27,.3),0 0 0 1px rgba(216,192,138,.4) inset;
-    transition:transform .25s cubic-bezier(.34,1.56,.64,1),box-shadow .25s}
-  .ob-go:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(156,47,27,.4),0 0 0 1px rgba(216,192,138,.55) inset}
+  .ob-go{flex:1;padding:10px;border:1px solid var(--gold);border-radius:999px;cursor:pointer;
+    color:var(--zhu);font:600 13.5px "Kaiti SC","STKaiti",serif;letter-spacing:1px;
+    background:#fdf8ea;transition:background .2s}
+  .ob-go:hover{background:rgba(157,47,27,.1)}
   .ob-skip{flex:0 0 auto;padding:11px 16px;border:1px solid var(--gold-soft);border-radius:999px;cursor:pointer;
     background:#fdf8ea;color:var(--ink-soft);font:500 13px "Kaiti SC","STKaiti",serif;letter-spacing:1px;
     transition:background .2s,color .2s}
@@ -653,17 +660,19 @@
 <div id="onboard" class="onboard" role="dialog" aria-modal="true" aria-labelledby="ob-title">
   <button class="x" id="ob-x" aria-label="跳过引导">✕</button>
   <h3 id="ob-title">欢迎来到山河志愿</h3>
-  <p class="ob-sub">一幅可交互的山河画卷,按你的分数找到能上的大学。三步即可:</p>
-  <ol class="ob-steps">
-    <li><span class="ob-n">壹</span><div><b>填分数 / 位次,或做专业测评</b><em>立得「冲 · 稳 · 保」院校推荐</em></div></li>
-    <li><span class="ob-n">贰</span><div><b>点地图上的学校</b><em>看近年录取位次、招生计划、学费、选科要求</em></div></li>
-    <li><span class="ob-n">叁</span><div><b>收藏进「志愿表」</b><em>自动按冲稳保梯度成表,并提示滑档风险</em></div></li>
-  </ol>
-  <label class="ob-bgm"><input type="checkbox" id="ob-bgm-chk"> 🎵 开启古典配乐(萨蒂《Gymnopédie》)</label>
-  <div class="ob-acts">
-    <button class="ob-go" id="ob-go">填分数开始</button>
-    <button class="ob-skip" id="ob-skip">先逛逛地图</button>
+  <p class="ob-sub">山河为卷,按分数选大学、按兴趣选专业。不如先——</p>
+  <div class="ob-hero">
+    <div class="ob-hero-t">花 1 分钟,测出适合你的专业方向</div>
+    <div class="ob-hero-s">RIASEC 兴趣测评 · 十几道题即测即得 · 不存隐私</div>
+    <button class="ob-quiz" id="ob-quiz">开始测评 · 约 1 分钟 →</button>
+    <div class="ob-hero-note">测的工夫,山河画卷正在后台铺开,测完即可上手</div>
   </div>
+  <p class="ob-funnel">或:填分数 → 点地图上的学校看线 → 收进志愿表</p>
+  <div class="ob-acts">
+    <button class="ob-go" id="ob-go">填分数找院校</button>
+    <button class="ob-skip" id="ob-skip">先逛地图</button>
+  </div>
+  <label class="ob-bgm" style="margin:12px 0 0;justify-content:center"><input type="checkbox" id="ob-bgm-chk"> 🎵 开启古典配乐</label>
 </div>
 <div class="loading" id="loading">正在铺开山河画卷⋯</div>
 <div class="titlebar">
@@ -2369,6 +2378,11 @@ if(localStorage.getItem("gk_bgm")==="1"){               // 记忆上次开启:�
   document.getElementById("ob-skip").addEventListener("click",close);
   mask.addEventListener("click",close);
   document.getElementById("ob-bgm-chk").addEventListener("change",e=>{if(e.target.checked&&typeof setBgm==="function")setBgm(true);});
+  document.getElementById("ob-quiz").addEventListener("click",()=>{   // 主 CTA:直接进测评(欢迎卡已表态,跳过面板里的「开始」),其间地图后台续传
+    close();
+    const aq=document.getElementById("act-quiz");if(aq)aq.click();
+    if(typeof qzStart==="function")setTimeout(qzStart,80);
+  });
   document.getElementById("ob-go").addEventListener("click",()=>{
     close();
     const rec=document.getElementById("recpanel"),actRec=document.getElementById("act-rec");
