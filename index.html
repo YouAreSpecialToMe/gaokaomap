@@ -8,6 +8,7 @@
 <meta name="theme-color" content="#ece2c8" />
 <link rel="icon" type="image/png" href="assets/favicon.png" />
 <link rel="apple-touch-icon" href="assets/favicon.png" />
+<link rel="preload" as="image" href="assets/relief-cn.webp" />   <!-- 47K 山水底:加载页背景即用它,进门即山水(不等 1MB 引擎) -->
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="山河志愿" />
 <meta property="og:locale" content="zh_CN" />
@@ -21,7 +22,6 @@
 <meta name="twitter:title" content="山河志愿 · 高考选校" />
 <meta name="twitter:description" content="填分数或位次,看冲稳保为你点亮,找到你能上的大学。1500+ 所大学落于真实山川。" />
 <meta name="twitter:image" content="https://agentsfeed.org/app-demo/assets/og-card.png" />
-<script src="vendor/maplibre-gl.js"></script>
 <link href="vendor/maplibre-gl.css" rel="stylesheet">
 <style>
   html,body{margin:0;height:100%;overflow:hidden;font-family:"PingFang SC","Microsoft YaHei",sans-serif}
@@ -321,7 +321,10 @@
   .qz-light{font-size:12px;padding:3px 10px;border:1px solid #8c2f1b;border-radius:999px;background:none;color:#8c2f1b;cursor:pointer}
   .qz-light:hover{background:#8c2f1b;color:#f7e8d6}
   .loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:9;
-    font:500 16px "Kaiti SC","STKaiti","KaiTi",serif;color:#7a5f33;letter-spacing:4px;background:#ece2c8;
+    font:500 16px "Kaiti SC","STKaiti","KaiTi",serif;color:#7a5f33;letter-spacing:4px;
+    /* 加载页即铺 47K 山水底(relief-cn.webp,与地图揭开后同源烤图,故几乎无缝);淡纸色蒙版压一层保证题字可读 */
+    background:linear-gradient(rgba(236,226,200,.32),rgba(236,226,200,.32)),url("assets/relief-cn.webp") no-repeat center/contain,#ece2c8;
+    text-shadow:0 1px 7px rgba(236,226,200,.95),0 0 3px rgba(236,226,200,.9);
     transition:opacity .95s ease}
   /* ===== 国风设计精修:金线镶边 · 宣纸磨砂 · 留白呼吸 · 朱砂题首 ===== */
   :root{--paper-a:rgba(251,244,228,.95);--paper-b:rgba(243,234,213,.95);
@@ -744,6 +747,8 @@
   </div>
   <div id="viz-body"></div>
 </div>
+<!-- 引擎(~1MB)挪到 body 末尾:原本在 <head> 阻塞渲染,整页(含加载页)要等它下完才出;现在加载页先秒出山水底,引擎在其后台下载 -->
+<script src="vendor/maplibre-gl.js"></script>
 <script>
 let UNIS=[],DOTS=[],CITYIDX=[],PROVIDX=[];
 // 由各校所在城市聚合出"城市"索引(质心坐标 + 院校数),供搜索把城市作为独立结果
