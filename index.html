@@ -870,6 +870,10 @@ map.on("load",async()=>{
     // 地形瓦片(DEM,海外 s3,较慢)未到位时,先以与陆地同色的底铺满中国版图,免得露出蓝灰背景成"加载方块";
     // relief 一到位即整片覆盖——载入观感从"蓝块跳出"变为"绿底渐显地貌"。只盖陆地,海洋仍是背景色。
     map.addLayer({id:"relief-base",type:"fill",source:"china",paint:{"fill-color":"#aebd8a","fill-opacity":1}});
+    // 静态地形占位图(45K · relief-bake.py 烤、已裁中国版图):一进来即"地形模样"而非平绿;真 DEM 瓦片到位即覆盖,境外透明保持纸色蒙版
+    try{map.addSource("relief-cn",{type:"image",url:"assets/relief-cn.webp",
+        coordinates:[[67.5,55.77657],[146.25,55.77657],[146.25,11.1784],[67.5,11.1784]]});
+      map.addLayer({id:"relief-cn-img",type:"raster",source:"relief-cn",paint:{"raster-fade-duration":0}});}catch(e){}
     // 自托管地形瓦片:存在 tiles/terrarium/ready(由 fetch-dem-tiles.py 预下载)即用本地源(maxzoom 取其值),
     // 否则回退 AWS s3——"没下也能跑、下了自动加速、无加载方块",零改码切换。
     let DEM_TILES="https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png", DEM_MAXZ=12;
