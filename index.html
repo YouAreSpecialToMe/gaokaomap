@@ -254,6 +254,7 @@
   .sr-badge{font-size:10px;padding:1px 6px;border-radius:4px;color:#fff;flex:0 0 auto}
   .sr-badge.t985{background:#8c2f1b}.sr-badge.t211{background:#96660f}.sr-badge.tdfc{background:#564a85}.sr-badge.tben{background:#9a8757}
   .sr-badge.sr-cbadge{background:#4f6457}
+  .sr-badge.sr-pbadge{background:#50708a}
   .sr-pin{width:26px;height:26px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;color:#9c2f1b}
   .sr-pin svg{width:20px;height:20px}
   .sr-empty{padding:12px;text-align:center;font-size:12px;color:#7d6536}
@@ -640,11 +641,11 @@
 <div id="search">
   <div id="search-box">
     <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.6" cy="6.6" r="4.8" fill="none" stroke="#8a6a45" stroke-width="1.5"/><path d="M10.3 10.3 L14.5 14.5" stroke="#8a6a45" stroke-width="1.6" stroke-linecap="round"/></svg>
-    <input id="search-input" type="text" placeholder="搜索学校 · 城市" autocomplete="off" spellcheck="false"
-      role="combobox" aria-expanded="false" aria-controls="search-results" aria-autocomplete="list" aria-label="搜索学校或城市">
+    <input id="search-input" type="text" placeholder="搜索学校 · 城市 · 省份" autocomplete="off" spellcheck="false"
+      role="combobox" aria-expanded="false" aria-controls="search-results" aria-autocomplete="list" aria-label="搜索学校、城市或省份">
     <button id="search-clear" aria-label="清除搜索">✕</button>
   </div>
-  <div id="search-hint">输入校名 / 城市,或点 <b id="hint-quiz" role="button" tabindex="0">专业测评</b> 找方向</div>
+  <div id="search-hint">输入校名 / 城市 / 省份,或点 <b id="hint-quiz" role="button" tabindex="0">专业测评</b> 找方向</div>
   <div id="search-results" role="listbox" aria-label="搜索结果"></div>
 </div>
 <div id="bgm-tip" role="button" tabindex="0" aria-label="开启古典配乐"><span>🎵 开启古典配乐</span><button class="bgm-x" aria-label="不用了,关闭提示">✕</button></div>
@@ -736,7 +737,7 @@
   <div id="viz-body"></div>
 </div>
 <script>
-let UNIS=[],DOTS=[],CITYIDX=[];
+let UNIS=[],DOTS=[],CITYIDX=[],PROVIDX=[];
 // 由各校所在城市聚合出"城市"索引(质心坐标 + 院校数),供搜索把城市作为独立结果
 function buildCityIndex(){
   const MUNI=new Set(["北京","上海","天津","重庆"]),g={};
@@ -1182,6 +1183,7 @@ map.on("load",async()=>{
       return u;});
     DOTS=all.filter(u=>u.t==="ben"||isCampus(u.n));
     const _provs=[...new Set(all.map(u=>u.p).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"zh"));
+    PROVIDX=_provs.map(p=>({n:p,cnt:all.filter(u=>u.p===p).length,isProv:true}));   // 省份搜索索引(校数供排序/展示)
     initRegionMenu(_provs);
     buildCityIndex();
     document.querySelector(".titlebar p").textContent=`山河为卷 · 收录 ${all.length} 所大学 · 填分数,点亮够得着的`;
@@ -2380,6 +2382,11 @@ if(localStorage.getItem("gk_bgm")==="1"){               // 记忆上次开启:�
   function doSearch(q){
     q=nm(q).trim();if(!q)return[];
     const out=[];
+    // 省份:命中即「聚焦全省」结果,排最前(精确 125 压过城市 120 / 院校 100);兼容「河南」与「河南省」
+    const sp=s=>nm(s).replace(/(省|市|自治区|壮族自治区|回族自治区|维吾尔自治区|特别行政区)$/,""),qb=sp(q);
+    for(const p of PROVIDX){const pb=sp(p.n);let sc=-1;
+      if(qb&&pb===qb)sc=125;else if(qb&&pb.startsWith(qb))sc=92;else if(qb&&pb.includes(qb))sc=40;
+      if(sc>=0)out.push([sc+Math.min(p.cnt,40)/80,p]);}
     // 城市:命中即作为独立结果,排在同名院校之前
     for(const c of CITYIDX){
       const base=nm(c.n).replace(/(市|地区|自治州|盟|特别行政区)$/,"");let sc=-1;
@@ -2405,7 +2412,11 @@ if(localStorage.getItem("gk_bgm")==="1"){               // 记忆上次开启:�
     items=list;sel=-1;
     if(!inp.value.trim()){res.style.display="none";inp.setAttribute("aria-expanded","false");return;}
     if(!list.length){res.innerHTML='<div class="sr-empty">没找到「'+inp.value.trim()+'」,换个词试试</div>';res.style.display="block";inp.setAttribute("aria-expanded","true");return;}
-    res.innerHTML=list.map((u,i)=> u.isCity
+    res.innerHTML=list.map((u,i)=> u.isProv
+      ? `<div class="sr-item" role="option" id="sr-opt-${i}" aria-selected="false" data-i="${i}"><span class="sr-pin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M9 4 3 6.2v13.6L9 17.6l6 2.2 6-2.2V6L15 6.2 9 4Z"/><path d="M9 4v13.6M15 6.2v13.6"/></svg></span>
+        <span class="nm">${u.n}</span><span class="sr-badge sr-pbadge">省份</span>
+        <span class="meta">${u.cnt} 所院校 · 聚焦全省</span></div>`
+      : u.isCity
       ? `<div class="sr-item" role="option" id="sr-opt-${i}" aria-selected="false" data-i="${i}"><span class="sr-pin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 21s7-6.4 7-11.5A7 7 0 0 0 5 9.5C5 14.6 12 21 12 21Z"/><circle cx="12" cy="9.3" r="2.4"/></svg></span>
         <span class="nm">${u.n}</span><span class="sr-badge sr-cbadge">城市</span>
         <span class="meta">${u.cnt} 所院校</span></div>`
@@ -2418,6 +2429,10 @@ if(localStorage.getItem("gk_bgm")==="1"){               // 记忆上次开启:�
   function pick(u){
     if(!u)return;userTouched=true;
     inp.value=u.n;res.style.display="none";inp.setAttribute("aria-expanded","false");wrap.classList.remove("searching");boxEl.classList.add("has-val");
+    if(u.isProv){                                  // 省份:复用区域选择器——筛选+聚焦全省+同步「全国▾」,清空搜索框
+      if(typeof applyRegion==="function")applyRegion(u.n);
+      inp.value="";boxEl.classList.remove("has-val");inp.blur();return;
+    }
     if(u.isCity){                                  // 城市:飞到质心、铺开该城院校,不弹院校卡
       if(typeof applyFilter==="function")applyFilter("all");
       if(u.ll&&u.ll[0])map.flyTo({center:u.ll,zoom:9.4,pitch:42,bearing:0,duration:2000,curve:1.42});
