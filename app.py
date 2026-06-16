@@ -3,7 +3,7 @@
 
 GET /api/meta                         省份×科类×可用年份
 GET /api/recommend?prov=&subj=&score=&year=&sel=物,化
-GET /api/uni?name=浙江大学&prov=浙江   院校画像+学科评估+本省近三年线
+GET /api/uni?name=浙江大学&prov=浙江   院校画像+学科评估+本省近四年线
 """
 import json, mimetypes, os, re, sqlite3, sys, urllib.parse
 from functools import lru_cache
@@ -98,8 +98,8 @@ def uni_card(name, prov):
         lines = [dict(r) for r in con.execute(
             """SELECT year,subject_std subj,granularity,major,min_score,min_rank
                FROM admission_lines WHERE uni_name IN (?,?) AND province=?
-                 AND year>=2023 AND min_rank IS NOT NULL
-               ORDER BY year DESC, min_rank LIMIT 400""", (name, strip, prov))]
+                 AND year>=2022 AND min_rank IS NOT NULL
+               ORDER BY year DESC, min_rank LIMIT 700""", (name, strip, prov))]
         py = con.execute("SELECT MAX(year) FROM enrollment_plans WHERE uni_name IN (?,?) AND province=?",
                          (name, strip, prov)).fetchone()[0]
         if py:

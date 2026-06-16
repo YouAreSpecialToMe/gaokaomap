@@ -439,7 +439,7 @@
     font:500 12.5px "Kaiti SC","STKaiti",serif;letter-spacing:1px;color:var(--zhu);
     background:rgba(157,47,27,.08);border:1px dashed var(--gold-soft);transition:background .2s}
   .addband:hover{background:rgba(157,47,27,.16)}
-  .detailpanel{position:absolute;left:392px;top:118px;z-index:6;width:486px;max-height:calc(100vh - 210px);
+  .detailpanel{position:absolute;left:392px;top:118px;z-index:6;width:560px;max-height:calc(100vh - 210px);
     overflow-y:auto;display:none;padding:16px 18px;border-radius:14px;
     background:linear-gradient(180deg,var(--paper-a),var(--paper-b));border:1px solid var(--gold-soft);
     box-shadow:var(--elev);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
@@ -471,12 +471,13 @@
   .selpills button.on{background:var(--zhu);color:#fff7e8;border-color:var(--zhu)}
   .dt-more{display:block;width:100%;margin:8px 0 0;padding:7px;border-radius:8px;cursor:pointer;font:600 12.5px "Kaiti SC","STKaiti",serif;color:var(--zhu);background:rgba(157,47,27,.07);border:1px dashed var(--gold-soft);transition:background .15s}
   .dt-more:hover{background:rgba(157,47,27,.14)}
+  .dtab .rg{border-bottom:1px dotted #c4b79a;cursor:help}      /* 往年多专业组:显最难组,悬停看区间 */
   @media(max-width:1200px){
     .detailpanel{display:none!important}                       /* ≤1200:选校助手并入卡片(底部抽屉) */
     .card{left:0;right:0;bottom:0;top:auto;width:auto;max-width:none;max-height:82vh;
       border-radius:16px 16px 0 0;box-sizing:border-box}
     .card #card-trend{overflow-x:auto;-webkit-overflow-scrolling:touch}
-    .card .dtab{min-width:420px}                               /* 手机窄屏时表格横向滚动 */
+    .card .dtab{min-width:480px}                               /* 手机窄屏时表格横向滚动(4 年列) */
   }
   /* 院校对比模态 */
   .cmppanel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.96);z-index:9;
@@ -1347,13 +1348,14 @@ function detailTable(u,prov){
   const m={};lines.filter(l=>l.granularity==="major"&&l.min_rank).forEach(l=>{
     const M=(m[l.major]=m[l.major]||{}),g=(M[l.year]=M[l.year]||{lo:1/0,hi:0});
     g.lo=Math.min(g.lo,l.min_rank);g.hi=Math.max(g.hi,l.min_rank);});
-  // 列年份自适应:取该校"实际有数据"的最近 2 年——国防科大·海南只有 2023,就显 2023,不再空成一片"—"
-  const yrs=[...new Set(lines.filter(l=>l.granularity==="major"&&l.min_rank).map(l=>l.year))].sort((a,b)=>b-a).slice(0,2);
+  // 列年份自适应:取该校"实际有数据"的最近 4 年(22–25 多为 31 省全覆盖)——某校某省只有 1 年就显 1 年,不空成一片"—"
+  const yrs=[...new Set(lines.filter(l=>l.granularity==="major"&&l.min_rank).map(l=>l.year))].sort((a,b)=>b-a).slice(0,4);
   const rows=Object.entries(m).map(([mj,Y])=>{const p=matchPlan(plans,mj);
-    const my=Object.keys(Y).map(Number).sort((a,b)=>b-a),lat=Y[my[0]]||{},A=Y[yrs[0]]||{},C=Y[yrs[1]]||{};
-    return {mj,latest:lat.lo||0,y0:A.lo||0,y0hi:A.hi||0,y1:C.lo||0,y1hi:C.hi||0,
-      plan:p&&p.n?p.n:0,tuition:p&&p.tuition?p.tuition:0,sel:_selShort(p&&p.sel),selT:_selType(p&&p.sel)};})
-    .filter(r=>r.latest);
+    const my=Object.keys(Y).map(Number).sort((a,b)=>b-a),lat=Y[my[0]]||{};
+    const r={mj,latest:lat.lo||0,yv:yrs.map(y=>Y[y]||null),
+      plan:p&&p.n?p.n:0,tuition:p&&p.tuition?p.tuition:0,sel:_selShort(p&&p.sel),selT:_selType(p&&p.sel)};
+    yrs.forEach((y,i)=>r['y'+i]=(r.yv[i]?r.yv[i].lo:0));   // y0..y3 供表头排序
+    return r;}).filter(r=>r.latest);
   if(!rows.length)return "";
   const gk=window.GK,haveRank=!!(gk&&gk.rank&&gk.prov===prov);
   const rk=rows.map(r=>r.latest),mn=Math.min(...rk),rng=(Math.max(...rk)-mn)||1;
@@ -1392,7 +1394,11 @@ function tableHTML(){
   for(const r of show){const b=bandOfRank(r.latest),bw=(20+(1-(r.latest-mn)/rng)*80).toFixed(0);
     let tr='';if(r.y0&&r.y1){const up=r.y0<r.y1;tr=` <span class="dtrend ${up?'up':'dn'}" title="较 ${yrs[1]} ${up?'位次上升 · 变难':'位次下降 · 变易'}">${up?'▲':'▼'}</span>`;}
     h+=`<tr style="${b?`border-left:3px solid ${BCOL[b]}`:''}"><td class="mjc" title="${r.mj}"><i class="dbar" style="width:${bw}%"></i><span class="mjn">${r.mj}${b?` <span style="color:${BCOL[b]};font-size:10px">${b}</span>`:''}</span></td>`
-      +yrs.map((y,i)=>{const lo=i?r.y1:r.y0,hi=i?r.y1hi:r.y0hi;return `<td class="num">${cellR(lo,hi)}${i?'':tr}</td>`;}).join('')
+      +yrs.map((y,i)=>{const v=r.yv[i];
+        if(!v)return `<td class="num"><span class="dim">—</span>${i?'':tr}</td>`;
+        const disp=i===0?cellR(v.lo,v.hi)                                     // 最新年:多专业组直接显区间
+          :(v.hi>v.lo?`<span class="rg" title="${v.lo.toLocaleString()}–${v.hi.toLocaleString()} · 多专业组,取最难组">${v.lo.toLocaleString()}</span>`:v.lo.toLocaleString());
+        return `<td class="num">${disp}${i?'':tr}</td>`;}).join('')
       +`<td>${r.plan||'—'}</td><td>${tu(r.tuition)}</td><td>${r.sel}</td></tr>`;}
   h+=`</tbody></table>`;
   if(more)h+=`<button class="dt-more" onclick="dtExpand()">${DT.expanded?'收起 ▴':`展开全部 ${rs.length} 个专业 ▾`}</button>`;
