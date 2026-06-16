@@ -834,10 +834,6 @@ map.on("load",async()=>{
     const DEM_BOUNDS=[73,17,135,54];
     const DEMCR={type:"raster-dem",encoding:"terrarium",tiles:[DEM_TILES],tileSize:256,maxzoom:DEM_MAXZ,bounds:DEM_BOUNDS};
     map.addSource("dem-cr",DEMCR);
-    try{
-      map.addLayer({id:"relief",type:"color-relief",source:"dem-cr",paint:{
-        "color-relief-color":STYLES[styleMode].ramp}});
-    }catch(e){}
     map.addLayer({id:"prov-fill",type:"fill",source:"china",paint:{
       "fill-color":["match",["%",["floor",["/",["to-number",["get","adcode"]],10000]],5],
         0,PALETTE[0],1,PALETTE[1],2,PALETTE[2],3,PALETTE[3],PALETTE[4]],
@@ -845,11 +841,20 @@ map.on("load",async()=>{
     const DEM={type:"raster-dem",encoding:"terrarium",tiles:[DEM_TILES],tileSize:256,maxzoom:DEM_MAXZ,bounds:DEM_BOUNDS};
     map.addSource("dem",DEM);
     map.addSource("dem-hs",{...DEM});
-    map.addLayer({id:"hillshade",type:"hillshade",source:"dem-hs",paint:{
-      "hillshade-shadow-color":STYLES[styleMode].hsShadow,
-      "hillshade-highlight-color":STYLES[styleMode].hsHighlight,
-      "hillshade-accent-color":STYLES[styleMode].hsAccent,
-      "hillshade-exaggeration":STYLES[styleMode].hsEx}});
+    // 地形图层(relief 分层设色 / hillshade 山体阴影)需 ~3.2MB DEM 瓦片,是"加载慢"的大头。
+    // 延后挂载:先秒出中国矢量地理(省界+分层填色+院校),首屏揭开后再加地形(beforeId 维持压盖序),
+    // 地形 cf 缓存命中即很快补上。MapLibre 在图层挂载前不会拉对应源的瓦片,故这也避免地形抢首屏带宽。
+    let _terrainAdded=false;
+    window._addTerrain=()=>{ if(_terrainAdded)return; _terrainAdded=true;
+      try{ if(map.getLayer("prov-fill")) map.addLayer({id:"relief",type:"color-relief",source:"dem-cr",paint:{
+        "color-relief-color":STYLES[styleMode].ramp}},"prov-fill"); }catch(e){}
+      try{ const bId=map.getLayer("prov-line")?"prov-line":undefined;
+        map.addLayer({id:"hillshade",type:"hillshade",source:"dem-hs",paint:{
+        "hillshade-shadow-color":STYLES[styleMode].hsShadow,
+        "hillshade-highlight-color":STYLES[styleMode].hsHighlight,
+        "hillshade-accent-color":STYLES[styleMode].hsAccent,
+        "hillshade-exaggeration":STYLES[styleMode].hsEx}},bId); }catch(e){}
+    };
     // 地形只在用户开 3D 时挂载(默认平面);与开场动画解耦——否则地形关时 dem 源不加载,
     // 开场会一直等到 9 秒兜底,期间卡在初始视角(沿海院校被甩到海上)。
     let terrainOn=false;
@@ -860,11 +865,12 @@ map.on("load",async()=>{
     setTimeout(enableTerrain,9000);
     // 开场运镜:远景飞入,自适应取景(fitBounds 框核心区,竖屏/横屏都把全国摆正)
     flyHome(0);   // 直接定格中国全景:免去 2.8s 飞入运镜——逐瓦片"挤牙膏"式加载、显慢的主因
-    // 加载蒙版保留到地图 idle(中国地理+地形整片算好)再揭开:一次性显现,而非逐块顺次更新。
-    // 3.5s 兜底,避免极端慢网永远卡在蒙版。
+    // 中国矢量地理(省界+分层填色+院校)data 已就绪,首帧即出 → ~0.3s 立刻揭开蒙版(不等 3.2MB 地形);
+    // 揭开后再挂地形图层,让"地理部分"秒显、地形随后补。1.2s 兜底。
     const lo=document.getElementById("loading");
-    const reveal=()=>{if(lo._done)return;lo._done=true;lo.style.opacity=0;setTimeout(()=>lo.style.display="none",400);};
-    map.once("idle",reveal); setTimeout(reveal,3500);
+    const reveal=()=>{if(lo._done)return;lo._done=true;lo.style.opacity=0;setTimeout(()=>lo.style.display="none",300);
+      requestAnimationFrame(()=>setTimeout(window._addTerrain,60));};
+    map.once("render",()=>setTimeout(reveal,200)); setTimeout(reveal,1200);
     try{map.setSky(globeOn?SKY_GLOBE:SKY_FLAT);}catch(e){}
     map.addLayer({id:"prov-line",type:"line",source:"china",paint:{
       "line-color":"#a98e5f","line-width":0.8}});
