@@ -100,6 +100,13 @@ def uni_card(name, prov):
                FROM admission_lines WHERE uni_name IN (?,?) AND province=?
                  AND year>=2022 AND min_rank IS NOT NULL
                ORDER BY year DESC, min_rank LIMIT 700""", (name, strip, prov))]
+        # 给每条线打上「招生专业类」mclass:一次查 uni_majors 建映射(避免逐行子查询);大类招生则专业名本身即类
+        mcmap = {}
+        for r in con.execute("SELECT major,mclass FROM uni_majors WHERE uni_name IN (?,?)", (name, strip)):
+            if r["mclass"]:
+                mcmap.setdefault(r["major"], r["mclass"])
+        for l in lines:
+            l["mclass"] = mcmap.get(l["major"]) or (l["major"] if str(l["major"]).endswith("类") else None)
         py = con.execute("SELECT MAX(year) FROM enrollment_plans WHERE uni_name IN (?,?) AND province=?",
                          (name, strip, prov)).fetchone()[0]
         if py:

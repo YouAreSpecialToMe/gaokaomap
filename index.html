@@ -498,6 +498,19 @@
   .cmp-note{text-align:center!important;color:#a8916a;font-size:11px;padding:7px;background:none!important;font-weight:400!important}
   .cmptab .lead{color:#9c2f1b;font-size:9px;vertical-align:1px}
   .cmptab .dim{color:#c2b288}
+  .cmptab thead th{position:sticky;top:0;background:#f7efdc;z-index:3}                 /* ④ 表头吸顶,滚动不丢校名 */
+  .cmp-dir-head td{background:rgba(157,47,27,.13)!important;border-left:3px solid var(--zhu)}
+  .cmpdir-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .cmpdir-chip{font:600 11.5px/1 "Kaiti SC","STKaiti",serif;padding:4px 10px;border-radius:999px;border:1px solid var(--gold-soft);background:#fff;color:#7a6442;cursor:pointer;transition:.15s}
+  .cmpdir-chip.on{background:var(--zhu);color:#fff;border-color:var(--zhu)}
+  .cmp-dir-row .cl{color:var(--zhu)}
+  .cmp-dir-row td{font-size:13px;font-weight:600}
+  .cmp-ctrl-row td{text-align:center!important;background:none!important;border-bottom:0;padding:9px}
+  .cmp-expand{font:600 12px "Kaiti SC",serif;color:var(--zhu);background:rgba(157,47,27,.07);border:1px dashed var(--gold-soft);border-radius:8px;padding:5px 12px;cursor:pointer}
+  .cmp-expand:hover{background:rgba(157,47,27,.14)}
+  .cmp-diff{font-size:11.5px;color:#7a6442;cursor:pointer;margin-left:10px;user-select:none}
+  .cmp-diff input{vertical-align:-1px;margin-right:3px}
+  .cmp-hint{font-size:11px;color:#9c2f1b;font-weight:400}
   .cmp-nm{display:block;font-size:11.5px;margin-top:2px}
   /* 一分一段可视化面板(居中模态 + 遮罩) */
   .vizmask{position:absolute;inset:0;z-index:8;background:rgba(60,45,20,.22);display:none}
@@ -1680,6 +1693,30 @@ function closeCompare(){cmpmask.classList.remove("show");cmppanel.classList.remo
 cmpmask.addEventListener("click",closeCompare);
 const GRADE_V={'A+':9,'A':8,'A-':7,'B+':6,'B':5,'B-':4,'C+':3,'C':2,'C-':1};
 const GRADE_C={'A+':'#9c2f1b','A':'#1d9e75','A-':'#2e9a66','B+':'#c08a2a','B':'#a8862f','B-':'#9c8340','C+':'#8a7a5a','C':'#8a7a5a','C-':'#8a7a5a'};
+// 对比视图状态(方向选择/只看差异/展开全量)+ 测评方向(开局从 localStorage 恢复)
+let CMPV={ds:null,prov:'',dirs:null,onlyDiff:false,expanded:false};
+try{const _p=localStorage.getItem('gk_profile');if(_p)window.PROFILE=JSON.parse(_p);}catch(e){}
+// 候选方向 = 测评 top 专业类里、至少 2 校都有该类录取位次的
+function cmpDirAvail(ds){const prof=window.PROFILE;if(!prof||!prof.top||!prof.top.length)return [];
+  return prof.top.filter(c=>ds.filter(u=>(u.lines||[]).some(l=>l.granularity==='major'&&l.min_rank&&l.mclass===c)).length>=2);}
+// 方向位次 head-to-head:每校该类「最新年最难组」位次并排,▲ 标更高
+function cmpDirBody(ds,sel){const span=ds.length+1;
+  const maps=ds.map(u=>{const byc={};
+    (u.lines||[]).filter(l=>l.granularity==='major'&&l.min_rank&&l.mclass).forEach(l=>{const c=l.mclass,e=byc[c];
+      if(!e||l.year>e.y)byc[c]={r:l.min_rank,n:l.major,y:l.year};
+      else if(l.year===e.y&&l.min_rank<e.r){e.r=l.min_rank;e.n=l.major;}});
+    return byc;});
+  let h='';
+  for(const c of sel){const br=Math.min(...maps.map(m=>m[c]?m[c].r:1/0)),ties=maps.filter(m=>m[c]&&m[c].r===br).length;
+    h+=`<tr class="cmp-dir-row"><td class="cl">${c}</td>`+maps.map(m=>{const e=m[c];
+      if(!e)return '<td><span class="dim">—</span></td>';
+      const lead=e.r===br&&ties===1;
+      return `<td title="${e.n} · ${e.y}年最难组">${e.r.toLocaleString()}${lead?' <span class="lead" style="color:#1d9e75">▲</span>':''}</td>`;}).join('')+'</tr>';}
+  return h;}
+window.cmpToggleDir=function(c){const s=new Set(CMPV.dirs||cmpDirAvail(CMPV.ds||[]).slice(0,2));s.has(c)?s.delete(c):s.add(c);CMPV.dirs=[...s];renderCompareBody();};
+window.cmpToggleDiff=function(){CMPV.onlyDiff=!CMPV.onlyDiff;renderCompareBody();};
+window.cmpToggleExpand=function(){CMPV.expanded=!CMPV.expanded;renderCompareBody();};
+function renderCompareBody(){const el=document.getElementById('cmp-body');if(el&&CMPV.ds)el.innerHTML=buildCompare(CMPV.ds,CMPV.prov);}
 function buildCompare(ds,prov){
   if(ds.length<2)return '<p class="dim" style="padding:20px;text-align:center">数据不足</p>';
   const span=ds.length+1;
@@ -1691,15 +1728,29 @@ function buildCompare(ds,prov){
     [`${prov}位次区间`,u=>rankR(u)],["学费",u=>tuR(u)]];
   let h='<table class="cmptab"><thead><tr><th></th>'+ds.map(u=>`<th>${badge(u.name,28)}<span class="cmp-nm">${u.name}</span></th>`).join('')+'</tr></thead><tbody>';
   rows.forEach(([lab,fn])=>{h+=`<tr><td class="cl">${lab}</td>`+ds.map(u=>`<td>${fn(u)}</td>`).join('')+'</tr>';});
-  h+=cmpEvalRows(ds,span)+cmpMajorRows(ds,prov,span);
+  // —— 你的方向(测评锚定):优先比考生专业类的录取位次,全量学科/专业收起 ——
+  const avail=cmpDirAvail(ds);
+  if(avail.length){
+    const sel=(CMPV.dirs||avail.slice(0,2)).filter(c=>avail.includes(c));
+    const chips=avail.map(c=>`<button class="cmpdir-chip${sel.includes(c)?' on':''}" onclick="cmpToggleDir('${c}')">${c}</button>`).join('');
+    h+=`<tr class="cmp-sec-row cmp-dir-head"><td colspan="${span}">你的方向 · 按你的测评 <span>(位次越小越难进 · ▲ 更高)</span><div class="cmpdir-chips">${chips}</div></td></tr>`;
+    h+=sel.length?cmpDirBody(ds,sel):`<tr><td colspan="${span}" class="cmp-note">点上面的方向,看两校在该方向的录取位次</td></tr>`;
+    h+=`<tr class="cmp-ctrl-row"><td colspan="${span}"><button class="cmp-expand" onclick="cmpToggleExpand()">${CMPV.expanded?'收起全部学科 / 专业对比 ▴':'展开全部学科 / 专业对比 ▾'}</button>${CMPV.expanded?` <label class="cmp-diff"><input type="checkbox" ${CMPV.onlyDiff?'checked':''} onchange="cmpToggleDiff()"> 只看有差异</label>`:''}</td></tr>`;
+    if(CMPV.expanded)h+=cmpEvalRows(ds,span)+cmpMajorRows(ds,prov,span);
+  }else{
+    h+=`<tr class="cmp-sec-row"><td colspan="${span}"><span class="cmp-hint">做完「专业测评」,这里会先按你的方向比</span> <label class="cmp-diff"><input type="checkbox" ${CMPV.onlyDiff?'checked':''} onchange="cmpToggleDiff()"> 只看有差异</label></td></tr>`;
+    h+=cmpEvalRows(ds,span)+cmpMajorRows(ds,prov,span);
+  }
   return h+'</tbody></table><p class="dim" style="margin:8px 2px 0">学科评估=教育部第四轮(A+~C-);位次/学费为'+prov+'本省口径,仅供参考</p>';
 }
 // 学科评估 head-to-head:两校共同评估的学科,等级并排上色,▲ 标更强;按最高档排序
 function cmpEvalRows(ds,span){
   const maps=ds.map(u=>{const m={};(u.eval||[]).forEach(e=>m[e.discipline]=e.grade);return m;});
-  const disc=[...new Set(maps.flatMap(m=>Object.keys(m)))].filter(d=>maps.filter(m=>m[d]).length>=2);
-  let h=`<tr class="cmp-sec-row"><td colspan="${span}">学科评估对比 · 第四轮${disc.length?` <span>(${disc.length} 个共同学科 · ▲ 更强)</span>`:''}</td></tr>`;
-  if(!disc.length)return h+`<tr><td colspan="${span}" class="cmp-note">两校无共同评估学科 · 各自优势见学校卡片</td></tr>`;
+  let disc=[...new Set(maps.flatMap(m=>Object.keys(m)))].filter(d=>maps.filter(m=>m[d]).length>=2);
+  const diff=CMPV.onlyDiff;
+  if(diff)disc=disc.filter(d=>{const vs=maps.map(m=>m[d]||'');return !vs.every(v=>v===vs[0]);});   // 只看不同:剔除两校同级的学科
+  let h=`<tr class="cmp-sec-row"><td colspan="${span}">学科评估对比 · 第四轮${disc.length?` <span>(${disc.length} 个${diff?'有差异':'共同'}学科 · ▲ 更强)</span>`:''}</td></tr>`;
+  if(!disc.length)return h+`<tr><td colspan="${span}" class="cmp-note">${diff?'两校共同学科评级一致(无差异)':'两校无共同评估学科 · 各自优势见学校卡片'}</td></tr>`;
   const bestV=d=>Math.max(...maps.map(m=>GRADE_V[m[d]]||0));
   disc.sort((a,b)=>bestV(b)-bestV(a)||a.localeCompare(b,'zh'));
   const CAP=20,show=disc.slice(0,CAP);
@@ -1713,9 +1764,10 @@ function cmpEvalRows(ds,span){
 function cmpMajorRows(ds,prov,span){
   const norm=s=>String(s).replace(/[（(].*?[)）]|[\s·・、类]/g,'');
   const maps=ds.map(u=>{const m={};(u.lines||[]).filter(l=>l.granularity==='major'&&l.min_rank).forEach(l=>{const k=norm(l.major);if(k&&(!m[k]||l.min_rank<m[k].r))m[k]={n:l.major,r:l.min_rank};});return m;});
-  const keys=[...new Set(maps.flatMap(m=>Object.keys(m)))].filter(k=>maps.filter(m=>m[k]).length>=2);
+  let keys=[...new Set(maps.flatMap(m=>Object.keys(m)))].filter(k=>maps.filter(m=>m[k]).length>=2);
+  if(CMPV.onlyDiff)keys=keys.filter(k=>{const vs=maps.map(m=>m[k]?m[k].r:null);return !vs.every(v=>v===vs[0]);});
   let h=`<tr class="cmp-sec-row"><td colspan="${span}">同专业录取位次 · ${prov}${keys.length?` <span>(越小越难进 · ▲ 更高)</span>`:''}</td></tr>`;
-  if(!keys.length)return h+`<tr><td colspan="${span}" class="cmp-note">两校无同名专业可对位 · 见上方位次区间</td></tr>`;
+  if(!keys.length)return h+`<tr><td colspan="${span}" class="cmp-note">${CMPV.onlyDiff?'两校同名专业位次无差异':'两校无同名专业可对位 · 见上方位次区间'}</td></tr>`;
   const bestR=k=>Math.min(...maps.map(m=>m[k]?m[k].r:1/0));
   keys.sort((a,b)=>bestR(a)-bestR(b));
   const CAP=14,show=keys.slice(0,CAP);
@@ -1732,7 +1784,8 @@ async function openCompare(names){
   document.getElementById("cmp-body").innerHTML='<p class="dim" style="padding:24px;text-align:center">载入中…</p>';
   cmpmask.classList.add("show");cmppanel.classList.add("show");
   const ds=(await Promise.all(names.map(n=>fetch(`${API}/api/uni?name=${encodeURIComponent(n)}&prov=${encodeURIComponent(prov)}`).then(r=>r.json()).catch(()=>null)))).filter(Boolean);
-  document.getElementById("cmp-body").innerHTML=buildCompare(ds,prov);
+  CMPV={ds,prov,dirs:null,onlyDiff:false,expanded:false};   // 缓存数据,后续切方向/只看差异/展开就地重渲染,不再重拉
+  renderCompareBody();
 }
 document.getElementById("fav-compare").addEventListener("click",()=>{
   const names=[...new Set(FAV.map(x=>x.n))];
@@ -1963,6 +2016,8 @@ async function qzFinish(){
   try{
     const qs=`scores=${["R","I","A","S","E","C"].map(d=>sums[d]).join(",")}`;
     const r=await (await fetch(`${API}/api/quiz/match?${qs}`)).json();
+    try{window.PROFILE={ts:Date.now(),sums,top:(r.top||[]).map(t=>t.mclass).filter(Boolean)};   // 存方向:供院校对比锚定
+        localStorage.setItem('gk_profile',JSON.stringify(window.PROFILE));}catch(e){}
     let html='<div style="margin-bottom:6px">';
     for(const[k,v]of Object.entries(r.profile))
       html+=`<div class="qz-dim"><b>${k}</b><div class="qz-bar"><i style="width:${v}%"></i></div><span>${v}</span></div>`;
