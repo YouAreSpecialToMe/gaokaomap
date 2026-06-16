@@ -1837,7 +1837,8 @@ function applyRecToMap(bands){
 function sealSVG(name,size){
   let t=String(name).replace(/(大学|学院|职业技术|职业|高等专科|学校)/g,"").slice(0,4);
   if(!t)t=String(name).slice(0,2);
-  const ch=[...t],n=ch.length,fs=n<=2?26:21;
+  let ch=[...t];if(size<28)ch=ch.slice(0,2);   // 地图小旗(17px):3–4 字挤成糊,截到 2 字保清晰;卡片(46px)保留全名印
+  const n=ch.length,fs=n<=2?26:21;
   let texts="";
   if(n<=2)ch.forEach((c,i)=>texts+=`<text x="32" y="${n===1?40:26+i*26}" font-size="${fs}">${c}</text>`);
   else{const pos=[[20,27],[44,27],[20,52],[44,52]];ch.forEach((c,i)=>texts+=`<text x="${pos[i][0]}" y="${pos[i][1]}" font-size="${fs}">${c}</text>`);}
@@ -1846,9 +1847,11 @@ function sealSVG(name,size){
     <g fill="#9e2f1b" font-family="Kaiti SC,STKaiti,KaiTi,serif" font-weight="600" text-anchor="middle">${texts}</g></svg>`;
 }
 function badge(name,size){
+  const base=name.replace(/[（(].*$/,"").trim();                          // 去分校括号:厦门大学(马来西亚分校)→厦门大学,借母校徽
+  const f2=(base&&base!==name)?`assets/logos/${encodeURIComponent(base)}.webp`:"";
   return `<img src="assets/logos/${encodeURIComponent(name)}.webp" width="${size}" height="${size}" alt=""
-    style="object-fit:contain;flex-shrink:0" data-n="${name}"
-    onerror="this.outerHTML=sealSVG(this.dataset.n,this.width)">`;
+    style="object-fit:contain;flex-shrink:0" data-n="${name}" data-f2="${f2}"
+    onerror="if(this.dataset.f2){this.src=this.dataset.f2;this.dataset.f2='';}else{this.outerHTML=sealSVG(this.dataset.n,this.width)}">`;
 }
 async function showUniCard(name){
   try{
