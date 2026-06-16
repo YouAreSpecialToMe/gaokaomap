@@ -859,10 +859,12 @@ map.on("load",async()=>{
     else map.on("sourcedata",e=>{if(!terrainOn&&e.sourceId==="dem"&&e.isSourceLoaded)enableTerrain();});
     setTimeout(enableTerrain,9000);
     // 开场运镜:远景飞入,自适应取景(fitBounds 框核心区,竖屏/横屏都把全国摆正)
-    map.jumpTo({center:[105,34],zoom:2.5,pitch:0,bearing:0});
+    flyHome(0);   // 直接定格中国全景:免去 2.8s 飞入运镜——逐瓦片"挤牙膏"式加载、显慢的主因
+    // 加载蒙版保留到地图 idle(中国地理+地形整片算好)再揭开:一次性显现,而非逐块顺次更新。
+    // 3.5s 兜底,避免极端慢网永远卡在蒙版。
     const lo=document.getElementById("loading");
-    lo.style.opacity=0;setTimeout(()=>lo.style.display="none",1000);
-    setTimeout(()=>flyHome(2800),200);
+    const reveal=()=>{if(lo._done)return;lo._done=true;lo.style.opacity=0;setTimeout(()=>lo.style.display="none",400);};
+    map.once("idle",reveal); setTimeout(reveal,3500);
     try{map.setSky(globeOn?SKY_GLOBE:SKY_FLAT);}catch(e){}
     map.addLayer({id:"prov-line",type:"line",source:"china",paint:{
       "line-color":"#a98e5f","line-width":0.8}});
