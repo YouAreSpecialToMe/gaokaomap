@@ -907,7 +907,11 @@ map.on("load",async()=>{
     // 揭开后再挂地形图层,让"地理部分"秒显、地形随后补。1.2s 兜底。
     const lo=document.getElementById("loading");
     const reveal=()=>{if(lo._done)return;lo._done=true;lo.style.opacity=0;setTimeout(()=>lo.style.display="none",300);
-      requestAnimationFrame(()=>setTimeout(window._addTerrain,60));};
+      requestAnimationFrame(()=>setTimeout(window._addTerrain,60));
+      // 首屏闲下来后预热城市底图(CartoCDN)连接:提前把 DNS+TLS 握手做掉,首次放大时瓦片直接开下、免握手往返。
+      // 只暖连接、不预下瓦片——概览级要猜全国上千张,得不偿失;暖连接通用、不费流量。
+      (window.requestIdleCallback||(f=>setTimeout(f,1200)))(()=>{["a","b","c"].forEach(h=>{
+        const l=document.createElement("link");l.rel="preconnect";l.href="https://"+h+".basemaps.cartocdn.com";l.crossOrigin="anonymous";document.head.appendChild(l);});});};
     map.once("render",()=>setTimeout(reveal,50)); setTimeout(reveal,1200);
     try{map.setSky(globeOn?SKY_GLOBE:SKY_FLAT);}catch(e){}
     map.addLayer({id:"prov-line",type:"line",source:"china",paint:{
