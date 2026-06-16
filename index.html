@@ -829,7 +829,10 @@ map.on("load",async()=>{
     let DEM_TILES="https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png", DEM_MAXZ=12;
     try{const rr=await fetch("tiles/terrarium/ready",{cache:"no-store"});
       if(rr.ok){DEM_MAXZ=parseInt((await rr.text()).trim())||8; DEM_TILES="tiles/terrarium/{z}/{x}/{y}.png";}}catch(e){}
-    const DEMCR={type:"raster-dem",encoding:"terrarium",tiles:[DEM_TILES],tileSize:256,maxzoom:DEM_MAXZ};
+    // bounds = 自托管 DEM 瓦片(fetch-dem-tiles.py)的中国范围;限定后 MapLibre 不再请求境外瓦片,
+    // 省掉每次加载上百次"洋面/邻国"瓦片 404(经 Cloudflare 隧道每次都是跨洲往返,是"加载慢"主因)。
+    const DEM_BOUNDS=[73,17,135,54];
+    const DEMCR={type:"raster-dem",encoding:"terrarium",tiles:[DEM_TILES],tileSize:256,maxzoom:DEM_MAXZ,bounds:DEM_BOUNDS};
     map.addSource("dem-cr",DEMCR);
     try{
       map.addLayer({id:"relief",type:"color-relief",source:"dem-cr",paint:{
@@ -839,7 +842,7 @@ map.on("load",async()=>{
       "fill-color":["match",["%",["floor",["/",["to-number",["get","adcode"]],10000]],5],
         0,PALETTE[0],1,PALETTE[1],2,PALETTE[2],3,PALETTE[3],PALETTE[4]],
       "fill-opacity":0.15}});
-    const DEM={type:"raster-dem",encoding:"terrarium",tiles:[DEM_TILES],tileSize:256,maxzoom:DEM_MAXZ};
+    const DEM={type:"raster-dem",encoding:"terrarium",tiles:[DEM_TILES],tileSize:256,maxzoom:DEM_MAXZ,bounds:DEM_BOUNDS};
     map.addSource("dem",DEM);
     map.addSource("dem-hs",{...DEM});
     map.addLayer({id:"hillshade",type:"hillshade",source:"dem-hs",paint:{
@@ -879,7 +882,9 @@ map.on("load",async()=>{
         "fill-color":"#ece1c6","fill-opacity":0.5}},"prov-line");
     }catch(e){}
     try{
-      map.addSource("streets",{type:"raster",tileSize:256,maxzoom:18,
+      // minzoom:8 —— 街道彩底只在城市级(图层 z8.4 起渐显)才需要;不设则概览时也拉一圈不可见的
+      // cartocdn 瓦片,白白拖慢首屏。设了之后 z8 以下完全不请求 streets。
+      map.addSource("streets",{type:"raster",tileSize:256,minzoom:8,maxzoom:18,
         tiles:["https://a.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png",
                "https://b.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png",
                "https://c.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png"],
@@ -906,11 +911,12 @@ map.on("load",async()=>{
     try{
       const RV="geo/";
       const before=map.getLayer("mask")?"mask":"prov-line";
-      const [rivers,lakes]=await Promise.all([
-        fetch(RV+"ne_50m_rivers_lake_centerlines.json").then(r=>r.json()),
-        fetch(RV+"ne_50m_lakes.json").then(r=>r.json())]);
-      map.addSource("lakes",{type:"geojson",data:lakes});
-      map.addSource("rivers",{type:"geojson",data:rivers});
+      // 水系(自然地球 rivers+lakes,~2.1MB)仅作装饰却体量大;此前 await 阻塞了其后的院校标记等
+      // 初始化(标记要等 2.1MB 水系下载+解析完才出)。改为:空源占位 + 按原 z 序插层(压盖顺序不变),
+      // 数据异步拉取后 setData——首屏院校标记立刻出,水系就绪后淡入。
+      const EMPTY={type:"FeatureCollection",features:[]};
+      map.addSource("lakes",{type:"geojson",data:EMPTY});
+      map.addSource("rivers",{type:"geojson",data:EMPTY});
       map.addLayer({id:"lakes",type:"fill",source:"lakes",paint:{
         "fill-color":"#8cb8bf","fill-opacity":0.85}},before);
       map.addLayer({id:"lakes-line",type:"line",source:"lakes",paint:{
@@ -923,6 +929,12 @@ map.on("load",async()=>{
         layout:{"line-cap":"round","line-join":"round"},paint:{
         "line-color":"#8fc0c6","line-opacity":0.95,
         "line-width":["interpolate",["linear"],["zoom"],3,0.8,7,2.2]}},before);
+      Promise.all([
+        fetch(RV+"ne_50m_rivers_lake_centerlines.json").then(r=>r.json()),
+        fetch(RV+"ne_50m_lakes.json").then(r=>r.json())]).then(([rv,lk])=>{
+        const ls=map.getSource("lakes"),rs=map.getSource("rivers");
+        if(ls)ls.setData(lk); if(rs)rs.setData(rv);
+      }).catch(()=>{});
       [["长江",[111.3,30.55]],["黄河",[104.6,37.4]]].forEach(([nm,ll])=>{
         const el=document.createElement("div");el.className="rlabel";el.textContent=nm;
         new maplibregl.Marker({element:el}).setLngLat(ll).addTo(map);

@@ -176,6 +176,7 @@ class H(BaseHTTPRequestHandler):
 
     WEB = os.path.dirname(os.path.abspath(__file__))
     def _static(self, path):
+        path = urllib.parse.unquote(path)   # decode %XX so non-ASCII filenames (e.g. Chinese 校徽 logos under assets/logos/) resolve instead of 404
         if path in ("/", "/index.html"): path = "/index.html"
         f = os.path.realpath(os.path.join(self.WEB, path.lstrip("/")))
         if not f.startswith(self.WEB) or not os.path.isfile(f):
