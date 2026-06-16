@@ -14,18 +14,22 @@ DB = os.environ.get("GK_DB") or next((p for p in [
     os.path.join(HERE, "gaokao.db")] if os.path.exists(p)), None)
 OUT = os.path.join(HERE, "slices")
 YEARS = 3   # 引擎用 year/y-1/y-2;与服务端一致
+NORM = {"物理类": "物理", "历史类": "历史"}   # 一分一段表用「物理类/历史类」,投档线/前端用「物理/历史」→ 统一到后者(否则改革省对不上)
 
 con = sqlite3.connect(DB); con.row_factory = sqlite3.Row
 
 
 def export(prov):
-    subj = con.execute("SELECT subject FROM rank_tables WHERE province=? GROUP BY subject ORDER BY COUNT(*) DESC LIMIT 1",
-                        (prov,)).fetchone()
-    if not subj:
-        return None
-    subj = subj[0]
     yrs = [r[0] for r in con.execute(
         "SELECT DISTINCT year FROM rank_tables WHERE province=? ORDER BY year DESC LIMIT ?", (prov, YEARS))]
+    if not yrs:
+        return None
+    # 主科目取「最新年」的主导科目(改革省最新年已是 物理/历史/综合,而非历史累计的 理科/文科)
+    subj = con.execute("SELECT subject FROM rank_tables WHERE province=? AND year=? GROUP BY subject ORDER BY COUNT(*) DESC LIMIT 1",
+                        (prov, yrs[0])).fetchone()
+    if not subj:
+        return None
+    subj = NORM.get(subj[0], subj[0])
     # admission_lines 专业线(近3年)
     rows = con.execute(f"""SELECT uni_name u,major m,min_score ms,min_rank r,enroll_n e,sel_req s,subject_std j,year y
         FROM admission_lines WHERE province=? AND granularity='major'
@@ -52,7 +56,7 @@ def export(prov):
     rk = {}
     for r in con.execute(f"""SELECT subject sj,year y,score_min smin,score_max smax,cum_rank cr
         FROM rank_tables WHERE province=? AND year IN ({','.join('?' * len(yrs))}) ORDER BY score_min""", (prov, *yrs)):
-        rsj = rk.setdefault(r["sj"], {})
+        rsj = rk.setdefault(NORM.get(r["sj"], r["sj"]), {})
         ry = rsj.setdefault(r["y"], {"smax": 0, "pts": []})
         ry["pts"].append([r["smin"], r["cr"]]); ry["smax"] = max(ry["smax"], r["smax"] or 0)
     # plan(plan_factor):{uniName:{year:n}}

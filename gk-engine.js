@@ -36,7 +36,8 @@
     var pf = function (un) { var p = slice.plan[un] || slice.plan[strip(un)]; if (!p || !p[year] || !p[year - 1]) return 1; return Math.pow(Math.max(0.7, Math.min(1.4, p[year] / p[year - 1])), 0.2); };
     var subjOk = new Set(); slice.subjs.forEach(function (s, i) { if (cands.indexOf(s) >= 0) subjOk.add(i); });
     var A = slice.adm, n = A.r.length, cmap = {};
-    Object.keys(eq).map(Number).forEach(function (yr) {
+    [year, year - 1, year - 2].forEach(function (yr) {          // 必须按 year→y-2 降序(与服务端 dict 插入序一致),否则 cmap 键序不同 → 平局 tie-break 不同 → 个别项错位
+      if (!(yr in eq)) return;
       var y2 = yr % 100, a = eq[yr] * 0.6, b = eq[yr] * 2.4;
       for (var i = 0; i < n; i++) {
         if (A.y[i] !== y2 || !subjOk.has(A.j[i])) continue;
