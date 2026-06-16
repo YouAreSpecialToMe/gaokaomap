@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 """预下载「中国范围」的地形 DEM 瓦片(terrarium)到本地,自托管 —— 免外网(AWS s3)慢/不可达,
-访客打开即用本地瓦片,告别"加载方块"。地形是柔和水墨底,默认 z2–6(约 10MB)即够区域级观感,
-放大靠过采样(柔和但即时、无方块);要更清晰可调大 maxzoom。
+访客打开即用本地瓦片,告别"加载方块"。地形是柔和水墨底,默认 z2–6(约 7MB)即够区域级观感,
+放大靠过采样(柔和但即时、无方块);要更清晰可调大 maxzoom。落地存无损 webp(比 png 省 ~27% 带宽)。
 
-  python3 fetch-dem-tiles.py                  # z2–6 中国 → tiles/terrarium (~10MB)
-  python3 fetch-dem-tiles.py --maxzoom 7      # 更清晰到城市级 (~45MB)
-  python3 fetch-dem-tiles.py --maxzoom 8      # 最清晰 (~170MB,慎用)
+  python3 fetch-dem-tiles.py                  # z2–6 中国 → tiles/terrarium (~7MB webp)
+  python3 fetch-dem-tiles.py --maxzoom 7      # 更清晰到城市级 (~33MB webp)
+  python3 fetch-dem-tiles.py --maxzoom 8      # 最清晰 (~124MB,慎用)
 
 幂等:已存在的瓦片跳过,失败可重跑补齐。完成后写 tiles/terrarium/ready(内含 maxzoom)。
 前端(index.html)启动时探测该 ready:存在则改用本地源(maxzoom 取其值),否则回退 AWS——
 所以"没下也能跑、下了自动加速",零改码切换。部署:在自托管机的服务目录里跑一次即可。
 """
-import math, os, argparse, urllib.request
+import math, os, argparse, urllib.request, io
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from PIL import Image   # 下载 s3 的 png 后无损转 webp 自托管(省 ~27% 带宽,前端自托管源走 .webp)
 
-SRC = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"
+SRC = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"   # AWS 只有 png;落地存无损 webp
 
 def deg2tile(lng, lat, z):
     n = 2 ** z
@@ -36,7 +37,7 @@ def tiles_for(bbox, zmin, zmax):
 
 def fetch(t, outdir):
     z, x, y = t
-    p = os.path.join(outdir, str(z), str(x), f"{y}.png")
+    p = os.path.join(outdir, str(z), str(x), f"{y}.webp")   # 自托管落地为无损 webp(前端 index.html 自托管源走 .webp)
     if os.path.exists(p) and os.path.getsize(p) > 0:
         return "skip"
     os.makedirs(os.path.dirname(p), exist_ok=True)
@@ -46,11 +47,16 @@ def fetch(t, outdir):
             req = urllib.request.Request(url, headers={"User-Agent": "gaokaomap-dem/1.0"})
             with urllib.request.urlopen(req, timeout=25) as r:
                 data = r.read()
-            with open(p, "wb") as f:
-                f.write(data)
+            # 无损转 webp:terrarium 把高程编码进 RGB,有损会污染高程、生成假山脊,故必须 lossless。
+            # 先写 .tmp 再原子改名,避免编码中途崩溃留下半截文件被幂等检查误当成已完成而跳过。
+            tmp = p + ".tmp"
+            Image.open(io.BytesIO(data)).convert("RGB").save(tmp, "WEBP", lossless=True, method=6)
+            os.replace(tmp, p)
             return "ok"
         except Exception as e:
             if attempt == 2:
+                try: os.path.exists(p + ".tmp") and os.remove(p + ".tmp")
+                except OSError: pass
                 return f"err {e}"
     return "err"
 

@@ -6,6 +6,7 @@ GET /api/recommend?prov=&subj=&score=&year=&sel=物,化
 GET /api/uni?name=浙江大学&prov=浙江   院校画像+学科评估+本省近四年线
 """
 import json, mimetypes, os, re, sqlite3, sys, urllib.parse
+mimetypes.add_type("image/webp", ".webp")   # Windows Python's mimetypes lacks webp -> would serve octet-stream; needed for the relief placeholder, 校徽 logos, and self-hosted webp DEM tiles
 from functools import lru_cache
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 

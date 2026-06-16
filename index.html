@@ -878,7 +878,8 @@ map.on("load",async()=>{
     // 否则回退 AWS s3——"没下也能跑、下了自动加速、无加载方块",零改码切换。
     let DEM_TILES="https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png", DEM_MAXZ=12;
     const _ready=await readyP;   // 已并行在飞,通常此刻已就绪;无则回退 s3
-    if(_ready){DEM_MAXZ=parseInt(_ready.trim())||8; DEM_TILES="tiles/terrarium/{z}/{x}/{y}.png";}
+    // 自托管瓦片用无损 webp(fetch-dem-tiles.py 下载 s3 的 png 后转,省 ~27% 带宽;DEM 高程编码进 RGB,故必须无损);s3 兜底仍走 png(AWS 只有 png)
+    if(_ready){DEM_MAXZ=parseInt(_ready.trim())||8; DEM_TILES="tiles/terrarium/{z}/{x}/{y}.webp";}
     // bounds = 自托管 DEM 瓦片(fetch-dem-tiles.py)的中国范围;限定后 MapLibre 不再请求境外瓦片,
     // 省掉每次加载上百次"洋面/邻国"瓦片 404(经 Cloudflare 隧道每次都是跨洲往返,是"加载慢"主因)。
     const DEM_BOUNDS=[73,17,135,54];
