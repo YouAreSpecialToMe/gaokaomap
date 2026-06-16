@@ -361,10 +361,13 @@
   .tbtn:active{transform:scale(.88)}
   .tbtn.on{background:#9c2f1b;color:#fbf0df}
   .tbtn.on:hover{background:#882819;color:#fbf0df}
-  .tb-flyout{position:fixed;z-index:30;transform:translateY(-50%) translateX(-6px);pointer-events:none;opacity:0;white-space:nowrap;
+  .tb-flyout{position:fixed;z-index:30;pointer-events:none;opacity:0;white-space:nowrap;
     background:rgba(63,50,32,.93);color:#f7efdc;font:600 12px/1 "Kaiti SC","STKaiti",serif;letter-spacing:.5px;
     padding:6px 11px;border-radius:8px;box-shadow:0 3px 10px rgba(60,40,15,.3);transition:opacity .16s ease,transform .16s ease}
-  .tb-flyout.show{opacity:1;transform:translateY(-50%) translateX(0)}
+  .tb-flyout[data-dir="r"]{transform:translateY(-50%) translateX(-6px)}
+  .tb-flyout[data-dir="r"].show{transform:translateY(-50%) translateX(0)}
+  .tb-flyout[data-dir="u"]{transform:translate(-50%,-100%) translateY(6px)}
+  .tb-flyout[data-dir="u"].show{transform:translate(-50%,-100%) translateY(0)}
   .botbar{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);z-index:5;
     display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center;max-width:94vw;
     animation:fadeUp 1s .55s cubic-bezier(.22,1,.36,1) backwards}
@@ -772,14 +775,17 @@ addEventListener("DOMContentLoaded",()=>{
   document.getElementById("globebtn")?.addEventListener("click",()=>applyProjection(!globeOn));
   const tbt=document.getElementById("tb-toggle");
   tbt?.addEventListener("click",()=>{const o=document.getElementById("toolbar").classList.toggle("more-open");tbt.classList.toggle("on",o);tbt.setAttribute("aria-expanded",o);hap();});
-  // 工具栏即时浮标:悬停/聚焦马上显名(toolbar 有 overflow:hidden,浮标挂 body 免裁切)
-  const TBL={stylebtn:'画风 · 山水 / 水彩',rotbtn:'视角 · 平移 / 旋转',wxbtn:'天气 · 分区气候',t3dbtn:'地形 · 平面 / 立体',musbtn:'配乐 · 古典钢琴',globebtn:'投影 · 地球 / 平面','tb-toggle':'更多设置'};
-  const tbFly=document.createElement('div');tbFly.className='tb-flyout';document.body.appendChild(tbFly);
-  const tbShow=b=>{const r=b.getBoundingClientRect();tbFly.textContent=TBL[b.id];tbFly.style.top=(r.top+r.height/2)+'px';tbFly.style.left=(r.right+10)+'px';tbFly.classList.add('show');};
-  const tbHide=()=>tbFly.classList.remove('show');
-  Object.keys(TBL).forEach(id=>{const b=document.getElementById(id);if(!b)return;
-    b.addEventListener('mouseenter',()=>tbShow(b));b.addEventListener('mouseleave',tbHide);
-    b.addEventListener('focus',()=>tbShow(b));b.addEventListener('blur',tbHide);});
+  // 即时浮标:悬停/聚焦马上显名(toolbar 有 overflow:hidden,浮标挂 body 免裁切)。'r'=右侧(左上各键),'u'=上方(底部按钮)
+  const FLY={stylebtn:['画风 · 山水 / 水彩','r'],rotbtn:['视角 · 平移 / 旋转','r'],wxbtn:['天气 · 分区气候','r'],t3dbtn:['地形 · 平面 / 立体','r'],musbtn:['配乐 · 古典钢琴','r'],globebtn:['投影 · 地球 / 平面','r'],'tb-toggle':['更多设置','r'],cfgbtn:['设置 · 画风/视角/天气/地形','r'],'act-rec':['填分数 / 位次 → 冲稳保院校','u'],'act-quiz':['测兴趣性格 → 适配专业方向','u'],'act-viz':['一分一段 · 历年位次曲线','u']};
+  const fly=document.createElement('div');fly.className='tb-flyout';document.body.appendChild(fly);
+  const flyShow=b=>{const c=FLY[b.id];if(!c)return;const r=b.getBoundingClientRect();fly.textContent=c[0];fly.dataset.dir=c[1];
+    if(c[1]==='u'){fly.style.left=(r.left+r.width/2)+'px';fly.style.top=(r.top-8)+'px';}
+    else{fly.style.left=(r.right+10)+'px';fly.style.top=(r.top+r.height/2)+'px';}
+    fly.classList.add('show');};
+  const flyHide=()=>fly.classList.remove('show');
+  Object.keys(FLY).forEach(id=>{const b=document.getElementById(id);if(!b)return;
+    b.addEventListener('mouseenter',()=>flyShow(b));b.addEventListener('mouseleave',flyHide);
+    b.addEventListener('focus',()=>flyShow(b));b.addEventListener('blur',flyHide);});
 });
 let userTouched=false;
 const STYLES={
