@@ -9,6 +9,8 @@
 <link rel="icon" type="image/png" href="assets/favicon.png" />
 <link rel="apple-touch-icon" href="assets/favicon.png" />
 <link rel="preload" as="image" href="assets/relief-cn.webp" />   <!-- 47K 山水底:加载页背景即用它,进门即山水(不等 1MB 引擎) -->
+<link rel="preload" as="image" href="assets/shanshui-far.webp" />  <!-- 视差远景层 -->
+<link rel="preload" as="image" href="assets/shanshui-near.webp" /> <!-- 视差近景(隆起山体)层 -->
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="山河志愿" />
 <meta property="og:locale" content="zh_CN" />
@@ -320,12 +322,16 @@
   .pbar i{display:block;height:100%;background:linear-gradient(90deg,#e0a32e,#8c2f1b);border-radius:4px;transition:width .6s cubic-bezier(.22,1,.36,1)}
   .qz-light{font-size:12px;padding:3px 10px;border:1px solid #8c2f1b;border-radius:999px;background:none;color:#8c2f1b;cursor:pointer}
   .qz-light:hover{background:#8c2f1b;color:#f7e8d6}
-  .loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:9;
+  .loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:9;overflow:hidden;
     font:500 16px "Kaiti SC","STKaiti","KaiTi",serif;color:#7a5f33;letter-spacing:4px;
-    /* 加载页即铺 47K 山水底(relief-cn.webp,与地图揭开后同源烤图,故几乎无缝);淡纸色蒙版压一层保证题字可读 */
-    background:linear-gradient(rgba(236,226,200,.32),rgba(236,226,200,.32)),url("assets/relief-cn.webp") no-repeat center/contain,#ece2c8;
+    /* 47K 山水底(relief-cn.webp)先瞬显;其上叠"视差立体山水"双层(远景 far + 隆起山体 near),随鼠标/倾斜/微飘以不同速度位移生纸雕景深 */
+    background:linear-gradient(rgba(236,226,200,.30),rgba(236,226,200,.30)),url("assets/relief-cn.webp") no-repeat center/contain,#ece2c8;
     text-shadow:0 1px 7px rgba(236,226,200,.95),0 0 3px rgba(236,226,200,.9);
-    transition:opacity .95s ease}
+    transition:opacity .6s ease}
+  #sspar{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+  .ssl{position:absolute;left:50%;top:50%;width:112%;height:112%;object-fit:contain;transform:translate(-50%,-50%);opacity:0;transition:opacity .9s ease;will-change:transform}
+  .ssl.in{opacity:1}
+  #loadtext{position:relative;z-index:2}
   /* ===== 国风设计精修:金线镶边 · 宣纸磨砂 · 留白呼吸 · 朱砂题首 ===== */
   :root{--paper-a:rgba(251,244,228,.95);--paper-b:rgba(243,234,213,.95);
     --ink:#3f3220;--ink-soft:#6b5630;--zhu:#9c2f1b;--gold:#bd9a55;--gold-soft:#d8c08a;
@@ -676,7 +682,7 @@
   </div>
   <label class="ob-bgm" style="margin:12px 0 0;justify-content:center"><input type="checkbox" id="ob-bgm-chk"> 🎵 开启古典配乐</label>
 </div>
-<div class="loading" id="loading">正在铺开山河画卷⋯</div>
+<div class="loading" id="loading"><div id="sspar"><img class="ssl far" src="assets/shanshui-far.webp" alt=""><img class="ssl near" src="assets/shanshui-near.webp" alt=""></div><span id="loadtext">正在铺开山河画卷⋯</span></div>
 <div class="titlebar">
   <h1>山河志愿</h1>
   <p>山河为卷 · 为你点亮够得着的大学</p>
@@ -924,13 +930,34 @@ map.on("load",async()=>{
     // 中国矢量地理(省界+分层填色+院校)data 已就绪,首帧即出 → ~0.3s 立刻揭开蒙版(不等 3.2MB 地形);
     // 揭开后再挂地形图层,让"地理部分"秒显、地形随后补。1.2s 兜底。
     const lo=document.getElementById("loading");
-    const reveal=()=>{if(lo._done)return;lo._done=true;lo.style.opacity=0;setTimeout(()=>lo.style.display="none",300);
+    // 揭开 = 地图就绪:【不】撤"视差立体山水"层(它是放大前的门面),只淡题字 + 放行手势(pointer-events:none);
+    // 地图已在其下渲染待命。首次真实放大/平移再淡出该层,露出可交互 2D 山水。
+    const reveal=()=>{if(lo._done)return;lo._done=true;
+      const lt=document.getElementById("loadtext"); if(lt)lt.style.opacity=0;
+      lo.style.pointerEvents="none";
       requestAnimationFrame(()=>setTimeout(window._addTerrain,60));
       // 首屏闲下来后预热城市底图(CartoCDN)连接:提前把 DNS+TLS 握手做掉,首次放大时瓦片直接开下、免握手往返。
-      // 只暖连接、不预下瓦片——概览级要猜全国上千张,得不偿失;暖连接通用、不费流量。
       (window.requestIdleCallback||(f=>setTimeout(f,1200)))(()=>{["a","b","c"].forEach(h=>{
         const l=document.createElement("link");l.rel="preconnect";l.href="https://"+h+".basemaps.cartocdn.com";l.crossOrigin="anonymous";document.head.appendChild(l);});});};
     map.once("render",()=>setTimeout(reveal,50)); setTimeout(reveal,1200);
+    // ===== 视差立体山水:远景 far + 隆起山体 near 两层,以不同速度随鼠标/倾斜/微飘位移 → 纸雕景深(纯预渲染,可靠) =====
+    (()=>{ const far=lo.querySelector(".ssl.far"), near=lo.querySelector(".ssl.near"); if(!far||!near)return;
+      [far,near].forEach(im=>{const show=()=>im.classList.add("in"); (im.complete&&im.naturalWidth)?show():im.addEventListener("load",show);});
+      const RM=matchMedia("(prefers-reduced-motion:reduce)").matches;
+      let mx=0,my=0,cx=0,cy=0,t=0,run=true;
+      if(!RM){
+        addEventListener("mousemove",e=>{mx=(e.clientX/innerWidth-.5)*2;my=(e.clientY/innerHeight-.5)*2;},{passive:true});
+        addEventListener("deviceorientation",e=>{if(e.gamma==null)return;mx=Math.max(-1,Math.min(1,e.gamma/28));my=Math.max(-1,Math.min(1,(e.beta-42)/28));},{passive:true});
+        const loop=()=>{ if(!run)return; t+=.016; cx+=(mx-cx)*.06; cy+=(my-cy)*.06;
+          const dx=Math.sin(t*.5)*.45+cx, dy=Math.cos(t*.38)*.32+cy;
+          far.style.transform=`translate(calc(-50% + ${dx*5}px),calc(-50% + ${dy*4}px))`;
+          near.style.transform=`translate(calc(-50% + ${dx*15}px),calc(-50% + ${dy*11}px))`;
+          requestAnimationFrame(loop); };
+        requestAnimationFrame(loop);
+      }
+      const dismiss=()=>{if(lo._gone)return;lo._gone=true;run=false;lo.style.opacity=0;setTimeout(()=>{lo.style.display="none";},650);};
+      ["wheel","pointerdown","touchstart"].forEach(ev=>map.getCanvas().addEventListener(ev,dismiss,{passive:true,once:true}));
+    })();
     try{map.setSky(globeOn?SKY_GLOBE:SKY_FLAT);}catch(e){}
     map.addLayer({id:"prov-line",type:"line",source:"china",paint:{
       "line-color":"#a98e5f","line-width":0.8}});
@@ -2252,7 +2279,9 @@ function wxRadii(c,rx,ry){const p0=map.project(c),px=map.project([c[0]+rx,c[1]])
   return [Math.hypot(px.x-p0.x,px.y-p0.y),Math.hypot(py.x-p0.x,py.y-p0.y),p0];}
 function wxFrame(ts){
   wxRAF=wxOn?requestAnimationFrame(wxFrame):0;
-  const dt=Math.min(50,(ts-wxPrev)||16);wxPrev=ts;wxT+=dt;
+  const el=(ts-wxPrev)||16;
+  if(el<32)return;   // 限 ~30fps:云雾慢飘,30 与 60fps 观感几无差,却省一半 CPU——每帧 blob() 要建几十个径向渐变,是"看 demo 电脑发烫"的主因
+  const dt=Math.min(50,el);wxPrev=ts;wxT+=dt;
   wctx.clearRect(0,0,innerWidth,innerHeight);bctx.clearRect(0,0,innerWidth,innerHeight);
   if(!wxOn)return;
   // 区域概览时显形,放大到城市级(z≥7)渐隐——天气是氛围,看校名时必须让位,否则盆地阴霾糊满整屏
