@@ -87,12 +87,6 @@
   body.z-city .dlabel span{opacity:.9}
   #wx{position:absolute;inset:0;pointer-events:none;z-index:2;mix-blend-mode:soft-light}  /* 大气层:柔光混合=融进地景而不washing亮区(雪/沙都不糊) */
   #wxb{position:absolute;inset:0;pointer-events:none;z-index:2}                        /* 飞鸟另起一层:正常合成,免被 screen 吃掉深色 */
-  /* 廉价"飘云":CSS transform 动画(GPU 合成、绘一次、零每帧 CPU 计算),soft-light 融入地景 —— 像 canvas 天气但电脑不发烫 */
-  #csky{position:absolute;inset:0;pointer-events:none;z-index:2;mix-blend-mode:soft-light;overflow:hidden;transition:opacity .8s ease}
-  #csky b{position:absolute;border-radius:50%;will-change:transform;animation:csky-drift linear infinite;
-    background:radial-gradient(closest-side,rgba(255,252,243,.9),rgba(255,252,243,.42) 50%,transparent 72%)}
-  @keyframes csky-drift{from{transform:translate3d(-32vw,0,0)}to{transform:translate3d(132vw,0,0)}}
-  @media(prefers-reduced-motion:reduce){#csky b{animation:none}}
   .petals{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:3}
   .petals i{position:absolute;top:-3vh;display:block;animation:fall linear infinite;will-change:transform}
   .petals i b{display:block;width:10px;height:8px;border-radius:62% 38% 55% 45%;
@@ -640,7 +634,6 @@
 <body>
 <div id="map"></div>
 <div class="paper"></div>
-<div id="csky" aria-hidden="true"></div>   <!-- 廉价飘云层(CSS 动画,不发烫) -->
 <div class="vignette"></div>
 <div class="toolbar" id="toolbar">
   <button class="tbtn" id="stylebtn" aria-label="切换画风:山形符号 / 水彩浮雕" title="画风:山形符号 — 点按切换水彩浮雕"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><path d="M3 18 L8.5 8 L12 13.5 L15 9 L21 18 Z"/><circle cx="16.7" cy="6.3" r="1.5"/></svg></button>
@@ -2349,21 +2342,14 @@ function wxFrame(ts){
   }
 }
 function wxStart(){if(wxOn&&!wxRAF){wxPrev=0;wxRAF=requestAnimationFrame(wxFrame);}}
-wxStart();   // wxOn 默认 false → 重型 canvas 天气退役不启动(代码留作可选);改用下面廉价的 CSS 飘云
-// ===== 廉价"飘云":CSS transform 动画(GPU 合成,零每帧 CPU 计算)替代持续重绘的 canvas 天气;视觉相近、电脑不发烫 =====
-(function(){ const sky=document.getElementById("csky"); if(!sky)return;
-  for(let i=0;i<8;i++){ const b=document.createElement("b");
-    const w=150+Math.random()*240; b.style.width=w+"px"; b.style.height=(w*(.4+Math.random()*.18))+"px";
-    b.style.top=(2+Math.random()*80)+"%";
-    b.style.animationDuration=(80+Math.random()*90)+"s"; b.style.animationDelay=(-Math.random()*160)+"s";
-    b.style.opacity=(.5+Math.random()*.4).toFixed(2); sky.appendChild(b); }
-  const fade=()=>{const z=map.getZoom(); sky.style.opacity=z>=6.5?"0":z>=5.5?(1-(z-5.5)).toFixed(2):"1";};
-  map.on("zoom",fade); fade();   // 城市级渐隐(让位看校名);只在 zoom 事件改 opacity,非每帧,廉价
-  let skyOn=true; const wb=document.getElementById("wxbtn");
-  if(wb){ wb.classList.add("on"); wb.title="飘云:开(轻量 CSS · 不发烫)— 点按关";
-    wb.addEventListener("click",()=>{ skyOn=!skyOn; wb.classList.toggle("on",skyOn);
-      wb.title=skyOn?"飘云:开(轻量 CSS · 不发烫)— 点按关":"飘云:关 — 点按开"; sky.style.display=skyOn?"":"none"; }); }
-})();
+// 天气/云雾/驼队特效默认关:持续满帧画布重绘会让访客电脑发烫;天气按钮可开(分区天气,开后较耗电,自愿)。
+{const wb=document.getElementById("wxbtn");if(wb){wb.classList.remove("on");wb.title="天气特效:默认关(省电、不发烫)— 点按开启";}}
+wxStart();   // wxOn=false → 不启动
+document.getElementById("wxbtn").addEventListener("click",()=>{
+  wxOn=!wxOn;
+  const wb=document.getElementById("wxbtn");wb.classList.toggle("on",wxOn);
+  wb.title=wxOn?"分区天气:开(较耗电)— 点按关":"天气:已关 — 点按开";
+  if(wxOn)wxStart();else wctx.clearRect(0,0,innerWidth,innerHeight);});
 document.addEventListener("visibilitychange",()=>{
   if(document.hidden){if(wxRAF){cancelAnimationFrame(wxRAF);wxRAF=0;}}else wxStart();});
 // ---------- 配乐:古琴《秋风词》(archive.org · 公有领域)----------
