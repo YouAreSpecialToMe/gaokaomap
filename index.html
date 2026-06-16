@@ -818,6 +818,8 @@ document.addEventListener("keydown",e=>{
 const markers=[];
 map.on("load",async()=>{
   const unisP=fetch("unis.json").then(r=>r.json()).catch(()=>[]);
+  // ready 与 gj 并行预取(此前 ready 串行 await + no-store,每次都是一次跨洲往返);改为可缓存,首屏少一往返。
+  const readyP=fetch("tiles/terrarium/ready").then(r=>r.ok?r.text():null).catch(()=>null);
   try{
     const gj=await (await fetch("geo/100000_full.json")).json();
     map.addSource("china",{type:"geojson",data:gj});
@@ -827,8 +829,8 @@ map.on("load",async()=>{
     // 自托管地形瓦片:存在 tiles/terrarium/ready(由 fetch-dem-tiles.py 预下载)即用本地源(maxzoom 取其值),
     // 否则回退 AWS s3——"没下也能跑、下了自动加速、无加载方块",零改码切换。
     let DEM_TILES="https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png", DEM_MAXZ=12;
-    try{const rr=await fetch("tiles/terrarium/ready",{cache:"no-store"});
-      if(rr.ok){DEM_MAXZ=parseInt((await rr.text()).trim())||8; DEM_TILES="tiles/terrarium/{z}/{x}/{y}.png";}}catch(e){}
+    const _ready=await readyP;   // 已并行在飞,通常此刻已就绪;无则回退 s3
+    if(_ready){DEM_MAXZ=parseInt(_ready.trim())||8; DEM_TILES="tiles/terrarium/{z}/{x}/{y}.png";}
     // bounds = 自托管 DEM 瓦片(fetch-dem-tiles.py)的中国范围;限定后 MapLibre 不再请求境外瓦片,
     // 省掉每次加载上百次"洋面/邻国"瓦片 404(经 Cloudflare 隧道每次都是跨洲往返,是"加载慢"主因)。
     const DEM_BOUNDS=[73,17,135,54];
@@ -870,7 +872,7 @@ map.on("load",async()=>{
     const lo=document.getElementById("loading");
     const reveal=()=>{if(lo._done)return;lo._done=true;lo.style.opacity=0;setTimeout(()=>lo.style.display="none",300);
       requestAnimationFrame(()=>setTimeout(window._addTerrain,60));};
-    map.once("render",()=>setTimeout(reveal,200)); setTimeout(reveal,1200);
+    map.once("render",()=>setTimeout(reveal,50)); setTimeout(reveal,1200);
     try{map.setSky(globeOn?SKY_GLOBE:SKY_FLAT);}catch(e){}
     map.addLayer({id:"prov-line",type:"line",source:"china",paint:{
       "line-color":"#a98e5f","line-width":0.8}});
@@ -904,17 +906,19 @@ map.on("load",async()=>{
         map.getLayer("mask")?"mask":"prov-line");
     }catch(e){}
     try{
-      const CITY_CODES=[110000,310000,330100,420100,510100];
-      const dist=await Promise.all(CITY_CODES.map(c=>
-        fetch(`geo/${c}_full.json`).then(r=>r.json())));
-      const feats=dist.flatMap(d=>d.features);
-      map.addSource("districts",{type:"geojson",data:{type:"FeatureCollection",features:feats}});
+      // 市辖区界:5 个 _full.json 合并为单个 districts.json(5 请求→1);且仅城市级(z7.2 起)可见,
+      // 故延后异步加载——空源占位 + 插层(z 序不变),首屏不等区界。
+      map.addSource("districts",{type:"geojson",data:{type:"FeatureCollection",features:[]}});
       map.addLayer({id:"district-line",type:"line",source:"districts",paint:{
         "line-color":"#8a6a3f","line-width":1,"line-dasharray":[3,2.5],
         "line-opacity":["interpolate",["linear"],["zoom"],7.2,0,8.2,0.5]}});
-      window._distData=feats.filter(f=>f.properties.center&&f.properties.name)
-        .map(f=>[f.properties.name.replace(/(市辖区|地区)$/,""),f.properties.center]);
-      window._distMks=null;
+      window._distData=[]; window._distMks=null;
+      fetch("geo/districts.json").then(r=>r.json()).then(d=>{
+        const feats=d.features||[];
+        const s=map.getSource("districts"); if(s)s.setData({type:"FeatureCollection",features:feats});
+        window._distData=feats.filter(f=>f.properties.center&&f.properties.name)
+          .map(f=>[f.properties.name.replace(/(市辖区|地区)$/,""),f.properties.center]);
+      }).catch(()=>{});
     }catch(e){}
     try{
       const RV="geo/";
