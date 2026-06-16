@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#ece2c8" />
 <link rel="icon" type="image/png" href="assets/favicon.png" />
 <link rel="apple-touch-icon" href="assets/favicon.png" />
-<link rel="preload" as="image" href="assets/relief-cn.webp" />   <!-- 47K 山水底:加载页背景即用它,进门即山水(不等 1MB 引擎) -->
+<link rel="preload" as="image" href="assets/relief-cn2.webp" />  <!-- 156K 高清精致地形:relief-cn-img 占位,精致地形一进门即出(一次请求,不等几十块真实瓦片) -->
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="山河志愿" />
 <meta property="og:locale" content="zh_CN" />
@@ -872,9 +872,10 @@ map.on("load",async()=>{
     // 地形瓦片(DEM,海外 s3,较慢)未到位时,先以与陆地同色的底铺满中国版图,免得露出蓝灰背景成"加载方块";
     // relief 一到位即整片覆盖——载入观感从"蓝块跳出"变为"绿底渐显地貌"。只盖陆地,海洋仍是背景色。
     map.addLayer({id:"relief-base",type:"fill",source:"china",paint:{"fill-color":"#aebd8a","fill-opacity":1}});
-    // 静态地形占位图(45K · relief-bake.py 烤、已裁中国版图):一进来即"地形模样"而非平绿;真 DEM 瓦片到位即覆盖,境外透明保持纸色蒙版
-    try{map.addSource("relief-cn",{type:"image",url:"assets/relief-cn.webp",
-        coordinates:[[67.5,55.77657],[146.25,55.77657],[146.25,11.1784],[67.5,11.1784]]});
+    // 高清精致地形占位图(156K · bake-relief-hi.py 烤 z6 DEM + sym 色带 + 山影、已裁中国版图):一进门即"精致地形"
+    // (清晰山脊,与放大后真实地形同观感),且一次请求即出 —— 慢网下无需等几十块真实瓦片("best pic 不出来"的根治)。
+    try{map.addSource("relief-cn",{type:"image",url:"assets/relief-cn2.webp",
+        coordinates:[[67.5,55.77657],[140.625,55.77657],[140.625,16.63619],[67.5,16.63619]]});
       map.addLayer({id:"relief-cn-img",type:"raster",source:"relief-cn",paint:{"raster-fade-duration":0}});}catch(e){}
     // 自托管地形瓦片:存在 tiles/terrarium/ready(由 fetch-dem-tiles.py 预下载)即用本地源(maxzoom 取其值),
     // 否则回退 AWS s3——"没下也能跑、下了自动加速、无加载方块",零改码切换。
