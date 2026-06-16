@@ -26,7 +26,7 @@
     var rt = rankTbl(slice, subj, year); if (!rt) return { error: "no_rank" };
     var pts = rt.pts, total = 0; for (var i = 0; i < pts.length; i++) if (pts[i][1] > total) total = pts[i][1];
     var myRank;
-    if (opt.rank) { myRank = opt.rank | 0; }
+    if (opt.rank) { myRank = opt.rank | 0; if (myRank < 1 || myRank > total * 1.1) return { error: "rank_oob" }; }
     else {
       var sc = opt.score, lo = 0, hi = pts.length; while (lo < hi) { var m = (lo + hi) >> 1; if (pts[m][0] <= sc) lo = m + 1; else hi = m; }
       if (lo - 1 < 0) return { error: "below_floor" }; myRank = pts[lo - 1][1];
@@ -53,21 +53,38 @@
       var sw = w.reduce(function (p, q) { return p + q; }, 0), rho = recs.reduce(function (s, r, i) { return s + r[1] * w[i]; }, 0) / sw;
       var idx = recs[0][2], un = slice.unis[A.u[idx]];
       rho *= pf(un);
-      items.push([rho, un, slice.majs[A.m[idx]], idx]);
+      items.push([rho, un, slice.majs[A.m[idx]], idx, recs[0][0]]);
     }
     var pres = function (un) { var f = uinfo[un] || uinfo[strip(un)]; return f ? [f.t === "985" ? 0 : f.t === "211" ? 1 : f.t === "dfc" ? 2 : 3, f.rank || 99999] : [3, 99999]; };
     items.sort(function (x, y) {
       var a = pres(x[1]), b = pres(y[1]); if (a[0] !== b[0]) return a[0] - b[0]; if (a[1] !== b[1]) return a[1] - b[1];
       return Math.abs(x[0] - BANDS[bandOf(x[0]) || "稳"][2]) - Math.abs(y[0] - BANDS[bandOf(y[0]) || "稳"][2]);
     });
+    var ui = function (un) { return uinfo[un] || uinfo[strip(un)]; };
+    var mk = function (ix, rho, fr) { var f = ui(slice.unis[A.u[ix]]); return { uni: slice.unis[A.u[ix]], major: slice.majs[A.m[ix]], minScore: A.sc[ix] / 10, minRank: A.r[ix], rho: Math.round(rho * 1000) / 1000, year: fr, note: fr === year ? "" : "据" + fr, selReq: slice.sels[A.sl[ix]] || "", enroll: A.e[ix] || null, ll: f && f.ll && f.ll[0] ? f.ll : null, tier: f ? f.t : null, city: f ? f.c : null }; };
     var out = { "冲": [], "稳": [], "保": [] }, pu = {};
     for (var t = 0; t < items.length; t++) {
-      var it = items[t], rho = it[0], un = it[1], mj = it[2], ix = it[3], bd = bandOf(rho);
+      var it = items[t], rho = it[0], un = it[1], ix = it[3], bd = bandOf(rho);
       if (!bd || (pu[un] || 0) >= 2 || out[bd].length >= 12) continue;
       pu[un] = (pu[un] || 0) + 1;
-      out[bd].push({ uni: un, major: mj, minScore: A.sc[ix] / 10, minRank: A.r[ix], rho: Math.round(rho * 1000) / 1000, selReq: slice.sels[A.sl[ix]] || "", enroll: A.e[ix] || null });
+      out[bd].push(mk(ix, rho, it[4]));
     }
-    return { rank: myRank, eq: eq, bands: out };
+    var top_fb = false;                                          // 位次极高:常规三档全空 → 取该省该科最难进的顶尖专业作「冲」(对齐服务端兜底)
+    if (!out["冲"].length && !out["稳"].length && !out["保"].length) {
+      var eqv = eq[year] || 1, fb = [];
+      for (var i2 = 0; i2 < n; i2++) { if (A.y[i2] !== year % 100 || !subjOk.has(A.j[i2]) || A.r[i2] == null) continue; if (!selOk(slice.sels[A.sl[i2]], sel)) continue; fb.push(i2); }
+      fb.sort(function (a, b) { return A.r[a] - A.r[b]; });
+      var fbu = {};
+      for (var g = 0; g < fb.length && out["冲"].length < 12; g++) {
+        var un2 = slice.unis[A.u[fb[g]]]; if ((fbu[un2] || 0) >= 2) continue; fbu[un2] = (fbu[un2] || 0) + 1;
+        out["冲"].push(mk(fb[g], A.r[fb[g]] / eqv, year));
+      }
+      top_fb = out["冲"].length > 0;
+    }
+    var notes = [], tot = out["冲"].length + out["稳"].length + out["保"].length;
+    if (top_fb) notes.push("你的位次极高,常规冲稳保暂无匹配——下列为该省该科目最难进的顶尖专业(均作「冲」供参考)");
+    else if (tot < 12) notes.push("该省该分段专业级数据较薄,建议同时参考院校投档线");
+    return { rank: myRank, eq: eq, bands: out, notes: notes };
   }
   var GK = {
     build: function (slice, uinfo) { return { slice: slice, recommend: function (opt) { return recommend(slice, uinfo, opt); } }; },

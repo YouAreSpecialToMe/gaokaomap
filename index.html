@@ -746,8 +746,9 @@
 </div>
 <!-- 引擎(~1MB)挪到 body 末尾:原本在 <head> 阻塞渲染,整页(含加载页)要等它下完才出;现在加载页先秒出山水底,引擎在其后台下载 -->
 <script src="vendor/maplibre-gl.js"></script>
+<script src="gk-engine.js"></script>
 <script>
-let UNIS=[],DOTS=[],CITYIDX=[],PROVIDX=[];
+let UNIS=[],DOTS=[],CITYIDX=[],PROVIDX=[],UINFO={};
 // 由各校所在城市聚合出"城市"索引(质心坐标 + 院校数),供搜索把城市作为独立结果
 function buildCityIndex(){
   const MUNI=new Set(["北京","上海","天津","重庆"]),g={};
@@ -1194,6 +1195,7 @@ map.on("load",async()=>{
     });
   }catch(e){document.querySelector(".titlebar p").textContent="省界数据加载失败,请检查网络";}
   const all=await unisP;
+  all.forEach(u=>{UINFO[u.n]={t:u.t,rank:u.rank,ll:u.ll,c:u.c};});   // 客户端冲稳保引擎用:院校层次/位次/经纬/城市
   if(all.length){
     const TOP15=new Set(["清华大学","北京大学","复旦大学","上海交通大学","浙江大学",
       "中国科学技术大学","南京大学","哈尔滨工业大学","西安交通大学","中国人民大学",
@@ -1993,6 +1995,13 @@ async function showUniCard(name){
     selectMarker(name);showDetail(u,prov);                    // 中间"选校助手" + 高亮选中校
   }catch(e){}
 }
+let _SLICE={};   // 分省切片缓存(列存),客户端冲稳保引擎用;选省即拉、缓存复用,无切片/失败回退 API
+async function loadSlice(prov){
+  if(prov in _SLICE) return _SLICE[prov];
+  try{ _SLICE[prov]=await (await fetch(`slices/${encodeURIComponent(prov)}.json`)).json(); }
+  catch(e){ _SLICE[prov]=null; }
+  return _SLICE[prov];
+}
 async function runRecommend(){
   userTouched=true;
   const prov=document.getElementById("rp-prov").value,
@@ -2006,11 +2015,17 @@ async function runRecommend(){
   const sel=[...document.querySelectorAll("#rp-sel input:checked")].map(i=>i.value).join(",");
   st.textContent="测算中…";
   try{
-    const qp=recMode==="rank"?`rank=${val}`:`score=${val}`;
-    const r=await (await fetch(`${API}/api/recommend?prov=${encodeURIComponent(prov)}&subj=${encodeURIComponent(subj)}&${qp}${sel?"&sel="+sel:""}`)).json();
+    let r;
+    const slice=(typeof GKEngine!=="undefined")?await loadSlice(prov):null;
+    if(slice){                                                  // 本地优先:切片在手,客户端引擎即时算(免跨境往返)
+      r=GKEngine.recommend(slice,UINFO,{subj,score:recMode==="score"?n:undefined,rank:recMode==="rank"?n:undefined,sel:sel?new Set(sel.split(",")):null});
+    }else{                                                      // 兜底:无切片(或加载失败)回退服务端 API
+      const qp=recMode==="rank"?`rank=${val}`:`score=${val}`;
+      r=await (await fetch(`${API}/api/recommend?prov=${encodeURIComponent(prov)}&subj=${encodeURIComponent(subj)}&${qp}${sel?"&sel="+sel:""}`)).json();
+    }
     if(r.error){st.textContent="⚠️ "+r.error;document.getElementById("reclist").innerHTML="";return;}
-    window.GK={rank:r.rank,prov,subj,score:recMode==="score"?+val:0};   // 存考生位次,供点校"冲稳保"可视化
-    st.textContent=`位次约 ${r.rank.toLocaleString()}(${prov}·${subj})${r.notes.length?" · "+r.notes[0]:""}`;
+    window.GK={rank:r.rank,prov,subj,score:recMode==="score"?+val:0,local:!!slice};   // 存考生位次(+来源),供点校"冲稳保"可视化
+    st.textContent=`位次约 ${r.rank.toLocaleString()}(${prov}·${subj})${r.notes&&r.notes.length?" · "+r.notes[0]:""}`;
     renderRecResult(r,document.getElementById("reclist"));
     document.getElementById("tourbtn").style.display=RECS.length?"block":"none";
     map.flyTo({center:[112,32],zoom:4.3,pitch:50,bearing:-8,duration:1600,curve:1.42});
