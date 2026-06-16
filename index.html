@@ -1513,19 +1513,56 @@ function favAddVisible(){
   if(added){favSave();toast(`已加入 ${added} 个专业到志愿表`);}
   else toast("这些专业已在志愿表中");
 }
+// 选校助手「本地优先」:从切片直接拼出 /api/uni 形态的 u —— 录取位次+选科 即时(切片已有),
+// 计划/学费/简介 体量大(~150K/省)留给 API 异步补。点校核心表零等待,不胀切片。
+function localUni(name,prov,slice){
+  const strip=s=>String(s).replace(/[((][^))]*[))]/g,"").trim();
+  const SU=slice.uinfo||{},f=SU[name]||UINFO[name]||SU[strip(name)]||UINFO[strip(name)];
+  let ui=slice.unis.indexOf(name);if(ui<0)ui=slice.unis.indexOf(strip(name));
+  if(ui<0)return null;                                       // 切片无此校 → 回退 API
+  const A=slice.adm,lines=[],lastSel={};
+  for(let i=0;i<A.u.length;i++){
+    if(A.u[i]!==ui)continue;
+    const mj=slice.majs[A.m[i]],yr=2000+A.y[i];
+    const mc=(slice.mmc[A.m[i]]||[]).map(k=>slice.mcls[k])[0]||(mj.slice(-1)==="类"?mj:null);
+    lines.push({granularity:"major",year:yr,major:mj,min_score:A.sc[i]/10,min_rank:A.r[i],mclass:mc});
+    const c=lastSel[mj];if(!c||yr>c.y)lastSel[mj]={y:yr,sel:slice.sels[A.sl[i]]||""};   // 选科取最新年(切片 adm)
+  }
+  if(!lines.length)return null;
+  const plans={};for(const mj in lastSel)plans[mj]={sel:lastSel[mj].sel};   // 选科即时;计划/学费 留空待 API
+  const tier=f?({"985":"985","211":"211","dfc":"双一流"})[f.t]||"":"";
+  return {name,province:prov,city:(f&&f.c)||"",tier,rank:f&&f.rank,ll:(f&&f.ll)||null,lines,plans,_local:true};
+}
 async function loadTrend(name){
   const el=document.getElementById("card-trend");if(!el)return;
   const prov=(document.getElementById("rp-prov")||{}).value||"浙江";
   el.innerHTML='<p class="dim" style="margin-top:8px">载入 '+prov+' 录取位次…</p>';
+  const derT=u=>/985/.test(u.tier)?"985":/211/.test(u.tier)?"211":/双一流/.test(u.tier)?"dfc":"ben";
+  // 本地优先:切片在手 → 录取位次+选科 秒出;计划/学费/简介 随后由 API 异步补
+  let uLocal=null;
+  if(typeof GKEngine!=="undefined"){try{const s=await loadSlice(prov);if(s)uLocal=localUni(name,prov,s);}catch(e){}}
+  if(uLocal){
+    if(document.getElementById("card-trend")!==el)return;
+    window.DETAIL={name:uLocal.name,t:derT(uLocal),c:uLocal.city||uLocal.province,ll:uLocal.ll};
+    if(innerWidth<=1200){bandFilter=null;el.innerHTML=detailTable(uLocal,prov)||trendRows(uLocal.lines,prov);}
+    else{el.innerHTML=trendRows(uLocal.lines,prov);showDetail(uLocal,prov);}
+  }
   try{
     const u=await (await fetch(`${API}/api/uni?name=${encodeURIComponent(name)}&prov=${encodeURIComponent(prov)}`)).json();
     if(document.getElementById("card-trend")!==el)return;     // 卡片已切换,丢弃过期结果
-    const _ci=document.getElementById("card-intro");if(_ci&&u.intro){_ci.textContent=u.intro+"…";_ci.style.display="";}   // intro 已从 unis.json 摘除,改由 API 懒填(首屏 unis.json 砍 54%)
-    const t=/985/.test(u.tier)?"985":/211/.test(u.tier)?"211":/双一流/.test(u.tier)?"dfc":"ben";
-    window.DETAIL={name:u.name,t,c:u.city||u.province,ll:u.ll};   // 供批量加志愿表(桌面/移动通用)
-    if(innerWidth<=1200){bandFilter=null;el.innerHTML=detailTable(u,prov)||trendRows(u.lines,prov);}  // 移动/平板:完整选校助手嵌进卡片
-    else{el.innerHTML=trendRows(u.lines,prov);showDetail(u,prov);}                                     // 桌面:卡内简表 + 侧边看板
-  }catch(e){el.innerHTML="";}
+    const _ci=document.getElementById("card-intro");if(_ci&&u.intro){_ci.textContent=u.intro+"…";_ci.style.display="";}   // intro 懒填(已从 unis.json 摘除)
+    window.DETAIL={name:u.name,t:derT(u),c:u.city||u.province,ll:u.ll};
+    if(uLocal){                                               // 本地表已出 → 并入 计划/学费,保住排序/筛选状态重渲
+      const merged={...uLocal,plans:u.plans||{}};
+      const st=DT?{sort:DT.sort,sel:DT.sel,band:DT.band,expanded:DT.expanded}:null;
+      if(innerWidth<=1200){bandFilter=null;el.innerHTML=detailTable(merged,prov)||el.innerHTML;}
+      else{el.innerHTML=trendRows(merged.lines,prov);showDetail(merged,prov);}
+      if(st&&DT){Object.assign(DT,st);rerenderDT();}
+    }else{                                                    // 无切片(回退):API 出全表(原行为)
+      if(innerWidth<=1200){bandFilter=null;el.innerHTML=detailTable(u,prov)||trendRows(u.lines,prov);}
+      else{el.innerHTML=trendRows(u.lines,prov);showDetail(u,prov);}
+    }
+  }catch(e){if(!uLocal)el.innerHTML="";}                       // API 失败:本地表已在则降级保留,否则清空
 }
 // 点校聚焦:把所选学校平滑带到画面中央(避开左侧卡片留白),让中间有内容、卡片与地图相连。
 // 不缩小(zoom 取 max),太远则拉近到城市级;卡片侧留 padding 使学校落在卡片右侧的空白区。
