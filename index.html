@@ -1042,8 +1042,8 @@ map.on("load",async()=>{
         "line-color":"#8fc0c6","line-opacity":0.95,
         "line-width":["interpolate",["linear"],["zoom"],3,0.8,7,2.2]}},before);
       Promise.all([
-        fetch(RV+"ne_50m_rivers_lake_centerlines.json").then(r=>r.json()),
-        fetch(RV+"ne_50m_lakes.json").then(r=>r.json())]).then(([rv,lk])=>{
+        fetch(RV+"ne_50m_rivers_cn.json").then(r=>r.json()),          // 已裁到境内(出国境截断,见 clip-water.py)
+        fetch(RV+"ne_50m_lakes_cn.json").then(r=>r.json())]).then(([rv,lk])=>{
         const ls=map.getSource("lakes"),rs=map.getSource("rivers");
         if(ls)ls.setData(lk); if(rs)rs.setData(rv);
       }).catch(()=>{});
