@@ -734,12 +734,12 @@
     <div class="region-pop" id="region-pop" role="listbox" aria-label="选择省份" tabindex="-1" hidden></div>
   </div>
   <div class="seg" id="filter-seg">
-    <button class="seg-i on" data-f="all">全部院校</button>
-    <button class="seg-i" data-f="985">985 巡礼</button>
-    <button class="seg-i" data-f="211">211·双一流</button>
-    <button class="seg-i" data-f="cs">计算机</button>
-    <button class="seg-i" data-f="med">医学</button>
-    <button class="seg-i" data-f="fin">财经法学</button>
+    <button class="seg-i on" id="seg-all" data-f="all">全部院校</button>
+    <button class="seg-i" id="seg-985" data-f="985">985 巡礼</button>
+    <button class="seg-i" id="seg-211" data-f="211">211·双一流</button>
+    <button class="seg-i" id="seg-cs" data-f="cs">计算机</button>
+    <button class="seg-i" id="seg-med" data-f="med">医学</button>
+    <button class="seg-i" id="seg-fin" data-f="fin">财经法学</button>
   </div>
   <div class="acts">
     <button class="actbtn" id="act-rec">✦ 我的推荐</button>
@@ -801,7 +801,7 @@ addEventListener("DOMContentLoaded",()=>{
   const tbt=document.getElementById("tb-toggle");
   tbt?.addEventListener("click",()=>{const o=document.getElementById("toolbar").classList.toggle("more-open");tbt.classList.toggle("on",o);tbt.setAttribute("aria-expanded",o);hap();});
   // 即时浮标:悬停/聚焦马上显名(toolbar 有 overflow:hidden,浮标挂 body 免裁切)。'r'=右侧(左上各键),'u'=上方(底部按钮)
-  const FLY={stylebtn:['画风 · 山水 / 水彩','r'],rotbtn:['视角 · 平移 / 旋转','r'],wxbtn:['天气 · 分区气候','r'],t3dbtn:['地形 · 平面 / 立体','r'],musbtn:['配乐 · 轻钢琴','r'],globebtn:['投影 · 地球 / 平面','r'],'tb-toggle':['更多设置','r'],cfgbtn:['设置 · 画风/视角/天气/地形','r'],'act-rec':['填分数 / 位次 → 冲稳保院校','u'],'act-quiz':['测兴趣性格 → 适配专业方向','u'],'act-viz':['一分一段 · 历年位次曲线','u']};
+  const FLY={stylebtn:['画风 · 山水 / 水彩','r'],rotbtn:['视角 · 平移 / 旋转','r'],wxbtn:['天气 · 分区气候','r'],t3dbtn:['地形 · 平面 / 立体','r'],musbtn:['配乐 · 轻钢琴','r'],globebtn:['投影 · 地球 / 平面','r'],'tb-toggle':['更多设置','r'],cfgbtn:['设置 · 画风/视角/天气/地形','r'],'act-rec':['填分数 / 位次 → 冲稳保院校','u'],'act-quiz':['测兴趣性格 → 适配专业方向','u'],'act-viz':['一分一段 · 历年位次曲线','u'],'seg-all':['显示全部院校','u'],'seg-985':['只看 985 工程院校','u'],'seg-211':['只看 211 / 双一流院校','u'],'seg-cs':['计算机优势院校(软硬件 · 电子信息)','u'],'seg-med':['医学优势院校','u'],'seg-fin':['财经 / 政法优势院校','u']};
   const fly=document.createElement('div');fly.className='tb-flyout';document.body.appendChild(fly);
   const flyShow=b=>{const c=FLY[b.id];if(!c)return;const r=b.getBoundingClientRect();fly.textContent=c[0];fly.dataset.dir=c[1];
     if(c[1]==='u'){fly.style.left=(r.left+r.width/2)+'px';fly.style.top=(r.top-8)+'px';}
