@@ -126,6 +126,8 @@
   .t211 .banner,.t211 .pole{background:#96660f;color:#f7e8d6}
   .tdfc .banner,.tdfc .pole{background:#564a85;color:#ece9f7}
   .t985 .dot{background:#c34a26}.t211 .dot{background:#c08a2a}.tdfc .dot{background:#8077c9}
+  /* 重叠时按层次叠放:985>211>双一流>本科。hover-z(40+)仍能把被压的旗抬起来点,选中(80)最高 */
+  .umk.tben{z-index:11}.umk.tdfc{z-index:12}.umk.t211{z-index:13}.umk.t985{z-index:14}
   /* z-index 由 hover-z(updateFlagZ)按光标距离动态排序,叠压旗子最近者浮顶可点 */
   .banner{transition:transform .35s cubic-bezier(.34,1.56,.64,1)}
   .umk:hover .banner{transform:translateX(calc(-50% + var(--lx,0px))) scale(1.13) rotate(2.5deg)}
@@ -283,9 +285,10 @@
   .fav-x:hover{color:#8c2f1b}
   .fav-grp{font:600 12px "Kaiti SC","STKaiti",serif;color:#6b5630;margin:9px 0 1px;display:flex;align-items:center;gap:5px}
   /* P2:志愿表按省格式表头 + 志愿序号 */
-  .fav-prov{font:600 11.5px "Kaiti SC","STKaiti",serif;color:#6b5630;background:rgba(189,154,85,.13);border:1px solid var(--gold-soft);border-radius:7px;padding:6px 9px;margin:0 0 8px;line-height:1.55}
+  .fav-prov{display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px;font:600 11.5px "Kaiti SC","STKaiti",serif;color:#6b5630;background:rgba(189,154,85,.13);border:1px solid var(--gold-soft);border-radius:7px;padding:6px 9px;margin:0 0 8px;line-height:1.5}
   .fav-prov b{color:#8c2f1b}
-  .fav-prov .fav-fill{float:right;color:#7d6536;font-weight:500}
+  .fav-prov .fav-prov-i{min-width:0}
+  .fav-prov .fav-fill{margin-left:auto;white-space:nowrap;color:#7d6536;font-weight:500}
   .fav-prov .fav-fill.over{color:#c0392b;font-weight:700}
   .fav-seq{flex:none;width:18px;height:18px;border-radius:50%;background:#8c2f1b;color:#fbf0df;font:600 11px/18px system-ui,sans-serif;text-align:center}
   /* P3:省份选择器 + 院校专业组(校聚合 · 嵌套专业 · 组级拖拽) */
@@ -2715,8 +2718,9 @@ function favRender(){
   const prov=favProv(),zy=ZHIYUAN[prov],grouped=!!(zy&&zy.m==="院校专业组");
   const opts=Object.keys(ZHIYUAN).map(p=>`<option value="${p}"${p===prov?" selected":""}>${p}</option>`).join("");
   const schools=grouped?favSchools():null,filled=grouped?schools.length:FAV.length,over=!!(zy&&zy.s&&filled>zy.s);
-  let head=`<div class="fav-prov"><select id="fav-prov-sel" class="fav-prov-sel" title="选择你所在省份">${opts}</select>`;
-  head+=zy?` · <b>${zy.m}</b>${zy.g&&grouped?`(组内≤${zy.g})`:""} · ${zy.s?`最多 ${zy.s} ${grouped?"组":"个"}`:(zy.sp||"")}<span class="fav-fill${over?" over":""}">已填 ${filled}${zy.s?" / "+zy.s:""}</span>`:` · <span class="fav-dim">未识别省份</span>`;
+  let head=`<div class="fav-prov"><span class="fav-prov-i"><select id="fav-prov-sel" class="fav-prov-sel" title="选择你所在省份">${opts}</select>`;
+  if(zy)head+=` · <b>${zy.m}</b>${zy.g&&grouped?`(组内≤${zy.g})`:""} · ${zy.s?`最多 ${zy.s} ${grouped?"组":"个"}`:(zy.sp||"")}</span><span class="fav-fill${over?" over":""}">已填 ${filled}${zy.s?" / "+zy.s:""}</span>`;
+  else head+=` · <span class="fav-dim">未识别省份</span></span>`;
   head+=`</div>`;
   if(!FAV.length){list.innerHTML=head+'<p class="sr-empty">还没有收藏。点学校卡片★、推荐结果、或选校助手「＋加入志愿表」即可。</p>';wireProvSel();syncBtns();return;}
   let html=head;
