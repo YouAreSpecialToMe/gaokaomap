@@ -189,12 +189,15 @@
   .tourbtn:hover{background:#a13a22}
   .recform{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
   .rfrow{display:flex;gap:6px}
-  .recform select,.recform input{flex:1;min-width:0;padding:6px 8px;border:1px solid #c5ab7c;border-radius:6px;
-    background:#fdf8ea;color:#4a3414;font:500 13px "Kaiti SC","STKaiti",serif}
+  .recform select,.recform input{flex:1;min-width:0;padding:7px 11px;border:1px solid var(--gold-soft);border-radius:10px;
+    background:linear-gradient(180deg,var(--paper-a),var(--paper-b));color:var(--ink);font:600 13px "Kaiti SC","STKaiti",serif;
+    box-shadow:0 1px 3px rgba(80,55,20,.13);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+  .recform select:hover,.recform input:hover{box-shadow:0 1px 3px rgba(80,55,20,.13),0 0 0 2px rgba(189,154,85,.28)}
+  .recform select:focus-visible,.recform input:focus-visible{outline:none;box-shadow:0 0 0 2.5px var(--zhu)}
   /* 去原生外观 + 国风下拉箭头(原生 select 在各 OS 长得"最普通",且与其它控件不齐) */
   .recform select{appearance:none;-webkit-appearance:none;cursor:pointer;padding-right:26px;
-    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'><path d='M1 1l4 4 4-4' fill='none' stroke='%238a6a3f' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
-    background-repeat:no-repeat;background-position:right 9px center;background-size:10px}
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'><path d='M1 1l4 4 4-4' fill='none' stroke='%238a6a3f' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>"),linear-gradient(180deg,var(--paper-a),var(--paper-b));
+    background-repeat:no-repeat,no-repeat;background-position:right 9px center,center;background-size:10px,auto}
   .recform button:not(.rfm){padding:6px 14px;border:none;border-radius:6px;background:#8c2f1b;color:#f7e8d6;
     font:500 13px "Kaiti SC","STKaiti",serif;letter-spacing:2px;cursor:pointer}   /* :not(.rfm) —— 否则红底会盖掉切换的未选态(本是 .rfm 浅底) */
   .recform button:not(.rfm):hover{background:#a13a22}
