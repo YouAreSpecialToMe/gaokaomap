@@ -629,6 +629,17 @@
     .card,.recpanel,.quizpanel,.favpanel{padding-top:20px}
     .card::before,.recpanel::before,.quizpanel::before,.favpanel::before{display:block;position:absolute;top:7px;left:50%;transform:translateX(-50%);width:38px;height:4px;border-radius:2px;background:rgba(140,110,60,.32);content:""}
   }
+  /* 地图加载进度条(右上角·zoom 下方):首屏揭开后瓦片/数据仍在后台铺展时显示,idle 收起 */
+  .loadbar{position:absolute;top:112px;right:14px;z-index:8;display:flex;align-items:center;gap:7px;
+    padding:6px 12px 8px;border-radius:14px;background:rgba(247,241,225,.93);border:1px solid var(--gold-soft,rgba(170,130,70,.42));
+    box-shadow:0 2px 11px rgba(70,48,22,.13);color:#6b5836;font-size:12px;line-height:1;letter-spacing:.02em;
+    white-space:nowrap;overflow:hidden;opacity:0;transform:translateY(-5px);transition:opacity .3s,transform .3s;pointer-events:none}
+  .loadbar.show{opacity:1;transform:none}
+  .loadbar b{color:#a8691f;font-weight:700}
+  .lb-spin{width:11px;height:11px;border-radius:50%;border:2px solid rgba(150,110,60,.28);border-top-color:#a8691f;animation:lbspin .8s linear infinite;flex:none}
+  @keyframes lbspin{to{transform:rotate(360deg)}}
+  .lb-fill{position:absolute;left:0;bottom:0;height:2.5px;background:linear-gradient(90deg,#caa05a,#a8691f);width:0;transition:width .25s ease}
+  @media (prefers-reduced-motion:reduce){.lb-spin{animation:none;border-top-color:rgba(150,110,60,.28)}}
 </style>
 </head>
 <body>
@@ -674,6 +685,7 @@
   <label class="ob-bgm" style="margin:12px 0 0;justify-content:center"><input type="checkbox" id="ob-bgm-chk"> 🎵 开启古典配乐</label>
 </div>
 <div class="loading" id="loading">正在铺开山河画卷⋯</div>
+<div class="loadbar" id="loadbar" aria-live="polite"><i class="lb-spin"></i><span>铺展山河 <b id="lb-pct">0</b>%</span><i class="lb-fill" id="lb-fill"></i></div>
 <div class="titlebar">
   <h1>山河志愿</h1>
   <p>山河为卷 · 为你点亮够得着的大学</p>
@@ -852,6 +864,21 @@ map.on("error",e=>{
     _foreignLayers[sid].forEach(l=>{try{if(map.getLayer(l))map.removeLayer(l);}catch(_){}});
   }
 });
+// 地图加载进度条:首屏揭开后,瓦片/数据仍在后台陆续加载 —— 给"在动态铺展、没卡住"的反馈;idle 收起。
+// 跟 dataloading(请求)/data(到位)计数估算进度;延 250ms 才显(快加载不闪);新一波加载会取消待收起。
+(function(){
+  var bar=document.getElementById("loadbar"),fill=document.getElementById("lb-fill"),pct=document.getElementById("lb-pct");
+  if(!bar)return; var req=0,done=0,onT=0,offT=0,on=false;
+  function paint(){var p=req?Math.min(99,Math.round(done/req*100)):0;fill.style.width=p+"%";pct.textContent=p;}
+  function wake(){clearTimeout(offT);offT=0;if(!on&&!onT)onT=setTimeout(function(){on=true;bar.classList.add("show");onT=0;},250);}
+  map.on("dataloading",function(){req++;paint();wake();});
+  map.on("data",function(e){if(e.dataType==="source"||e.tile){done++;paint();}});
+  map.on("idle",function(){clearTimeout(onT);onT=0;
+    if(on){fill.style.width="100%";pct.textContent="100";
+      offT=setTimeout(function(){bar.classList.remove("show");on=false;req=done=0;
+        setTimeout(function(){fill.style.width="0";pct.textContent="0";},350);},480);}
+    else{req=done=0;}});
+})();
 // 无障碍:尊重 prefers-reduced-motion——运镜改为瞬移、关花瓣/降级动效(CSS 已配合)
 const RM=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
 if(RM){const _fly=map.flyTo.bind(map),_ease=map.easeTo.bind(map);
