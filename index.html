@@ -900,10 +900,14 @@ map.on("load",async()=>{
     // 地形 cf 缓存命中即很快补上。MapLibre 在图层挂载前不会拉对应源的瓦片,故这也避免地形抢首屏带宽。
     let _terrainAdded=false;
     window._addTerrain=()=>{ if(_terrainAdded)return; _terrainAdded=true;
-      try{ if(map.getLayer("prov-fill")) map.addLayer({id:"relief",type:"color-relief",source:"dem-cr",paint:{
+      // minzoom 4.8:概览/全国视角只用占位图 relief-cn2(已按中国裁剪,且已烤入同款分层设色+山影),
+      // 真实 DEM 的 color-relief/hillshade 是矩形 bounds[73,17,135,54],在概览会露出"矩形地形块 vs 框外平底"的接缝
+      // (用户反馈"分了两层")。放大到 4.8+(进省/城)才挂真 DEM —— 那时矩形边已在视野外,接缝消失;
+      // 概览还顺带【不拉 DEM 瓦片】,首屏更快。
+      try{ if(map.getLayer("prov-fill")) map.addLayer({id:"relief",type:"color-relief",source:"dem-cr",minzoom:4.8,paint:{
         "color-relief-color":STYLES[styleMode].ramp}},"prov-fill"); }catch(e){}
       try{ const bId=map.getLayer("prov-line")?"prov-line":undefined;
-        map.addLayer({id:"hillshade",type:"hillshade",source:"dem-hs",paint:{
+        map.addLayer({id:"hillshade",type:"hillshade",source:"dem-hs",minzoom:4.8,paint:{
         "hillshade-shadow-color":STYLES[styleMode].hsShadow,
         "hillshade-highlight-color":STYLES[styleMode].hsHighlight,
         "hillshade-accent-color":STYLES[styleMode].hsAccent,
