@@ -206,12 +206,40 @@ def _engine(prov, subj_std, score, year, sel, rank=None, mclasses=None):
             cands[(r["uni_name"], r["major"])].append((yr, r["min_rank"] / eq[yr], dict(r)))
 
     items = []
+    # 大类多招生组同名(如 浙大「工科试验班」9 组,位次 202–7296)→ 按「组」分档而非合并:
+    # 最新年各组为锚,各组用「位次最近」的往年组平滑出 3 年加权 ρ、各自定档;每(校,专业)取最贴合
+    # 档中心的在档组。单组专业退化为原 3 年加权(逐项一致,无回归)。客户端 gk-engine.js 同构。
     for (un, mj), recs in cands.items():
-        recs.sort(key=lambda r: r[0], reverse=True)
-        w = [3 if r[0] == year else (2 if r[0] == year - 1 else 1) for r in recs]
-        rho = sum(r[1] * wi for r, wi in zip(recs, w)) / sum(w)
-        rho *= plan_factor(un)
-        items.append((rho, recs[0][0], un, mj, recs[0][2]))
+        by_year = defaultdict(list)
+        for r in recs:
+            by_year[r[0]].append(r)
+        anchor_y = max(by_year)
+        pfu = plan_factor(un)
+        best = None  # (dist, rho, row, rank)
+        for g in by_year[anchor_y]:
+            gr = g[2]["min_rank"]
+            ser = [(anchor_y, g[1])]
+            for py in (anchor_y - 1, anchor_y - 2):
+                arr = by_year.get(py)
+                if not arr:
+                    continue
+                bn, bdist = None, None
+                for nb in arr:
+                    d = abs(nb[2]["min_rank"] - gr)
+                    if bn is None or d < bdist or (d == bdist and nb[2]["min_rank"] < bn[2]["min_rank"]):
+                        bn, bdist = nb, d
+                ser.append((py, bn[1]))
+            ws = sum(3 if sy == year else (2 if sy == year - 1 else 1) for sy, _ in ser)
+            rs = sum(srho * (3 if sy == year else (2 if sy == year - 1 else 1)) for sy, srho in ser)
+            grho = rs / ws * pfu
+            gb = band_of(grho)
+            if not gb:
+                continue
+            gd = abs(grho - BANDS[gb][2])
+            if best is None or gd < best[0] or (gd == best[0] and gr < best[3]):
+                best = (gd, grho, g[2], gr)
+        if best is not None:
+            items.append((best[1], anchor_y, un, mj, best[2]))
     # 同档内按院校层次(985>211>双一流>本科)+ 综合排名优先,再按 ρ 贴合度排序——升学语境
     # "够得着的最好学校排最前",免得顶尖校(清北)被贴合度更高的普通校挤出每档 12 个名额。
     def _prestige(un):

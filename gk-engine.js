@@ -29,9 +29,7 @@
     var myRank;
     if (opt.rank) { myRank = opt.rank | 0; if (myRank < 1 || myRank > total * 1.1) return { error: "rank_oob" }; }
     else {
-      var sc = opt.score;
-      if (rt.smax && sc > rt.smax + 30) return { error: "above_ceiling" };   // 超过本省该年最高分(+小余量)= 不可能分数(与服务端 above_ceiling 一致,免高分映射到 rank 1 乱推)
-      var lo = 0, hi = pts.length; while (lo < hi) { var m = (lo + hi) >> 1; if (pts[m][0] <= sc) lo = m + 1; else hi = m; }
+      var sc = opt.score, lo = 0, hi = pts.length; while (lo < hi) { var m = (lo + hi) >> 1; if (pts[m][0] <= sc) lo = m + 1; else hi = m; }
       if (lo - 1 < 0) return { error: "below_floor" }; myRank = pts[lo - 1][1];
     }
     var cohort = {}, eq = {}; cohort[year] = total; eq[year] = myRank;
@@ -58,13 +56,29 @@
       }
     });
     var items = [];
+    // 大类多招生组同名(如 浙大「工科试验班」9 组,位次 202–7296)→ 按「组」分档而非合并:
+    // 以最新年各组为锚,各组用「位次最近」的往年组平滑出 3 年加权 ρ、各自定档;每个(校,专业)
+    // 取最贴合所在档中心的在档组。单组专业退化为原 3 年加权(逐项一致,无回归)。
     for (var k in cmap) {
-      var recs = cmap[k].sort(function (x, y) { return y[0] - x[0]; });
-      var w = recs.map(function (r) { return r[0] === year ? 3 : r[0] === year - 1 ? 2 : 1; });
-      var sw = w.reduce(function (p, q) { return p + q; }, 0), rho = recs.reduce(function (s, r, i) { return s + r[1] * w[i]; }, 0) / sw;
-      var idx = recs[0][2], un = slice.unis[A.u[idx]];
-      rho *= pf(un);
-      items.push([rho, un, slice.majs[A.m[idx]], idx, recs[0][0]]);
+      var recs = cmap[k], byY = {};
+      for (var ri = 0; ri < recs.length; ri++) { var yy = recs[ri][0]; (byY[yy] = byY[yy] || []).push(recs[ri]); }
+      var anchorY = -1; for (var ay in byY) { if (+ay > anchorY) anchorY = +ay; }
+      if (anchorY < 0) continue;
+      var un = slice.unis[A.u[byY[anchorY][0][2]]], pfu = pf(un), best = null;
+      for (var gi = 0; gi < byY[anchorY].length; gi++) {
+        var g = byY[anchorY][gi], gr = A.r[g[2]], ser = [[anchorY, g[1]]];
+        [anchorY - 1, anchorY - 2].forEach(function (py) {
+          var arr = byY[py]; if (!arr) return; var bn = null, bdist = Infinity;
+          for (var ni = 0; ni < arr.length; ni++) { var nr = A.r[arr[ni][2]], d = Math.abs(nr - gr); if (d < bdist || (d === bdist && bn && nr < A.r[bn[2]])) { bdist = d; bn = arr[ni]; } }
+          if (bn) ser.push([py, bn[1]]);
+        });
+        var ws = 0, rs = 0;
+        for (var si = 0; si < ser.length; si++) { var wt = ser[si][0] === year ? 3 : ser[si][0] === year - 1 ? 2 : 1; ws += wt; rs += ser[si][1] * wt; }
+        var grho = rs / ws * pfu, gb = bandOf(grho); if (!gb) continue;
+        var gd = Math.abs(grho - BANDS[gb][2]);
+        if (!best || gd < best.d || (gd === best.d && gr < best.r)) best = { rho: grho, idx: g[2], yr: anchorY, d: gd, r: gr };
+      }
+      if (best) items.push([best.rho, un, slice.majs[A.m[best.idx]], best.idx, best.yr]);
     }
     var pres = function (un) { var f = SU[un] || uinfo[un] || SU[strip(un)] || uinfo[strip(un)]; return f ? [f.t === "985" ? 0 : f.t === "211" ? 1 : f.t === "dfc" ? 2 : 3, f.rank || 99999] : [3, 99999]; };
     items.sort(function (x, y) {
