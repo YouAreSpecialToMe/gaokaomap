@@ -288,6 +288,17 @@
   .fav-prov .fav-fill{float:right;color:#7d6536;font-weight:500}
   .fav-prov .fav-fill.over{color:#c0392b;font-weight:700}
   .fav-seq{flex:none;width:18px;height:18px;border-radius:50%;background:#8c2f1b;color:#fbf0df;font:600 11px/18px system-ui,sans-serif;text-align:center}
+  /* P3:省份选择器 + 院校专业组(校聚合 · 嵌套专业 · 组级拖拽) */
+  .fav-prov-sel{font:inherit;color:#8c2f1b;font-weight:700;background:#fffdf7;border:1px solid var(--gold-soft);border-radius:5px;padding:1px 3px;max-width:80px}
+  .fav-dim{color:#a08a5e;font-weight:400}
+  .fav-g{border:1px solid #ece0c4;border-radius:8px;padding:2px 7px;margin:7px 0;background:rgba(255,253,247,.55)}
+  .fav-g.dragging{opacity:.45}
+  .fav-g-h{display:flex;align-items:center;gap:8px;cursor:grab;padding:4px 0}
+  .fav-g-h.over .fav-nm{color:#c0392b}
+  .fav-sub{padding:5px 0 5px 30px!important;border-bottom:1px dashed #efe6d2!important}
+  .fav-sub:last-child{border-bottom:none!important}
+  .fav-sub-n{flex:none;width:14px;color:#a98b52;font:600 10px system-ui,sans-serif;text-align:center}
+  .fav-sub .fav-mj{font-size:12px;color:#5a4a2e}
   .fav-risk{font-size:12px;padding:6px 9px;border-radius:7px;margin:2px 0 6px;line-height:1.45}
   .fav-risk.ok{background:rgba(29,158,117,.12);color:#15795a}
   .fav-risk.warn{background:rgba(216,90,48,.14);color:#9c2f1b}
@@ -2690,49 +2701,73 @@ function favSave(){try{localStorage.setItem("gk_fav",JSON.stringify(FAV));}catch
 function favToggle(it){const k=favKey(it),i=FAV.findIndex(x=>favKey(x)===k);
   const added=i<0;if(added){FAV.push(it);hap();}else FAV.splice(i,1);favSave();
   toast(added?"已加入志愿表":"已移出志愿表");return added;}
-let favDragI=null;
+let favDragI=null,favDragUni=null;
+function favProv(){return localStorage.getItem("gk_zyprov")||((document.getElementById("rp-prov")||{}).value||"");}   // P3 志愿表省份:自身选择器优先,回落「我的推荐」
+function favSchools(){const o=[],G={};FAV.forEach((it,i)=>{const k=it.n;if(!G[k]){G[k]={n:k,t:it.t,band:it.band||"",mj:[]};o.push(G[k]);}G[k].mj.push({m:it.major||"",i:i,band:it.band||""});});return o;}   // 院校专业组:按校聚合(每校=1组,组内列专业),保持收藏先后序
+function favMoveSchool(from,to){const blk=FAV.filter(x=>x.n===from),rest=FAV.filter(x=>x.n!==from);let ti=rest.findIndex(x=>x.n===to);if(ti<0)ti=rest.length;const out=rest.slice(0,ti).concat(blk,rest.slice(ti));FAV.length=0;out.forEach(x=>FAV.push(x));favSave();}   // 组级拖拽:整校移动
+function wireProvSel(){const s=document.getElementById("fav-prov-sel");if(s)s.addEventListener("change",()=>{localStorage.setItem("gk_zyprov",s.value);favRender();});}
 function favRender(){
   document.getElementById("fav-n").textContent=FAV.length;
   document.getElementById("favbtn").classList.toggle("has",FAV.length>0);
   const list=document.getElementById("fav-list");
   const syncBtns=()=>{document.querySelectorAll(".card-fav").forEach(b=>{const on=favHas(b.dataset.k);b.classList.toggle("on",on);b.textContent=on?"★ 已收藏":"☆ 收藏";});
     document.querySelectorAll(".rec-fav").forEach(b=>b.classList.toggle("on",favHas(b.dataset.k)));};
-  if(!FAV.length){list.innerHTML='<p class="sr-empty">还没有收藏。点学校卡片★、推荐结果、或选校助手「＋加入志愿表」即可。</p>';syncBtns();return;}
-  const c={"冲":0,"稳":0,"保":0};FAV.forEach(x=>{if(c[x.band]!==undefined)c[x.band]++;});
-  const banded=c.冲+c.稳+c.保;
-  let html='';
-  const _zp=(document.getElementById("rp-prov")||{}).value||"",_zy=ZHIYUAN[_zp];   // P2:按「我的推荐」所选省份,标该省志愿格式
-  if(_zy){const unit=_zy.m==="院校专业组"?"组":"个",cap=_zy.s?`最多 ${_zy.s} ${unit}`:(_zy.sp||""),over=_zy.s&&FAV.length>_zy.s;
-    html+=`<div class="fav-prov">「${_zp}」· <b>${_zy.m}</b>${_zy.g&&_zy.m==="院校专业组"?`(组内≤${_zy.g}专业)`:""} · ${cap}<span class="fav-fill${over?" over":""}">已填 ${FAV.length}${_zy.s?" / "+_zy.s:""}</span></div>`;}
-  let seq=0;
-  if(banded){let cls='ok',msg=`✓ 冲 ${c.冲} · 稳 ${c.稳} · 保 ${c.保},梯度合理`;
-    if(!c.保){cls='warn';msg='⚠ 没有"保"底——有滑档风险,建议加 1-2 个保底专业';}
-    else if(c.冲&&!c.稳){cls='warn';msg='⚠ 缺"稳"档,梯度断层,建议补几个匹配专业';}
-    html+=`<div class="fav-risk ${cls}">${msg}</div>`;}
-  [["冲","冲一冲(争取)"],["稳","稳一稳(匹配)"],["保","保一保(兜底)"],["","其他收藏"]].forEach(([band,lab])=>{
-    const its=FAV.map((it,i)=>({it,i})).filter(x=>(x.it.band||"")===band);
-    if(!its.length)return;
-    if(band||banded)html+=`<div class="fav-grp">${band?`<span class="rb ${band}">${band}</span> `:''}${lab} · ${its.length}</div>`;
-    its.forEach(({it,i})=>{html+=`<div class="fav-row" draggable="true" data-i="${i}">
-      <span class="fav-seq">${++seq}</span>
-      ${badge(it.n,26)}
-      <div class="fav-meta"><span class="fav-nm">${it.n}</span>${it.major?`<span class="fav-mj">${it.major}</span>`:""}</div>
-      <span class="sr-badge t${it.t||"ben"}">${tierZh(it.t)}</span>
-      <span class="fav-x" data-i="${i}">✕</span></div>`;});
-  });
+  const prov=favProv(),zy=ZHIYUAN[prov],grouped=!!(zy&&zy.m==="院校专业组");
+  const opts=Object.keys(ZHIYUAN).map(p=>`<option value="${p}"${p===prov?" selected":""}>${p}</option>`).join("");
+  const schools=grouped?favSchools():null,filled=grouped?schools.length:FAV.length,over=!!(zy&&zy.s&&filled>zy.s);
+  let head=`<div class="fav-prov"><select id="fav-prov-sel" class="fav-prov-sel" title="选择你所在省份">${opts}</select>`;
+  head+=zy?` · <b>${zy.m}</b>${zy.g&&grouped?`(组内≤${zy.g})`:""} · ${zy.s?`最多 ${zy.s} ${grouped?"组":"个"}`:(zy.sp||"")}<span class="fav-fill${over?" over":""}">已填 ${filled}${zy.s?" / "+zy.s:""}</span>`:` · <span class="fav-dim">未识别省份</span>`;
+  head+=`</div>`;
+  if(!FAV.length){list.innerHTML=head+'<p class="sr-empty">还没有收藏。点学校卡片★、推荐结果、或选校助手「＋加入志愿表」即可。</p>';wireProvSel();syncBtns();return;}
+  let html=head;
+  if(grouped){   // P3 院校专业组:每校=1组,组内专业为子行;组级拖拽排序、超限提示
+    if(zy.s&&schools.length>zy.s)html+=`<div class="fav-risk warn">⚠ 已 ${schools.length} 个院校专业组,超出 ${zy.s} 上限,删几个</div>`;
+    schools.forEach((g,gi)=>{const mo=g.mj.length>zy.g,go=zy.s&&gi>=zy.s;
+      html+=`<div class="fav-g" draggable="true" data-uni="${g.n}"><div class="fav-g-h${go?" over":""}">
+        <span class="fav-seq">${gi+1}</span>${badge(g.n,24)}
+        <div class="fav-meta"><span class="fav-nm">${g.n}</span><span class="fav-mj fav-dim">${g.mj.length}/${zy.g} 专业${mo?" ⚠超组内":""} · 服从调剂</span></div>
+        <span class="sr-badge t${g.t||"ben"}">${tierZh(g.t)}</span></div>`;
+      g.mj.forEach((m,mi)=>{html+=`<div class="fav-row fav-sub" data-i="${m.i}"><span class="fav-sub-n">${mi+1}</span><span class="fav-mj">${m.m||"(未选专业)"}</span>${m.band?`<span class="rb ${m.band}">${m.band}</span>`:""}<span class="fav-x" data-i="${m.i}">✕</span></div>`;});
+      html+=`</div>`;});
+  }else{   // 专业+院校 / 老高考 / 未识别:沿用冲稳保分组 + 志愿序号
+    const c={"冲":0,"稳":0,"保":0};FAV.forEach(x=>{if(c[x.band]!==undefined)c[x.band]++;});const banded=c.冲+c.稳+c.保;
+    if(banded){let cls='ok',msg=`✓ 冲 ${c.冲} · 稳 ${c.稳} · 保 ${c.保},梯度合理`;
+      if(!c.保){cls='warn';msg='⚠ 没有"保"底——有滑档风险,建议加 1-2 个保底专业';}
+      else if(c.冲&&!c.稳){cls='warn';msg='⚠ 缺"稳"档,梯度断层,建议补几个匹配专业';}
+      html+=`<div class="fav-risk ${cls}">${msg}</div>`;}
+    let seq=0;
+    [["冲","冲一冲(争取)"],["稳","稳一稳(匹配)"],["保","保一保(兜底)"],["","其他收藏"]].forEach(([band,lab])=>{
+      const its=FAV.map((it,i)=>({it,i})).filter(x=>(x.it.band||"")===band);
+      if(!its.length)return;
+      if(band||banded)html+=`<div class="fav-grp">${band?`<span class="rb ${band}">${band}</span> `:''}${lab} · ${its.length}</div>`;
+      its.forEach(({it,i})=>{html+=`<div class="fav-row" draggable="true" data-i="${i}">
+        <span class="fav-seq">${++seq}</span>${badge(it.n,26)}
+        <div class="fav-meta"><span class="fav-nm">${it.n}</span>${it.major?`<span class="fav-mj">${it.major}</span>`:""}</div>
+        <span class="sr-badge t${it.t||"ben"}">${tierZh(it.t)}</span>
+        <span class="fav-x" data-i="${i}">✕</span></div>`;});
+    });
+  }
   list.innerHTML=html;
-  list.querySelectorAll(".fav-row").forEach(r=>{
-    r.addEventListener("click",e=>{if(e.target.classList.contains("fav-x"))return;
-      const it=FAV[+r.dataset.i],ll=it.ll||llOf(it.n);userTouched=true;
-      if(ll&&ll[0])map.flyTo({center:ll,zoom:9,pitch:45,duration:1800,curve:1.42});showUniCard(it.n);});
-    r.addEventListener("dragstart",()=>{favDragI=+r.dataset.i;r.classList.add("dragging");});
-    r.addEventListener("dragend",()=>r.classList.remove("dragging"));
-    r.addEventListener("dragover",e=>e.preventDefault());
-    r.addEventListener("drop",e=>{e.preventDefault();const ti=+r.dataset.i;
-      if(favDragI==null||favDragI===ti)return;const [mv]=FAV.splice(favDragI,1);FAV.splice(ti,0,mv);favSave();});
-  });
-  list.querySelectorAll(".fav-x").forEach(x=>x.addEventListener("click",e=>{
-    e.stopPropagation();FAV.splice(+x.dataset.i,1);favSave();}));
+  wireProvSel();
+  list.querySelectorAll(".fav-x").forEach(x=>x.addEventListener("click",e=>{e.stopPropagation();FAV.splice(+x.dataset.i,1);favSave();}));
+  if(grouped){
+    list.querySelectorAll(".fav-g").forEach(el=>{
+      el.addEventListener("dragstart",e=>{favDragUni=el.dataset.uni;el.classList.add("dragging");});
+      el.addEventListener("dragend",()=>el.classList.remove("dragging"));
+      el.addEventListener("dragover",e=>e.preventDefault());
+      el.addEventListener("drop",e=>{e.preventDefault();const to=el.dataset.uni;if(favDragUni==null||favDragUni===to)return;favMoveSchool(favDragUni,to);});});
+    list.querySelectorAll(".fav-sub").forEach(r=>r.addEventListener("click",e=>{if(e.target.classList.contains("fav-x"))return;const it=FAV[+r.dataset.i];if(!it)return;const ll=it.ll||llOf(it.n);userTouched=true;if(ll&&ll[0])map.flyTo({center:ll,zoom:9,pitch:45,duration:1800,curve:1.42});showUniCard(it.n);}));
+  }else{
+    list.querySelectorAll(".fav-row").forEach(r=>{
+      r.addEventListener("click",e=>{if(e.target.classList.contains("fav-x"))return;
+        const it=FAV[+r.dataset.i],ll=it.ll||llOf(it.n);userTouched=true;
+        if(ll&&ll[0])map.flyTo({center:ll,zoom:9,pitch:45,duration:1800,curve:1.42});showUniCard(it.n);});
+      r.addEventListener("dragstart",()=>{favDragI=+r.dataset.i;r.classList.add("dragging");});
+      r.addEventListener("dragend",()=>r.classList.remove("dragging"));
+      r.addEventListener("dragover",e=>e.preventDefault());
+      r.addEventListener("drop",e=>{e.preventDefault();const ti=+r.dataset.i;
+        if(favDragI==null||favDragI===ti)return;const [mv]=FAV.splice(favDragI,1);FAV.splice(ti,0,mv);favSave();});});
+  }
   syncBtns();
 }
 window.cardFavClick=function(btn){try{favToggle(JSON.parse(btn.dataset.it.replace(/&#39;/g,"'")));}catch(e){}};
@@ -2743,13 +2778,23 @@ function cardFavHTML(it){const k=favKey(it),on=favHas(k);
   btn.addEventListener("click",e=>{e.stopPropagation();const show=panel.style.display!=="block";panel.style.display=show?"block":"none";if(show)favRender();});  // 开启时重渲:刷新按省表头
   document.addEventListener("click",e=>{if(!panel.contains(e.target)&&e.target!==btn)panel.style.display="none";});
   document.getElementById("fav-clear").addEventListener("click",()=>{if(FAV.length&&confirm("清空志愿表?")){FAV=[];favSave();}});
-  document.getElementById("fav-export").addEventListener("click",()=>{
+  document.getElementById("fav-export").addEventListener("click",()=>{   // P4:按该省真实格式导出到剪贴板
     if(!FAV.length){toast("志愿表是空的");return;}
-    const out=["【我的高考志愿表】"];
-    [["冲","■ 冲一冲"],["稳","■ 稳一稳"],["保","■ 保一保"],["","■ 其他"]].forEach(([b,lab])=>{
-      const its=FAV.filter(x=>(x.band||"")===b);if(!its.length)return;
-      out.push("",lab);its.forEach((it,i)=>out.push(`  ${i+1}. ${it.n}${it.major?" · "+it.major:""}`));});
-    navigator.clipboard.writeText(out.join("\n")).then(()=>toast("已复制 "+FAV.length+" 条到剪贴板"),()=>toast("复制失败,请手动选择"));
+    const prov=favProv(),zy=ZHIYUAN[prov];
+    const out=[`【我的高考志愿表${prov?" · "+prov:""}${zy?" · "+zy.m:""}】`];
+    if(zy&&zy.m==="院校专业组"){
+      const schools=favSchools();
+      if(zy.s&&schools.length>zy.s)out.push(`(注:已 ${schools.length} 组,超过${prov}本科批 ${zy.s} 组上限)`);
+      schools.forEach((g,i)=>{out.push("",`院校专业组 ${i+1}: ${g.n}${g.t?"("+tierZh(g.t)+")":""}`);
+        g.mj.forEach((m,mi)=>out.push(`    专业${mi+1}: ${m.m||"(未选)"}`));
+        if(g.mj.length>zy.g)out.push(`    ⚠ 本组 ${g.mj.length} 个专业,超过组内 ${zy.g} 上限`);
+        out.push(`    ☑ 服从专业调剂`);});
+    }else{
+      if(zy&&zy.sp)out.push(`(${zy.sp})`);
+      else if(zy&&zy.s&&FAV.length>zy.s)out.push(`(注:已 ${FAV.length} 个,超过${prov}本科批 ${zy.s} 个上限)`);
+      FAV.forEach((it,i)=>out.push(`  志愿${i+1}: ${it.n}${it.major?" - "+it.major:""}`));
+    }
+    navigator.clipboard.writeText(out.join("\n")).then(()=>toast("已复制志愿表到剪贴板"),()=>toast("复制失败,请手动选择"));
   });
   favRender();
 })();
