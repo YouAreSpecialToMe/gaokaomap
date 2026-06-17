@@ -1,0 +1,49 @@
+{
+  "_meta": {
+    "purpose": "各省 2025 本科批普通类志愿规则 —— 「按省定制志愿表」(task: 高考志愿表按省定制)的数据底座。",
+    "WARNING": "考生依赖,务必准确!每条都须逐省对照该省教育考试院《2025 招生工作规定 / 志愿填报实施办法》核实。verified=false 即草稿,核实前不得上线。",
+    "fields": {
+      "mode": "专业+院校 | 院校专业组 | 传统院校+专业",
+      "slots": "本科批(普通类/常规批)平行志愿个数;null = 待查",
+      "perGroup": "院校专业组内可填专业数(专业+院校 模式为 null)",
+      "adjust": "是否设专业服从调剂选项",
+      "hint": "未核实时的初步印象,仅供查证参考,不作准",
+      "verified": "是否已对考试院核实"
+    },
+    "batches_3plus3": ["北京","天津","上海","浙江","山东","海南"],
+    "note_3plus1plus2": "其余 24 省为 3+1+2,本科批普遍 院校专业组、组内≤6专业+调剂,但志愿个数逐省不同(约 40~112),须逐省核实。"
+  },
+  "rules": {
+    "浙江": {"mode":"专业+院校","slots":80,"perGroup":null,"adjust":false,"note":"普通类分段填报,每段≤80 个专业平行志愿(1 志愿=1 专业+1 校)","verified":false},
+    "山东": {"mode":"专业+院校","slots":96,"perGroup":null,"adjust":false,"note":"常规批 1 志愿=1 专业+1 校","verified":false},
+    "北京": {"mode":"院校专业组","slots":30,"perGroup":6,"adjust":true,"note":"本科普通批 30 个院校专业组,每组≤6 专业","verified":false},
+    "天津": {"mode":"院校专业组","slots":50,"perGroup":6,"adjust":true,"note":"本科批 A 阶段 50 个院校专业组","verified":false},
+    "上海": {"mode":"院校专业组","slots":24,"perGroup":4,"adjust":true,"note":"本科普通批 24 个院校专业组,每组≤4 专业","verified":false},
+    "河北": {"mode":"院校专业组","slots":96,"perGroup":6,"adjust":true,"note":"本科批 96 个院校专业组","verified":false},
+    "江苏": {"mode":"院校专业组","slots":40,"perGroup":6,"adjust":true,"note":"本科批 40 个院校专业组,每组≤6 专业","verified":false},
+    "广东": {"mode":"院校专业组","slots":45,"perGroup":6,"adjust":true,"note":"本科批 45 个院校专业组,每组≤6 专业","verified":false},
+
+    "海南": {"mode":"院校专业组","slots":null,"perGroup":6,"adjust":true,"hint":"3+3,院校专业组,组数待查","verified":false},
+    "辽宁": {"mode":"院校专业组","slots":null,"perGroup":6,"adjust":true,"hint":"本科批平行志愿数较多(印象 ~112),待查","verified":false},
+    "福建": {"mode":"院校专业组","slots":null,"perGroup":6,"adjust":true,"hint":"印象本科批 ~40 组,待查","verified":false},
+    "湖北": {"mode":"院校专业组","slots":null,"perGroup":6,"adjust":true,"hint":"本科批组数待查","verified":false},
+    "湖南": {"mode":"院校专业组","slots":null,"perGroup":6,"adjust":true,"hint":"本科批组数待查","verified":false},
+    "重庆": {"mode":"院校专业组","slots":null,"perGroup":6,"adjust":true,"hint":"印象本科批 ~96 组,待查","verified":false},
+    "安徽": {"mode":"院校专业组","slots":null,"perGroup":6,"adjust":true,"verified":false},
+    "江西": {"mode":"院校专业组","slots":null,"perGroup":6,"adjust":true,"verified":false},
+    "贵州": {"mode":"院校专业组","slots":null,"perGroup":6,"adjust":true,"verified":false},
+    "广西": {"mode":"院校专业组","slots":null,"perGroup":6,"adjust":true,"verified":false},
+    "甘肃": {"mode":"院校专业组","slots":null,"perGroup":6,"adjust":true,"verified":false},
+    "黑龙江": {"mode":"院校专业组","slots":null,"perGroup":6,"adjust":true,"verified":false},
+    "吉林": {"mode":"院校专业组","slots":null,"perGroup":6,"adjust":true,"verified":false},
+    "山西": {"mode":"院校专业组","slots":null,"perGroup":6,"adjust":true,"hint":"2025 首年 3+1+2,组数待查","verified":false},
+    "内蒙古": {"mode":"院校专业组","slots":null,"perGroup":6,"adjust":true,"hint":"2025 首年,待查(内蒙古历来动态志愿,模式或特殊)","verified":false},
+    "河南": {"mode":"院校专业组","slots":null,"perGroup":6,"adjust":true,"hint":"2025 首年 3+1+2,本科批组数待查(河南考生量大)","verified":false},
+    "四川": {"mode":"院校专业组","slots":null,"perGroup":6,"adjust":true,"hint":"2025 首年,待查","verified":false},
+    "云南": {"mode":"院校专业组","slots":null,"perGroup":6,"adjust":true,"hint":"2025 首年,待查","verified":false},
+    "陕西": {"mode":"院校专业组","slots":null,"perGroup":6,"adjust":true,"hint":"2025 首年,待查","verified":false},
+    "青海": {"mode":"院校专业组","slots":null,"perGroup":6,"adjust":true,"hint":"2025 首年,待查","verified":false},
+    "宁夏": {"mode":"院校专业组","slots":null,"perGroup":6,"adjust":true,"hint":"2025 首年,待查","verified":false},
+    "新疆": {"mode":"院校专业组","slots":null,"perGroup":6,"adjust":true,"hint":"2025 首年,待查","verified":false}
+  }
+}
