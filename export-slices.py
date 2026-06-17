@@ -34,7 +34,7 @@ def export(prov):
         return None
     subj = NORM.get(subj[0], subj[0])
     # admission_lines 专业线(近3年)
-    rows = con.execute(f"""SELECT uni_name u,major m,min_score ms,min_rank r,enroll_n e,sel_req s,subject_std j,year y
+    rows = con.execute(f"""SELECT uni_name u,major m,min_score ms,min_rank r,enroll_n e,sel_req s,subject_std j,year y,batch bt
         FROM admission_lines WHERE province=? AND granularity='major'
           AND year IN ({','.join('?' * len(yrs))}) AND min_rank IS NOT NULL""", (prov, *yrs)).fetchall()
     unis, majs, sels, subjs = [], [], [], []
@@ -45,7 +45,7 @@ def export(prov):
             d[v] = len(lst); lst.append(v)
         return d[v]
     col = {k: [] for k in "umrescljy"}  # u m r(ank) e(nroll) s(core) c(=sel) l(unused) j y → 见下
-    A = {"u": [], "m": [], "r": [], "sc": [], "e": [], "sl": [], "j": [], "y": []}
+    A = {"u": [], "m": [], "r": [], "sc": [], "e": [], "sl": [], "j": [], "y": [], "bt": []}  # bt=1 → 专科批(位次为专科批内排名,与本科一分一段不同基准)
     for x in rows:
         A["u"].append(idx(x["u"], unis, ui))
         A["m"].append(idx(x["m"], majs, mi))
@@ -55,6 +55,7 @@ def export(prov):
         A["sl"].append(idx(x["s"], sels, si))
         A["j"].append(idx(x["j"], subjs, ji))
         A["y"].append(x["y"] % 100)
+        A["bt"].append(1 if (x["bt"] and "专科" in x["bt"]) else 0)   # 专科批标记 → 客户端引擎/选校助手按专科单列,不混入本科冲稳保
     # rank_tables(score→rank):{subjIdx:{year:{smax,pts:[[smin,cr]...]}}}
     rk = {}
     for r in con.execute(f"""SELECT subject sj,year y,score_min smin,score_max smax,cum_rank cr

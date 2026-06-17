@@ -1470,18 +1470,21 @@ const _selType=s=>!s?'不限':/物理/.test(s)?'物理':/历史/.test(s)?'历史
 const cnMoney=v=>{if(!v)return'—';if(v<10000)return v+'元';const wan=Math.floor(v/10000),rem=v%10000;   // 中式:<1万→元,≥1万→万
   return rem===0?wan+'万':rem%1000===0?wan+'万'+rem/1000:(v/10000).toFixed(1)+'万';};
 const bandOfRank=r=>{if(!DT||!DT.haveRank||!r)return null;const rho=r/DT.rank;return rho<1.05?"冲":rho<1.25?"稳":"保";};
+// 专科批不按本科位次划冲稳保:其位次是专科批内排名,与考生的本省一分一段位次不同基准,直接比会得出离谱的"冲"
+const bandRow=r=>(r&&r.zk)?null:bandOfRank(r&&r.latest);
 function detailTable(u,prov){
   const lines=u.lines||[],plans=u.plans||{},name=u.name;
   // 同一专业同年常有多个专业组,各有位次线 → 收成区间 [lo 最难组, hi 最易组],而非任取一条(曾致左卡/右表对不上)
-  const m={};lines.filter(l=>l.granularity==="major"&&l.min_rank).forEach(l=>{
+  const m={},zkOf={};lines.filter(l=>l.granularity==="major"&&l.min_rank).forEach(l=>{
     const M=(m[l.major]=m[l.major]||{}),g=(M[l.year]=M[l.year]||{lo:1/0,hi:0});
-    g.lo=Math.min(g.lo,l.min_rank);g.hi=Math.max(g.hi,l.min_rank);});
+    g.lo=Math.min(g.lo,l.min_rank);g.hi=Math.max(g.hi,l.min_rank);
+    if(/专科/.test(l.batch||""))zkOf[l.major]=1;});   // 该专业属专科批
   // 列年份自适应:取该校"实际有数据"的最近 4 年(22–25 多为 31 省全覆盖)——某校某省只有 1 年就显 1 年,不空成一片"—"
   const yrs=[...new Set(lines.filter(l=>l.granularity==="major"&&l.min_rank).map(l=>l.year))].sort((a,b)=>b-a).slice(0,4);
   const rows=Object.entries(m).map(([mj,Y])=>{const p=matchPlan(plans,mj);
     const my=Object.keys(Y).map(Number).sort((a,b)=>b-a),lat=Y[my[0]]||{};
     const r={mj,latest:lat.lo||0,yv:yrs.map(y=>Y[y]||null),
-      plan:p&&p.n?p.n:0,tuition:p&&p.tuition?p.tuition:0,sel:_selShort(p&&p.sel),selT:_selType(p&&p.sel)};
+      plan:p&&p.n?p.n:0,tuition:p&&p.tuition?p.tuition:0,sel:_selShort(p&&p.sel),selT:_selType(p&&p.sel),zk:!!zkOf[mj]};
     yrs.forEach((y,i)=>r['y'+i]=(r.yv[i]?r.yv[i].lo:0));   // y0..y3 供表头排序
     return r;}).filter(r=>r.latest);
   if(!rows.length)return "";
@@ -1492,7 +1495,8 @@ function detailTable(u,prov){
 }
 function dtInner(){
   const {rows,name,prov,haveRank,rank,subj}=DT;
-  const cnt={"冲":0,"稳":0,"保":0};rows.forEach(r=>{const b=bandOfRank(r.latest);if(b)cnt[b]++;});
+  const cnt={"冲":0,"稳":0,"保":0};rows.forEach(r=>{const b=bandRow(r);if(b)cnt[b]++;});
+  const zkN=rows.filter(r=>r.zk).length;   // 专科批专业数(单列,不计入本科冲稳保)
   const types=[...new Set(rows.map(r=>r.selT))];
   let h="";
   if(haveRank){const tot=(cnt.冲+cnt.稳+cnt.保)||1;
@@ -1500,6 +1504,7 @@ function dtInner(){
       <div class="cwb">${['冲','稳','保'].filter(k=>cnt[k]).map(k=>`<div data-b="${k}" class="${DT.band===k?'act':''}" onclick="filterBand('${k}')" style="width:${(cnt[k]/tot*100).toFixed(0)}%;background:${BCOL[k]}">${k} ${cnt[k]}</div>`).join('')}</div>
       <button class="addband" onclick="favAddVisible()">＋ 把当前显示的专业加入志愿表</button>`;
   }else h+=`<p class="sub">${name} · ${prov} · 录取位次 + 招生计划/学费/选科。<span style="color:#9c2f1b">在「我的推荐」填分数,这里会标出每个专业对你是冲/稳/保。</span></p>`;
+  if(zkN)h+=`<p class="sub" style="font-size:11px;color:#6f8a5a;margin:4px 0 0">含 ${zkN} 个专科批专业 · 位次为专科批内排名,不与本科位次同档比较,已单列于表末</p>`;
   if(types.length>1)
     h+=`<div class="selpills"><button class="${DT.sel?'':'on'}" onclick="filterSel('')">全部</button>`+
       types.map(t=>`<button class="${DT.sel===t?'on':''}" onclick="filterSel('${t}')">${t}</button>`).join('')+`</div>`;
@@ -1507,9 +1512,10 @@ function dtInner(){
 }
 function tableHTML(){
   const {sort,mn,rng}=DT;
-  let rs=DT.rows.filter(r=>(!DT.sel||r.selT===DT.sel)&&(!DT.band||bandOfRank(r.latest)===DT.band));
+  let rs=DT.rows.filter(r=>(!DT.sel||r.selT===DT.sel)&&(!DT.band||bandRow(r)===DT.band));
   const k=sort.k,d=sort.d;
-  rs=rs.slice().sort((a,b)=>{if(k==='mj')return d*a.mj.localeCompare(b.mj,'zh');
+  rs=rs.slice().sort((a,b)=>{if(a.zk!==b.zk)return a.zk?1:-1;   // 专科批统一排在本科之后(单列)
+    if(k==='mj')return d*a.mj.localeCompare(b.mj,'zh');
     const av=a[k]||(d>0?1e9:-1e9),bv=b[k]||(d>0?1e9:-1e9);return d*(av-bv);});
   const cell=v=>v?v.toLocaleString():'—';
   const cellR=(lo,hi)=>!lo?'—':hi>lo?`${lo.toLocaleString()}–${hi.toLocaleString()}`:lo.toLocaleString();   // 多专业组显示区间
@@ -1519,9 +1525,9 @@ function tableHTML(){
   const CAP=6,more=rs.length>CAP,show=DT.expanded?rs:rs.slice(0,CAP);   // 默认只示前几条,避免一屏堆满
   const yrs=DT.yrs;
   let h=`<table class="dtab"><thead><tr>${TH('mj','专业')}`+yrs.map((y,i)=>TH('y'+i,String(y))).join('')+`${TH('plan','计划')}${TH('tuition','学费')}<th>选科</th></tr></thead><tbody>`;
-  for(const r of show){const b=bandOfRank(r.latest),bw=(20+(1-(r.latest-mn)/rng)*80).toFixed(0);
+  for(const r of show){const b=bandRow(r),bw=(20+(1-(r.latest-mn)/rng)*80).toFixed(0);
     let tr='';if(r.y0&&r.y1){const up=r.y0<r.y1;tr=` <span class="dtrend ${up?'up':'dn'}" title="较 ${yrs[1]} ${up?'位次上升 · 变难':'位次下降 · 变易'}">${up?'▲':'▼'}</span>`;}
-    h+=`<tr style="${b?`border-left:3px solid ${BCOL[b]}`:''}"><td class="mjc" title="${r.mj}"><i class="dbar" style="width:${bw}%"></i><span class="mjn">${r.mj}${b?` <span style="color:${BCOL[b]};font-size:10px">${b}</span>`:''}</span></td>`
+    h+=`<tr style="${b?`border-left:3px solid ${BCOL[b]}`:''}"><td class="mjc" title="${r.mj}"><i class="dbar" style="width:${bw}%"></i><span class="mjn">${r.mj}${b?` <span style="color:${BCOL[b]};font-size:10px">${b}</span>`:''}${r.zk?` <span style="color:#6f8a5a;font-size:10px;border:1px solid #cfe0bf;border-radius:3px;padding:0 3px">专科批</span>`:''}</span></td>`
       +yrs.map((y,i)=>{const v=r.yv[i];
         if(!v)return `<td class="num"><span class="dim">—</span>${i?'':tr}</td>`;
         const disp=i===0?cellR(v.lo,v.hi)                                     // 最新年:多专业组直接显区间
@@ -1550,8 +1556,8 @@ function showDetail(u,prov){
 function favAddVisible(){
   const d=window.DETAIL;if(!d||!DT)return;
   let added=0;
-  DT.rows.filter(r=>{const b=bandOfRank(r.latest);return b&&(!DT.sel||r.selT===DT.sel)&&(!DT.band||b===DT.band);})
-    .forEach(r=>{const it={n:d.name,major:r.mj,band:bandOfRank(r.latest),t:d.t,c:d.c,ll:d.ll};
+  DT.rows.filter(r=>{const b=bandRow(r);return b&&(!DT.sel||r.selT===DT.sel)&&(!DT.band||b===DT.band);})
+    .forEach(r=>{const it={n:d.name,major:r.mj,band:bandRow(r),t:d.t,c:d.c,ll:d.ll};
       if(!favHas(favKey(it))){FAV.push(it);added++;}});
   if(added){favSave();toast(`已加入 ${added} 个专业到志愿表`);}
   else toast("这些专业已在志愿表中");
@@ -1568,7 +1574,7 @@ function localUni(name,prov,slice){
     if(A.u[i]!==ui)continue;
     const mj=slice.majs[A.m[i]],yr=2000+A.y[i];
     const mc=(slice.mmc[A.m[i]]||[]).map(k=>slice.mcls[k])[0]||(mj.slice(-1)==="类"?mj:null);
-    lines.push({granularity:"major",year:yr,major:mj,min_score:A.sc[i]/10,min_rank:A.r[i],mclass:mc});
+    lines.push({granularity:"major",year:yr,major:mj,min_score:A.sc[i]/10,min_rank:A.r[i],mclass:mc,batch:(A.bt&&A.bt[i])?"专科批":"本科批"});
     const c=lastSel[mj];if(!c||yr>c.y)lastSel[mj]={y:yr,sel:slice.sels[A.sl[i]]||""};   // 选科取最新年(切片 adm)
   }
   if(!lines.length)return null;

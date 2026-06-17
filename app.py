@@ -97,7 +97,7 @@ def uni_card(name, prov):
     plans = {}
     if prov:
         lines = [dict(r) for r in con.execute(
-            """SELECT year,subject_std subj,granularity,major,min_score,min_rank
+            """SELECT year,subject_std subj,granularity,major,min_score,min_rank,batch
                FROM admission_lines WHERE uni_name IN (?,?) AND province=?
                  AND year>=2022 AND min_rank IS NOT NULL
                ORDER BY year DESC, min_rank LIMIT 700""", (name, strip, prov))]
