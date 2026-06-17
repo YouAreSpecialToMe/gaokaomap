@@ -4,7 +4,7 @@
 (function (global) {
   var SUBJ_EQ = { "综合": ["综合"], "物理": ["物理", "理科"], "历史": ["历史", "文科"], "理科": ["理科", "物理"], "文科": ["文科", "历史"] };
   var BANDS = { "冲": [0.85, 1.05, 0.95], "稳": [1.05, 1.25, 1.15], "保": [1.25, 1.80, 1.45] };
-  var TOP_RANK = 100; // 位次≤此=顶尖考生:按「最好的学校+最热门专业」重建(比值模型在低位次会把够得着的热门误判出局)
+  var TOP_RANK_FLOOR = 20, TOP_FRAC = 0.0001; // 顶尖位次阈值=本省该科约前 0.01%(至少前 20),按考生规模自适应(小省~20、大省~70)
   var TOK = { "物理": "物", "化学": "化", "生物": "生", "历史": "史", "地理": "地", "政治": "政", "技术": "技" };
   function normToks(t) { t = String(t); for (var k in TOK) t = t.split(k).join(TOK[k]); return new Set(t.match(/[物化生史地政技]/g) || []); }
   function selOk(req, sel) {
@@ -49,7 +49,7 @@
       var ws = new Set(); opt.mclasses.forEach(function (mc) { if (mc in mcIx) ws.add(mcIx[mc]); });
       if (ws.size) mcWant = function (mi) { var arr = slice.mmc[mi]; if (!arr) return false; for (var z = 0; z < arr.length; z++) if (ws.has(arr[z])) return true; return false; };
     }
-    var topStudent = myRank <= TOP_RANK;                        // 顶尖位次:放宽候选窗(下探最热门、上探很稳的好学校)+ bandOf(top) 分档 + 同层次按最热门优先
+    var topStudent = myRank <= Math.max(TOP_RANK_FLOOR, Math.round(total * TOP_FRAC));   // 顶尖位次(本省该科前~0.01%,至少前20):放宽候选窗+bandOf(top)分档+同层次按最热门优先
     var A = slice.adm, n = A.r.length, cmap = {};
     [year, year - 1, year - 2].forEach(function (yr) {          // 必须按 year→y-2 降序(与服务端 dict 插入序一致),否则 cmap 键序不同 → 平局 tie-break 不同 → 个别项错位
       if (!(yr in eq)) return;

@@ -56,7 +56,7 @@ ALIAS = {"物理": ["物理类", "物理", "理科"], "历史": ["历史类", "�
          "理科": ["理科", "物理类", "物理"], "文科": ["文科", "历史类", "历史"],
          "综合": ["综合", "综合改革"]}
 BANDS = {"冲": (0.85, 1.05, 0.95), "稳": (1.05, 1.25, 1.15), "保": (1.25, 1.80, 1.45)}
-TOP_RANK = 100  # 位次≤此=顶尖考生:按「最好的学校+最热门专业」重建结果(比值模型在个位/低位次会把够得着的热门误判出局)
+TOP_RANK_FLOOR, TOP_FRAC = 20, 0.0001  # 顶尖位次阈值=本省该科约前 0.01%(至少前 20);按考生规模自适应——小省~20、大省~70。位次≤此=按「最好的学校+最热门专业」重建
 CURRENT_YEAR = 2026   # 出分日预案目标年:换算位次时按省回退到 ≤ 此年的最新可用一分一段;各省 2026 数据入库后自动升级,无需改码(入库后须重启服务清缓存)
 SUBJ_EQ = {"物理": ("物理", "理科"), "历史": ("历史", "文科"),
            "理科": ("理科", "物理"), "文科": ("文科", "历史"), "综合": ("综合",)}
@@ -196,7 +196,7 @@ def _engine(prov, subj_std, score, year, sel, rank=None, mclasses=None):
         ph = ",".join("?" * len(mclasses))
         mcls_clause = f" AND major IN (SELECT major FROM uni_majors WHERE mclass IN ({ph}))"
         mcls_params = tuple(mclasses)
-    top_student = my_rank <= TOP_RANK   # 顶尖位次:放宽候选窗(下探到最热门、上探到很稳的好学校),并用 band_of(top=True) 分档
+    top_student = my_rank <= max(TOP_RANK_FLOOR, int(total * TOP_FRAC + 0.5))   # 顶尖位次(本省该科前~0.01%,至少前20):放宽候选窗(下探最热门、上探很稳的好学校)+ band_of(top=True) 分档
     cands = defaultdict(list)
     for yr in eq:
         lo_w = 1 if top_student else int(eq[yr] * 0.6)
