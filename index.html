@@ -173,7 +173,7 @@
   .recpanel .x:hover,.quizpanel .x:hover,.card .x:hover{color:#8c2f1b}
 
   @keyframes cardIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
-  .recpanel{animation:cardIn .5s cubic-bezier(.22,1,.36,1);position:absolute;right:20px;top:84px;z-index:6;width:240px;display:none;
+  .recpanel{animation:cardIn .5s cubic-bezier(.22,1,.36,1);position:absolute;left:72px;top:84px;z-index:6;width:240px;display:none;
     background:rgba(252,246,230,.97);border:1px solid #c5ab7c;border-radius:10px;padding:14px 16px;box-shadow:0 6px 20px rgba(80,55,20,.3)}
   .recpanel h3{margin:0 0 4px;font:600 16px "Kaiti SC","STKaiti","KaiTi",serif;color:#4a3414;letter-spacing:2px}
   .recpanel .sub{font-size:12px;color:#7d6536;margin:0 0 10px}
@@ -209,7 +209,7 @@
   .recgroup.冲{color:#d85a30}.recgroup.稳{color:#b8860b}.recgroup.保{color:#1d9e75}
   .recrow small{color:#7d6536;margin-left:4px}
   #recpanel{max-height:72vh;overflow-y:auto;width:262px}
-  .quizpanel{animation:cardIn .5s cubic-bezier(.22,1,.36,1);position:absolute;left:72px;top:84px;z-index:6;width:280px;display:none;
+  .quizpanel{animation:cardIn .5s cubic-bezier(.22,1,.36,1);position:absolute;left:0;right:0;margin:0 auto;top:84px;z-index:6;width:280px;display:none;
     max-height:78vh;overflow-y:auto;background:rgba(252,246,230,.97);border:1px solid #c5ab7c;border-radius:10px;
     padding:14px 16px;box-shadow:0 6px 20px rgba(80,55,20,.3)}
   .quizpanel h3{margin:0 0 8px;font:600 16px "Kaiti SC","STKaiti",serif;color:#4a3414;letter-spacing:2px}
@@ -676,7 +676,7 @@
       role="combobox" aria-expanded="false" aria-controls="search-results" aria-autocomplete="list" aria-label="搜索学校、城市或省份">
     <button id="search-clear" aria-label="清除搜索">✕</button>
   </div>
-  <div id="search-hint">输入校名 / 城市 / 省份,或点 <b id="hint-quiz" role="button" tabindex="0">专业测评</b> 找方向</div>
+  <div id="search-hint">输入校名 / 城市 / 省份,或点 <b id="hint-quiz" role="button" tabindex="0">什么专业适合我</b> 找方向</div>
   <div id="search-results" role="listbox" aria-label="搜索结果"></div>
 </div>
 <div id="bgm-tip" role="button" tabindex="0" aria-label="开启古典配乐"><span>🎵 开启古典配乐</span><button class="bgm-x" aria-label="不用了,关闭提示">✕</button></div>
@@ -755,9 +755,9 @@
     <button class="seg-i" id="seg-fin" data-f="fin">财经法学</button>
   </div>
   <div class="acts">
-    <button class="actbtn" id="act-rec">✦ 我的推荐</button>
-    <button class="actbtn" id="act-quiz">✦ 专业测评</button>
-    <button class="actbtn" id="act-viz">✦ 分数线</button>
+    <button class="actbtn" id="act-rec">✦ 我的推荐大学</button>
+    <button class="actbtn" id="act-quiz">✦ 什么专业适合我</button>
+    <button class="actbtn" id="act-viz">✦ 历年分数线</button>
   </div>
 </div>
 <div class="vizpanel" id="vizpanel">
