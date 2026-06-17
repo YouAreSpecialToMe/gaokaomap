@@ -1459,8 +1459,11 @@ function updateFlags(){
     el.innerHTML=`<span>${nm}</span>`;
     return new maplibregl.Marker({element:el}).setLngLat(c);
   });
-  const recMode=document.body.classList.contains("rec-mode");
-  markers.forEach(({u,el})=>el.classList.toggle("show-flag",z>=5||!!u.top||(!!u.rec&&recMode&&z>=4)));  // 推荐旗 z<4 收成点
+  const recMode=document.body.classList.contains("rec-mode"),filt=curFilter&&curFilter!=="all";
+  let fcap=null;                                              // 概览(z<5)下分类筛选:只给最拔尖的 N 所出旗,其余留点,免 211/双一流 糊成一墙
+  if(filt&&z<5){const vis=markers.filter(m=>m.el.style.display!=="none");
+    if(vis.length>30){vis.sort((a,b)=>(a.u.rank||9999)-(b.u.rank||9999));fcap=new Set(vis.slice(0,30).map(m=>m.el));}}
+  markers.forEach(({u,el})=>el.classList.toggle("show-flag",z>=5||!!u.top||(filt&&el.style.display!=="none"&&(!fcap||fcap.has(el)))||(!!u.rec&&recMode&&z>=4)));  // 推荐旗 z<4 收成点;分类筛选→匹配校出旗(概览限最拔尖 30 所,余留点;放大后全出)
   updateRecFlagZoom(z);
 }
 // 校徽懒注入:只给"已显形 + 视口内"的旗注入校徽 img(badge 带 sealSVG 兜底),每旗一次,
@@ -1721,7 +1724,7 @@ function applyFilter(f){
       if(f==="cs"||f==="med"||f==="fin")fx.push(["==",["get",f],1]);
       map.setFilter("uni-dots",fx.length?["all",...fx]:null);}
   }
-  updateFlags();cullMarkers();updateUniLabels();injectBadges();
+  updateFlags();cullMarkers();declutterFlags();updateUniLabels();injectBadges();   // declutter:筛选后新出的旗也要错位展开,免叠成一坨
 }
 document.querySelectorAll("#filter-seg .seg-i").forEach(ch=>
   ch.addEventListener("click",()=>{userTouched=true;hap();applyFilter(ch.dataset.f);}));
