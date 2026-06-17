@@ -1263,6 +1263,12 @@ map.on("load",async()=>{
         "circle-color":"#9a5b2d","circle-opacity":0.78,
         "circle-stroke-color":"rgba(255,250,235,.85)","circle-stroke-width":0.8,
         "circle-radius":["interpolate",["linear"],["zoom"],3,1.3,5,2.2,7,3.6,10,5.5]}});
+      // 选中的"点"院校(普通本科,无牌子)高亮环 —— 圆点密集时一眼定位选中校
+      map.addSource("seldot",{type:"geojson",data:{type:"FeatureCollection",features:[]}});
+      map.addLayer({id:"uni-dots-sel",type:"circle",source:"seldot",paint:{
+        "circle-radius":["interpolate",["linear"],["zoom"],3,5,5,8,7,13,10,20],
+        "circle-color":"rgba(156,47,27,.16)","circle-stroke-color":"#9c2f1b",
+        "circle-stroke-width":2.6,"circle-stroke-opacity":0.95}});
       map.on("click","uni-dots",e=>{
         e.originalEvent._uniHit=true;
         const _u=JSON.parse(e.features[0].properties.u);showCard(_u);focusSchool(_u.ll);});
@@ -1654,11 +1660,12 @@ function applyFilter(f){
     let vis=true;
     if(f==="985")vis=u.t==="985";
     else if(f==="211")vis=u.t==="211"||u.t==="dfc";
-    else if(f==="cs"||f==="med"||f==="fin")vis=u.g.includes(f);
+    else if(f==="cs"||f==="med"||f==="fin")vis=!!u[f];   // 优势院校标记(cs/med/fin),与 uni-dots 图层同源;原 u.g 不存在会抛错→筛选无反应
     if(provFilter)vis=vis&&u.p===provFilter;                 // 叠加省份空间筛选
     el.style.display=vis?"":"none";
   });
   if(map.getLayer("uni-dots")){
+    if(map.getLayer("uni-dots-sel"))map.setLayoutProperty("uni-dots-sel","visibility",(f==="985"||f==="211")?"none":"visible");
     if(f==="985"||f==="211"){map.setLayoutProperty("uni-dots","visibility","none");}
     else{map.setLayoutProperty("uni-dots","visibility","visible");
       const fx=[];if(provFilter)fx.push(["==",["get","p"],provFilter]);
@@ -2005,8 +2012,13 @@ function selectMarker(name){
     const m=markers.find(x=>x.u&&x.u.n===name);
     if(m){m.el.classList.add("sel","show-flag");selEl=m.el;found=true;}
   }
-  document.body.classList.toggle("sel-focus",found);                       // 选中校时,其余牌子虚化
-  try{if(map.getLayer("uni-dots"))map.setPaintProperty("uni-dots","circle-opacity",found?0.16:0.78);}catch(e){}
+  // 选中"点"院校(普通本科,uni-dots 无牌子)→ 单独高亮环,密集圆点里一眼定位选中校
+  let dot=null;
+  if(name&&!found&&typeof DOTS!=="undefined")dot=DOTS.find(x=>x.n===name&&x.ll&&x.ll[0]);
+  try{if(map.getSource("seldot"))map.getSource("seldot").setData(dot?{type:"Feature",properties:{},geometry:{type:"Point",coordinates:dot.ll}}:{type:"FeatureCollection",features:[]});}catch(e){}
+  const anySel=found||!!dot;
+  document.body.classList.toggle("sel-focus",anySel);                      // 选中校时,其余牌子虚化
+  try{if(map.getLayer("uni-dots"))map.setPaintProperty("uni-dots","circle-opacity",anySel?0.16:0.78);}catch(e){}
   return;
 }
 map.getContainer().addEventListener("mousemove",e=>{_fzXY=[e.clientX,e.clientY];if(!_fzRAF)_fzRAF=requestAnimationFrame(updateFlagZ);});
