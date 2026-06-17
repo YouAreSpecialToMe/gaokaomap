@@ -189,16 +189,22 @@
   .rfrow{display:flex;gap:6px}
   .recform select,.recform input{flex:1;min-width:0;padding:6px 8px;border:1px solid #c5ab7c;border-radius:6px;
     background:#fdf8ea;color:#4a3414;font:500 13px "Kaiti SC","STKaiti",serif}
-  .recform button{padding:6px 14px;border:none;border-radius:6px;background:#8c2f1b;color:#f7e8d6;
-    font:500 13px "Kaiti SC","STKaiti",serif;letter-spacing:2px;cursor:pointer}
-  .recform button:hover{background:#a13a22}
+  /* 去原生外观 + 国风下拉箭头(原生 select 在各 OS 长得"最普通",且与其它控件不齐) */
+  .recform select{appearance:none;-webkit-appearance:none;cursor:pointer;padding-right:26px;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'><path d='M1 1l4 4 4-4' fill='none' stroke='%238a6a3f' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat:no-repeat;background-position:right 9px center;background-size:10px}
+  .recform button:not(.rfm){padding:6px 14px;border:none;border-radius:6px;background:#8c2f1b;color:#f7e8d6;
+    font:500 13px "Kaiti SC","STKaiti",serif;letter-spacing:2px;cursor:pointer}   /* :not(.rfm) —— 否则红底会盖掉切换的未选态(本是 .rfm 浅底) */
+  .recform button:not(.rfm):hover{background:#a13a22}
   .rfsel{display:flex;gap:8px;flex-wrap:wrap;font-size:12px;color:#6b5226}
   .rfsel label{display:flex;align-items:center;gap:2px;cursor:pointer}
   .rfmode{display:flex;border:1px solid #c5ab7c;border-radius:6px;overflow:hidden;margin-bottom:2px}
-  .rfm{flex:1;padding:5px 0;border:0;background:#fdf8ea;color:#6b5226;
+  .rfm{flex:1;padding:6px 0;border:0;background:#fdf8ea;color:#9a8460;
     font:500 12.5px "Kaiti SC","STKaiti",serif;letter-spacing:1px;cursor:pointer;transition:background .2s,color .2s}
+  .rfm:hover{background:#f0e4c8;color:#6b5226}
   .rfm+.rfm{border-left:1px solid #c5ab7c}
-  .rfm.on{background:#8c2f1b;color:#f7e8d6}
+  .rfm.on{background:#8c2f1b;color:#fbf0df;font-weight:700;box-shadow:inset 0 0 0 1px rgba(216,192,138,.45)}
+  .rfm.on:hover{background:#8c2f1b;color:#fbf0df}
   .recgroup{font:600 13px "Kaiti SC","STKaiti",serif;letter-spacing:2px;margin:8px 0 2px}
   .recgroup.冲{color:#d85a30}.recgroup.稳{color:#b8860b}.recgroup.保{color:#1d9e75}
   .recrow small{color:#7d6536;margin-left:4px}
@@ -1706,12 +1712,16 @@ function clearRec(){
 }
 function buildRecs(){}
 let META=null;
+// 3+3 综合改革省:科类只有"综合",无物理/历史(meta 对 京/津/鲁/琼 误含物理历史,前端纠正)
+const COMP_REFORM=new Set(["上海","浙江","北京","天津","山东","海南"]);
 function fillProvSubj(ps,ss,onSubjChange){
   const provs=META||[{province:"浙江",subjects:["综合"]}];
   ps.innerHTML=provs.map(p=>`<option>${p.province}</option>`).join("");
   const upd=()=>{
     const p=provs.find(x=>x.province===ps.value);
-    ss.innerHTML=(p?p.subjects:["综合"]).map(x=>`<option>${x}</option>`).join("");
+    let subs=p?p.subjects:["综合"];
+    if(COMP_REFORM.has(ps.value))subs=["综合"];           // 综合改革省强制只"综合"
+    ss.innerHTML=subs.map(x=>`<option>${x}</option>`).join("");
     if(onSubjChange)onSubjChange();
   };
   ps.addEventListener("change",upd);ss.addEventListener("change",()=>onSubjChange&&onSubjChange());
