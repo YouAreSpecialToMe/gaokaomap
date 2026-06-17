@@ -1483,7 +1483,9 @@ const cnMoney=v=>{if(!v)return'—';if(v<10000)return v+'元';const wan=Math.flo
   return rem===0?wan+'万':rem%1000===0?wan+'万'+rem/1000:(v/10000).toFixed(1)+'万';};
 const bandOfRank=r=>{if(!DT||!DT.haveRank||!r)return null;const rho=r/DT.rank;return rho<1.05?"冲":rho<1.25?"稳":"保";};
 // 专科批不按本科位次划冲稳保:其位次是专科批内排名,与考生的本省一分一段位次不同基准,直接比会得出离谱的"冲"
-const bandRow=r=>(r&&r.zk)?null:bandOfRank(r&&r.latest);
+// 大类多招生组(如 工科试验班 202–7296)按「最易组」(可够得着的那组)定档,与「我的推荐」按组分档一致;
+// 否则按最难组(lo)会把整条大类一律标"冲",与推荐里的"保"自相矛盾。单组专业 lo==hi,无变化。
+const bandRow=r=>(r&&r.zk)?null:bandOfRank(r&&r.easiest);
 function detailTable(u,prov){
   const lines=u.lines||[],plans=u.plans||{},name=u.name;
   // 同一专业同年常有多个专业组,各有位次线 → 收成区间 [lo 最难组, hi 最易组],而非任取一条(曾致左卡/右表对不上)
@@ -1495,7 +1497,7 @@ function detailTable(u,prov){
   const yrs=[...new Set(lines.filter(l=>l.granularity==="major"&&l.min_rank).map(l=>l.year))].sort((a,b)=>b-a).slice(0,4);
   const rows=Object.entries(m).map(([mj,Y])=>{const p=matchPlan(plans,mj);
     const my=Object.keys(Y).map(Number).sort((a,b)=>b-a),lat=Y[my[0]]||{};
-    const r={mj,latest:lat.lo||0,yv:yrs.map(y=>Y[y]||null),
+    const r={mj,latest:lat.lo||0,easiest:lat.hi||lat.lo||0,yv:yrs.map(y=>Y[y]||null),
       plan:p&&p.n?p.n:0,tuition:p&&p.tuition?p.tuition:0,sel:_selShort(p&&p.sel),selT:_selType(p&&p.sel),zk:!!zkOf[mj]};
     yrs.forEach((y,i)=>r['y'+i]=(r.yv[i]?r.yv[i].lo:0));   // y0..y3 供表头排序
     return r;}).filter(r=>r.latest);
