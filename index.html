@@ -2014,11 +2014,31 @@ function updateRecFlagZoom(z){      // 推荐旗低缩放收成圆点+偏移归�
 // 叠压时的"点错"由 hover-z 消解:鼠标附近的旗按到光标距离排前后,最近的浮到最上、可点(见 updateFlagZ)。
 function declutterFlags(){
   if(document.body.classList.contains("rec-mode"))return;
+  const vis=[];
   for(const m of markers){
     if(!m.mounted||!m.el.classList.contains("show-flag"))continue;
     if(m.mk.getOffset().x!==0||m.mk.getOffset().y!==0)m.mk.setOffset([0,0]);   // 回真实坐标
-    const st=m.el.style;                                                       // 清旧斜引线变量→恢复竖直
-    if(st.getPropertyValue("--lx")){st.removeProperty("--lx");st.removeProperty("--bh");st.removeProperty("--plen");st.removeProperty("--lean");}
+    const st=m.el.style;                                                       // 先复位(竖直、默认高度)
+    st.removeProperty("--bh");st.removeProperty("--plen");st.removeProperty("--lx");st.removeProperty("--lean");
+    if(m.u&&m.u.ll){const p=map.project(m.u.ll);vis.push({m,x:p.x,y:p.y});}
+  }
+  if(map.getZoom()>=5)return;                                                  // 仅概览(z<5,只显 top 旗)才做竖向错位
+  // 同点叠压(x<22 且 y<60 像素)的 top 旗 → 按层次竖向错位:最好的在底,其余逐面抬高+加长杆,
+  // 都露出来(修「北京三校清华/北大/人大、上海复旦/上交 叠在同一像素点,只看得见最上面一面」)。
+  vis.sort((a,b)=>a.x-b.x||a.y-b.y);
+  const used=new Array(vis.length).fill(false);
+  for(let i=0;i<vis.length;i++){
+    if(used[i])continue;
+    const cl=[vis[i]];used[i]=true;
+    for(let j=i+1;j<vis.length;j++)if(!used[j]&&Math.abs(vis[j].x-vis[i].x)<22&&Math.abs(vis[j].y-vis[i].y)<60){cl.push(vis[j]);used[j]=true;}
+    if(cl.length<2)continue;
+    cl.sort((a,b)=>((a.m.u.rank||9999)-(b.m.u.rank||9999)));                    // 最好的居中作基,其余左右上方小幅扇开(斜杆回连真实点位)
+    cl.forEach((c,k)=>{if(!k)return;                                           // 牌子 64px 高、北京又在搜索栏正下方,竖排叠不下 → 改浅扇形:横向让位+略抬,留在搜索栏下方且互不压字
+      const tier=Math.ceil(k/2), side=(k%2)?1:-1, lx=side*(34+(tier-1)*30), bh=13+tier*15;
+      const st=c.m.el.style;
+      st.setProperty("--lx",lx+"px");st.setProperty("--bh",bh+"px");
+      st.setProperty("--plen",Math.round(Math.hypot(lx,bh))+"px");st.setProperty("--lean",Math.round(Math.atan2(lx,bh)*180/Math.PI)+"deg");
+    });
   }
 }
 // 叠压点选消解:鼠标移动时把光标附近(72px)的可见旗按到光标的距离排前后——最近的 z 最高浮到最上且可点,
