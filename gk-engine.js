@@ -53,7 +53,7 @@
     var A = slice.adm, n = A.r.length, cmap = {};
     [year, year - 1, year - 2].forEach(function (yr) {          // 必须按 year→y-2 降序(与服务端 dict 插入序一致),否则 cmap 键序不同 → 平局 tie-break 不同 → 个别项错位
       if (!(yr in eq)) return;
-      var y2 = yr % 100, a = topStudent ? 1 : eq[yr] * 0.6, b = topStudent ? Math.max(eq[yr] * 2.4, 5000) : eq[yr] * 2.4;
+      var y2 = yr % 100, a = topStudent ? 1 : Math.floor(eq[yr] * 0.6), b = topStudent ? Math.max(Math.floor(eq[yr] * 2.4), 5000) : Math.floor(eq[yr] * 2.4);   // floor 对齐服务端 int(eq*0.6/2.4),否则边界位次的候选在/不在不一致 → 按组分档分叉
       for (var i = 0; i < n; i++) {
         if (A.y[i] !== y2 || !subjOk.has(A.j[i])) continue;
         var rr = A.r[i]; if (rr == null || rr < a || rr > b) continue;

@@ -42,7 +42,7 @@ Step 2 "校验关键改动已落地"
 $checks = [ordered]@{
   'gk-engine.js'              = 'TOP_RANK'         # 客户端引擎:顶尖位次路径(本轮)
   'recommend.py'              = 'TOP_RANK'         # 服务端引擎:同构
-  'index.html'                = 'gk-engine\.js\?v=5' # 引擎缓存戳已自增(immutable 破缓存)
+  'index.html'                = 'gk-engine\.js\?v=6' # 引擎缓存戳已自增(immutable 破缓存)
   'geo/ne_50m_rivers_cn.json' = $null               # 河流裁剪文件存在即可
 }
 foreach ($f in $checks.Keys) {
@@ -97,7 +97,7 @@ try {
 
 # ── 7) Cloudflare 缓存提示(盒子 token 无 purge 权限)───────────────────────
 Step 7 "缓存"
-Write-Host "  gk-engine.js?v=5 —— 版本戳已变,immutable 也会取新"
+Write-Host "  gk-engine.js?v=6 —— 版本戳已变,immutable 也会取新"
 Write-Host "  index.html      —— max-age=300,5 分钟内自动过期(无需 purge;想立刻看就硬刷新 Ctrl+Shift+R)"
 Write-Host "  geo/*_cn.json   —— 新文件名,无需 purge"
 Write-Host "`n部署完成。" -ForegroundColor Green
