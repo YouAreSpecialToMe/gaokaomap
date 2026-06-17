@@ -3,23 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>山河志愿 · 高考选校 | 填分数看冲稳保</title>
+<title>高考志愿填报模拟器 | 填分数看冲稳保</title>
 <meta name="description" content="一幅可漫游的山河画卷,把全国 1500+ 所大学落在真实山川之间。填一个分数或位次,看哪些大学为你点亮——冲、稳、保一目了然。" />
 <meta name="theme-color" content="#ece2c8" />
 <link rel="icon" type="image/png" href="assets/favicon.png" />
 <link rel="apple-touch-icon" href="assets/favicon.png" />
 <link rel="preload" as="image" href="assets/relief-cn2.webp" />  <!-- 156K 高清精致地形:relief-cn-img 占位,精致地形一进门即出(一次请求,不等几十块真实瓦片) -->
 <meta property="og:type" content="website" />
-<meta property="og:site_name" content="山河志愿" />
+<meta property="og:site_name" content="高考志愿填报模拟器" />
 <meta property="og:locale" content="zh_CN" />
-<meta property="og:title" content="山河志愿 · 高考选校" />
+<meta property="og:title" content="高考志愿填报模拟器" />
 <meta property="og:description" content="把全国大学落在真实山河上的一幅画卷:填分数或位次,看冲稳保为你点亮,找到你能上的大学。" />
 <meta property="og:url" content="https://agentsfeed.org/app-demo/" />
 <meta property="og:image" content="https://agentsfeed.org/app-demo/assets/og-card.png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="山河志愿 · 高考选校" />
+<meta name="twitter:title" content="高考志愿填报模拟器" />
 <meta name="twitter:description" content="填分数或位次,看冲稳保为你点亮,找到你能上的大学。1500+ 所大学落于真实山川。" />
 <meta name="twitter:image" content="https://agentsfeed.org/app-demo/assets/og-card.png" />
 <link href="vendor/maplibre-gl.css" rel="stylesheet">
@@ -40,7 +40,7 @@
     animation:fadeDown 1.1s .2s cubic-bezier(.22,1,.36,1) backwards}
   @keyframes fadeDown{from{opacity:0;transform:translate(-50%,-14px)}to{opacity:1;transform:translate(-50%,0)}}
   @keyframes fadeUp{from{opacity:0;transform:translate(-50%,16px)}to{opacity:1;transform:translate(-50%,0)}}
-  .titlebar h1{margin:0;font:600 24px/1.2 "Kaiti SC","STKaiti","KaiTi",serif;color:#4a3414;letter-spacing:5px;white-space:nowrap}
+  .titlebar h1{margin:0;font:600 22px/1.2 "Kaiti SC","STKaiti","KaiTi",serif;color:#4a3414;letter-spacing:2px;white-space:nowrap}
   .titlebar p{margin:4px 0 0;font-size:12px;color:#7a5f33;letter-spacing:1px;white-space:nowrap}
   .plabel{font:500 12px "Kaiti SC","STKaiti","KaiTi",serif;color:#9b8154;letter-spacing:2px;pointer-events:none;opacity:.85}
   .nick{font:500 13px "Kaiti SC","STKaiti","KaiTi",serif;color:#b08a4e;letter-spacing:6px;
@@ -671,7 +671,7 @@
 <div id="ob-mask" class="ob-mask"></div>
 <div id="onboard" class="onboard" role="dialog" aria-modal="true" aria-labelledby="ob-title">
   <button class="x" id="ob-x" aria-label="跳过引导">✕</button>
-  <h3 id="ob-title">欢迎来到山河志愿</h3>
+  <h3 id="ob-title">欢迎来到高考志愿填报模拟器</h3>
   <p class="ob-sub">山河为卷,按分数选大学、按兴趣选专业。不如先——</p>
   <div class="ob-hero">
     <div class="ob-hero-t">花 1 分钟,测出适合你的专业方向</div>
@@ -688,7 +688,7 @@
 <div class="loading" id="loading">正在铺开山河画卷⋯</div>
 <div class="loadbar" id="loadbar" aria-live="polite"><i class="lb-spin"></i><span>铺展山河 <b id="lb-pct">0</b>%</span><i class="lb-fill" id="lb-fill"></i></div>
 <div class="titlebar">
-  <h1>山河志愿</h1>
+  <h1>高考志愿填报模拟器</h1>
   <p>山河为卷 · 为你点亮够得着的大学</p>
 </div>
 <div class="card" id="card"></div>
