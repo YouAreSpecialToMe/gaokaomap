@@ -652,7 +652,7 @@
   <button class="tbtn" id="rotbtn" aria-label="视角模式:平移 / 旋转" title="视角:平移 — 点按切旋转模式(旋转模式下按住左键拖动转方位 / 俯仰)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 8"/><path d="M20 3.5V8h-4.5"/><path d="M20 12a8 8 0 0 1-13.7 5.6L4 16"/><path d="M4 20.5V16h4.5"/></svg></button>
   <button class="tbtn on" id="wxbtn" aria-label="分区天气开关" title="分区天气:江南雨·云贵雾·东北雪·西北黄沙·内蒙风 — 点按关闭"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14.5a3.4 3.4 0 0 1 .4-6.8 4.5 4.5 0 0 1 8.7 1.2A3 3 0 0 1 16 14.5Z"/><path d="M8 17.5l-1 2.6M12 17.5l-1 2.6M16 17.5l-1 2.6"/></svg></button>
   <button class="tbtn" id="t3dbtn" aria-label="地形:平面 / 立体 3D" title="地形:平面(超流畅)— 点按切换立体 3D"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3 21 7.5 12 12 3 7.5Z"/><path d="M3 12 12 16.5 21 12"/><path d="M3 16.5 12 21 21 16.5"/></svg></button>
-  <button class="tbtn" id="musbtn" aria-label="配乐:关 — 点按播放" title="配乐:萨蒂《Gymnopédie No.1》(钢琴 · Kevin MacLeod / CC-BY)— 点按播放 / 静音"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17V5l10-2v12"/><circle cx="6.5" cy="17" r="2.5"/><circle cx="16.5" cy="15" r="2.5"/></svg></button>
+  <button class="tbtn" id="musbtn" aria-label="配乐:关 — 点按播放" title="配乐:轻钢琴轮播(emotional-piano · nastelbom/Pixabay;Gymnopédie · Satie/Kevin MacLeod CC-BY)— 点按播放 / 静音"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17V5l10-2v12"/><circle cx="6.5" cy="17" r="2.5"/><circle cx="16.5" cy="15" r="2.5"/></svg></button>
   <button class="tbtn on" id="globebtn" aria-label="投影:地球 / 平面画卷" title="投影:地球(概览微曲)— 点按切平面画卷"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18"/></svg></button>
   <button class="tbtn" id="tb-toggle" aria-label="更多显示设置:画风 / 天气 / 地形 / 配乐" title="更多:画风 / 天气 / 地形 / 配乐" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg></button>
 </div>
@@ -801,7 +801,7 @@ addEventListener("DOMContentLoaded",()=>{
   const tbt=document.getElementById("tb-toggle");
   tbt?.addEventListener("click",()=>{const o=document.getElementById("toolbar").classList.toggle("more-open");tbt.classList.toggle("on",o);tbt.setAttribute("aria-expanded",o);hap();});
   // 即时浮标:悬停/聚焦马上显名(toolbar 有 overflow:hidden,浮标挂 body 免裁切)。'r'=右侧(左上各键),'u'=上方(底部按钮)
-  const FLY={stylebtn:['画风 · 山水 / 水彩','r'],rotbtn:['视角 · 平移 / 旋转','r'],wxbtn:['天气 · 分区气候','r'],t3dbtn:['地形 · 平面 / 立体','r'],musbtn:['配乐 · 古典钢琴','r'],globebtn:['投影 · 地球 / 平面','r'],'tb-toggle':['更多设置','r'],cfgbtn:['设置 · 画风/视角/天气/地形','r'],'act-rec':['填分数 / 位次 → 冲稳保院校','u'],'act-quiz':['测兴趣性格 → 适配专业方向','u'],'act-viz':['一分一段 · 历年位次曲线','u']};
+  const FLY={stylebtn:['画风 · 山水 / 水彩','r'],rotbtn:['视角 · 平移 / 旋转','r'],wxbtn:['天气 · 分区气候','r'],t3dbtn:['地形 · 平面 / 立体','r'],musbtn:['配乐 · 轻钢琴轮播','r'],globebtn:['投影 · 地球 / 平面','r'],'tb-toggle':['更多设置','r'],cfgbtn:['设置 · 画风/视角/天气/地形','r'],'act-rec':['填分数 / 位次 → 冲稳保院校','u'],'act-quiz':['测兴趣性格 → 适配专业方向','u'],'act-viz':['一分一段 · 历年位次曲线','u']};
   const fly=document.createElement('div');fly.className='tb-flyout';document.body.appendChild(fly);
   const flyShow=b=>{const c=FLY[b.id];if(!c)return;const r=b.getBoundingClientRect();fly.textContent=c[0];fly.dataset.dir=c[1];
     if(c[1]==='u'){fly.style.left=(r.left+r.width/2)+'px';fly.style.top=(r.top-8)+'px';}
@@ -2448,18 +2448,24 @@ document.getElementById("wxbtn").addEventListener("click",()=>{
   if(wxOn)wxStart();else wctx.clearRect(0,0,innerWidth,innerHeight);});
 document.addEventListener("visibilitychange",()=>{
   if(document.hidden){if(wxRAF){cancelAnimationFrame(wxRAF);wxRAF=0;}}else wxStart();});
-// ---------- 配乐:古琴《秋风词》(archive.org · 公有领域)----------
-// 默认关、绝不自动外放(也合浏览器策略);开关 + 循环 + 淡入淡出 + localStorage 记忆 + 切后台暂停。
-const BGM=new Audio("assets/audio/gymnopedie-satie.mp3");
-BGM.loop=true;BGM.preload="none";BGM.volume=0;
+// ---------- 配乐:轻钢琴轮播 ----------
+// 默认关、绝不自动外放(也合浏览器策略);开关 + 淡入淡出 + localStorage 记忆 + 切后台暂停。
+// 多曲轮播:emotional-piano(nastelbom · Pixabay,Yiruma 味)进门第一首,接 Gymnopédie No.1(Satie · Kevin MacLeod/CC-BY);
+// 不单曲循环 —— 一首放完 ended 切下一首、整列循环。要加曲就往 BGM_LIST 塞(如 guqin-qiufengci.mp3 国风备选)。
+const BGM_LIST=["assets/audio/emotional-piano.mp3","assets/audio/gymnopedie-satie.mp3"];
+let bgmIdx=0;
+const BGM=new Audio(BGM_LIST[bgmIdx]);
+BGM.loop=false;BGM.preload="none";BGM.volume=0;
 const BGM_VOL=0.3;let bgmOn=false,bgmFadeT=0;
+BGM.addEventListener("ended",()=>{bgmIdx=(bgmIdx+1)%BGM_LIST.length;BGM.src=BGM_LIST[bgmIdx];
+  if(bgmOn){BGM.volume=BGM_VOL;BGM.play().catch(()=>{});}});
 function bgmFadeTo(target){clearInterval(bgmFadeT);
   bgmFadeT=setInterval(()=>{const d=target-BGM.volume;
     if(Math.abs(d)<0.03){BGM.volume=target;clearInterval(bgmFadeT);if(!target)BGM.pause();}
     else BGM.volume=Math.max(0,Math.min(1,BGM.volume+(d>0?.05:-.05)));},55);}
 const musbtn=document.getElementById("musbtn");
 function setBgm(on){bgmOn=on;musbtn.classList.toggle("on",on);
-  musbtn.setAttribute("aria-label",on?"配乐:开(钢琴·Gymnopédie No.1)— 点按静音":"配乐:关 — 点按播放");
+  musbtn.setAttribute("aria-label",on?"配乐:开(轻钢琴轮播)— 点按静音":"配乐:关 — 点按播放");
   if(on)BGM.play().then(()=>bgmFadeTo(BGM_VOL)).catch(()=>{});else bgmFadeTo(0);
   try{localStorage.setItem("gk_bgm",on?"1":"0");}catch(e){}}
 musbtn.addEventListener("click",()=>setBgm(!bgmOn));
