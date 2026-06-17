@@ -1351,6 +1351,7 @@ function cullMarkers(){
 }
 // 本科名称标签:放大到省/市级时,视野内的本科点阵浮出校名(碰撞去重叠 + 数量上限 + 增量更新防闪)。
 // 仅"全部院校"态显示(筛选态点阵本身即子集);用 DOTS 的 rank 决定挤占时谁优先。
+const FILTER_PROV_TOP=2;   // 分类筛选概览下:每省最多出旗几所(其余留点),嫌少/多就改这里
 let curFilter="all",uniLabels=new Map(),recMode="score";
 let provFilter=null;                                         // 空间筛选:当前聚焦省份(空=全国)
 const hap=(ms=12)=>{try{navigator.vibrate&&navigator.vibrate(ms);}catch(e){}};   // 移动端轻触感
@@ -1460,10 +1461,11 @@ function updateFlags(){
     return new maplibregl.Marker({element:el}).setLngLat(c);
   });
   const recMode=document.body.classList.contains("rec-mode"),filt=curFilter&&curFilter!=="all";
-  let fcap=null;                                              // 概览(z<5)下分类筛选:只给最拔尖的 N 所出旗,其余留点,免 211/双一流 糊成一墙
-  if(filt&&z<5){const vis=markers.filter(m=>m.el.style.display!=="none");
-    if(vis.length>30){vis.sort((a,b)=>(a.u.rank||9999)-(b.u.rank||9999));fcap=new Set(vis.slice(0,30).map(m=>m.el));}}
-  markers.forEach(({u,el})=>el.classList.toggle("show-flag",z>=5||!!u.top||(filt&&el.style.display!=="none"&&(!fcap||fcap.has(el)))||(!!u.rec&&recMode&&z>=4)));  // 推荐旗 z<4 收成点;分类筛选→匹配校出旗(概览限最拔尖 30 所,余留点;放大后全出)
+  let fcap=null;                                              // 概览(z<5)下分类筛选:每省只给最拔尖的几所出旗,其余留点 —— 按省铺开、免华东糊成一墙
+  if(filt&&z<5){const byP={};
+    markers.forEach(m=>{if(m.el.style.display==="none")return;const p=m.u.p||"?";(byP[p]=byP[p]||[]).push(m);});
+    fcap=new Set();Object.keys(byP).forEach(p=>{byP[p].sort((a,b)=>(a.u.rank||9999)-(b.u.rank||9999));byP[p].slice(0,FILTER_PROV_TOP).forEach(m=>fcap.add(m.el));});}
+  markers.forEach(({u,el})=>el.classList.toggle("show-flag",z>=5||!!u.top||(filt&&fcap&&fcap.has(el))||(!!u.rec&&recMode&&z>=4)));  // 推荐旗 z<4 收成点;分类筛选→概览每省最拔尖几所出旗、余留点,放大(z>=5)后视野内全出
   updateRecFlagZoom(z);
 }
 // 校徽懒注入:只给"已显形 + 视口内"的旗注入校徽 img(badge 带 sealSVG 兜底),每旗一次,
