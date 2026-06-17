@@ -282,6 +282,12 @@
   .fav-x{margin-left:auto;color:#c0a877;cursor:pointer;font-size:12px;flex:0 0 auto;padding:0 2px}
   .fav-x:hover{color:#8c2f1b}
   .fav-grp{font:600 12px "Kaiti SC","STKaiti",serif;color:#6b5630;margin:9px 0 1px;display:flex;align-items:center;gap:5px}
+  /* P2:志愿表按省格式表头 + 志愿序号 */
+  .fav-prov{font:600 11.5px "Kaiti SC","STKaiti",serif;color:#6b5630;background:rgba(189,154,85,.13);border:1px solid var(--gold-soft);border-radius:7px;padding:6px 9px;margin:0 0 8px;line-height:1.55}
+  .fav-prov b{color:#8c2f1b}
+  .fav-prov .fav-fill{float:right;color:#7d6536;font-weight:500}
+  .fav-prov .fav-fill.over{color:#c0392b;font-weight:700}
+  .fav-seq{flex:none;width:18px;height:18px;border-radius:50%;background:#8c2f1b;color:#fbf0df;font:600 11px/18px system-ui,sans-serif;text-align:center}
   .fav-risk{font-size:12px;padding:6px 9px;border-radius:7px;margin:2px 0 6px;line-height:1.45}
   .fav-risk.ok{background:rgba(29,158,117,.12);color:#15795a}
   .fav-risk.warn{background:rgba(216,90,48,.14);color:#9c2f1b}
@@ -2671,6 +2677,8 @@ if(localStorage.getItem("gk_bgm")!=="0"){               // 默认开启:首个�
 })();
 // ---------- 志愿表 / 收藏(localStorage 持久化)----------
 let FAV=[];try{FAV=JSON.parse(localStorage.getItem("gk_fav")||"[]");}catch(e){FAV=[];}
+// P2 各省志愿填报规则(镜像 docs/zhiyuan-rules.json,已对考试院核实):m=模式 s=本科批志愿数 g=院校专业组内专业数 sp=老高考说明
+const ZHIYUAN={浙江:{m:"专业+院校",s:80},山东:{m:"专业+院校",s:96},辽宁:{m:"专业+院校",s:112},重庆:{m:"专业+院校",s:96},贵州:{m:"专业+院校",s:96},青海:{m:"专业+院校",s:96},河北:{m:"专业+院校",s:96},北京:{m:"院校专业组",s:30,g:6},天津:{m:"院校专业组",s:50,g:6},上海:{m:"院校专业组",s:24,g:4},海南:{m:"院校专业组",s:30,g:6},江苏:{m:"院校专业组",s:40,g:6},福建:{m:"院校专业组",s:40,g:6},湖北:{m:"院校专业组",s:45,g:6},湖南:{m:"院校专业组",s:45,g:6},广东:{m:"院校专业组",s:45,g:6},安徽:{m:"院校专业组",s:45,g:6},江西:{m:"院校专业组",s:45,g:6},广西:{m:"院校专业组",s:40,g:20},甘肃:{m:"院校专业组",s:45,g:6},黑龙江:{m:"院校专业组",s:40,g:6},吉林:{m:"院校专业组",s:40,g:6},山西:{m:"院校专业组",s:45,g:6},内蒙古:{m:"院校专业组",s:45,g:12},河南:{m:"院校专业组",s:48,g:6},四川:{m:"院校专业组",s:45,g:6},云南:{m:"院校专业组",s:40,g:10},陕西:{m:"院校专业组",s:45,g:6},宁夏:{m:"院校专业组",s:45,g:6},新疆:{m:"传统院校+专业",s:null,g:6,sp:"老高考·本一9/本二18"},西藏:{m:"传统院校+专业",s:null,g:4,sp:"老高考·本一本二各10"}};
 let _toastT=0;
 function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");
   clearTimeout(_toastT);_toastT=setTimeout(()=>t.classList.remove("show"),1800);}
@@ -2693,6 +2701,10 @@ function favRender(){
   const c={"冲":0,"稳":0,"保":0};FAV.forEach(x=>{if(c[x.band]!==undefined)c[x.band]++;});
   const banded=c.冲+c.稳+c.保;
   let html='';
+  const _zp=(document.getElementById("rp-prov")||{}).value||"",_zy=ZHIYUAN[_zp];   // P2:按「我的推荐」所选省份,标该省志愿格式
+  if(_zy){const unit=_zy.m==="院校专业组"?"组":"个",cap=_zy.s?`最多 ${_zy.s} ${unit}`:(_zy.sp||""),over=_zy.s&&FAV.length>_zy.s;
+    html+=`<div class="fav-prov">「${_zp}」· <b>${_zy.m}</b>${_zy.g&&_zy.m==="院校专业组"?`(组内≤${_zy.g}专业)`:""} · ${cap}<span class="fav-fill${over?" over":""}">已填 ${FAV.length}${_zy.s?" / "+_zy.s:""}</span></div>`;}
+  let seq=0;
   if(banded){let cls='ok',msg=`✓ 冲 ${c.冲} · 稳 ${c.稳} · 保 ${c.保},梯度合理`;
     if(!c.保){cls='warn';msg='⚠ 没有"保"底——有滑档风险,建议加 1-2 个保底专业';}
     else if(c.冲&&!c.稳){cls='warn';msg='⚠ 缺"稳"档,梯度断层,建议补几个匹配专业';}
@@ -2702,6 +2714,7 @@ function favRender(){
     if(!its.length)return;
     if(band||banded)html+=`<div class="fav-grp">${band?`<span class="rb ${band}">${band}</span> `:''}${lab} · ${its.length}</div>`;
     its.forEach(({it,i})=>{html+=`<div class="fav-row" draggable="true" data-i="${i}">
+      <span class="fav-seq">${++seq}</span>
       ${badge(it.n,26)}
       <div class="fav-meta"><span class="fav-nm">${it.n}</span>${it.major?`<span class="fav-mj">${it.major}</span>`:""}</div>
       <span class="sr-badge t${it.t||"ben"}">${tierZh(it.t)}</span>
@@ -2727,7 +2740,7 @@ function cardFavHTML(it){const k=favKey(it),on=favHas(k);
   return `<button class="card-fav${on?" on":""}" data-k="${k}" data-it='${JSON.stringify(it).replace(/'/g,"&#39;")}' onclick="cardFavClick(this)">${on?"★ 已收藏":"☆ 收藏"}</button>`;}
 (function(){
   const btn=document.getElementById("favbtn"),panel=document.getElementById("favpanel");
-  btn.addEventListener("click",e=>{e.stopPropagation();panel.style.display=panel.style.display==="block"?"none":"block";});
+  btn.addEventListener("click",e=>{e.stopPropagation();const show=panel.style.display!=="block";panel.style.display=show?"block":"none";if(show)favRender();});  // 开启时重渲:刷新按省表头
   document.addEventListener("click",e=>{if(!panel.contains(e.target)&&e.target!==btn)panel.style.display="none";});
   document.getElementById("fav-clear").addEventListener("click",()=>{if(FAV.length&&confirm("清空志愿表?")){FAV=[];favSave();}});
   document.getElementById("fav-export").addEventListener("click",()=>{
