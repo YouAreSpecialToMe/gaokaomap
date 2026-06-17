@@ -56,6 +56,7 @@ ALIAS = {"物理": ["物理类", "物理", "理科"], "历史": ["历史类", "�
          "理科": ["理科", "物理类", "物理"], "文科": ["文科", "历史类", "历史"],
          "综合": ["综合", "综合改革"]}
 BANDS = {"冲": (0.85, 1.05, 0.95), "稳": (1.05, 1.25, 1.15), "保": (1.25, 1.80, 1.45)}
+TOP_RANK = 100  # 位次≤此=顶尖考生:按「最好的学校+最热门专业」重建结果(比值模型在个位/低位次会把够得着的热门误判出局)
 CURRENT_YEAR = 2026   # 出分日预案目标年:换算位次时按省回退到 ≤ 此年的最新可用一分一段;各省 2026 数据入库后自动升级,无需改码(入库后须重启服务清缓存)
 SUBJ_EQ = {"物理": ("物理", "理科"), "历史": ("历史", "文科"),
            "理科": ("理科", "物理"), "文科": ("文科", "历史"), "综合": ("综合",)}
@@ -80,10 +81,13 @@ def sel_ok(req, user_sel):
         return bool(toks & user_sel)
     return toks <= user_sel                            # 必选/捆绑
 
-def band_of(rho):
-    for b, (lo, hi, _) in BANDS.items():
-        if lo <= rho < hi: return b
-    return None
+def band_of(rho, top=False):
+    # 顶尖位次(top=True):取消「冲」下限与「保」上限 —— 够得着的最热门专业不再被判出局,很稳的好学校也纳入「保」
+    if rho < BANDS["冲"][0]: return "冲" if top else None
+    if rho < BANDS["冲"][1]: return "冲"
+    if rho < BANDS["稳"][1]: return "稳"
+    if rho < BANDS["保"][1]: return "保"
+    return "保" if top else None
 
 def effective_rank_year(con, prov, subj_std, target=None):
     """出分日预案核心:返回 ≤target 且该省该科有一分一段的最新年(科类别名兼容);全无则 None。
@@ -192,15 +196,18 @@ def _engine(prov, subj_std, score, year, sel, rank=None, mclasses=None):
         ph = ",".join("?" * len(mclasses))
         mcls_clause = f" AND major IN (SELECT major FROM uni_majors WHERE mclass IN ({ph}))"
         mcls_params = tuple(mclasses)
+    top_student = my_rank <= TOP_RANK   # 顶尖位次:放宽候选窗(下探到最热门、上探到很稳的好学校),并用 band_of(top=True) 分档
     cands = defaultdict(list)
     for yr in eq:
+        lo_w = 1 if top_student else int(eq[yr] * 0.6)
+        hi_w = max(int(eq[yr] * 2.4), 5000) if top_student else int(eq[yr] * 2.4)
         rows = con.execute(f"""SELECT uni_name,major,min_score,min_rank,enroll_n,sel_req
             FROM admission_lines
             WHERE province=? AND year=? AND granularity='major'
               AND subject_std IN (?,?) AND min_rank IS NOT NULL
               AND min_rank BETWEEN ? AND ?{mcls_clause}""",
             (prov, yr, *(SUBJ_EQ.get(subj_std, (subj_std,)) + (subj_std,))[:2],
-             int(eq[yr] * 0.6), int(eq[yr] * 2.4), *mcls_params)).fetchall()
+             lo_w, hi_w, *mcls_params)).fetchall()
         for r in rows:
             if not sel_ok(r["sel_req"], sel): continue
             cands[(r["uni_name"], r["major"])].append((yr, r["min_rank"] / eq[yr], dict(r)))
@@ -232,7 +239,7 @@ def _engine(prov, subj_std, score, year, sel, rank=None, mclasses=None):
             ws = sum(3 if sy == year else (2 if sy == year - 1 else 1) for sy, _ in ser)
             rs = sum(srho * (3 if sy == year else (2 if sy == year - 1 else 1)) for sy, srho in ser)
             grho = rs / ws * pfu
-            gb = band_of(grho)
+            gb = band_of(grho, top_student)
             if not gb:
                 continue
             gd = abs(grho - BANDS[gb][2])
@@ -246,14 +253,17 @@ def _engine(prov, subj_std, score, year, sel, rank=None, mclasses=None):
         i = uinfo.get(un) or uinfo.get(strip_paren(un))
         if not i: return (3, 99999)
         return (0 if i[2] else 1 if i[3] else 2 if i[4] else 3, i[6] or 99999)
-    items.sort(key=lambda x: (_prestige(x[2]),
-                              abs(x[0] - BANDS.get(band_of(x[0]) or "稳", (0, 0, 1.18))[2]),
-                              x[4]["min_rank"], x[2], x[3]))   # 确定性兜底序(min_rank→校名→专业):免平局依赖 SQL 扫描序,与客户端切片对齐
+    if top_student:   # 顶尖位次:同层次内按"最热门(min_rank 最小)"优先,把最好的专业顶上来(而非贴合度)
+        items.sort(key=lambda x: (_prestige(x[2]), x[4]["min_rank"], x[2], x[3]))
+    else:
+        items.sort(key=lambda x: (_prestige(x[2]),
+                                  abs(x[0] - BANDS.get(band_of(x[0]) or "稳", (0, 0, 1.18))[2]),
+                                  x[4]["min_rank"], x[2], x[3]))   # 确定性兜底序(min_rank→校名→专业):免平局依赖 SQL 扫描序,与客户端切片对齐
 
     out = {b: [] for b in BANDS}
     per_uni = defaultdict(int)
     for rho, fresh, un, mj, row in items:
-        b = band_of(rho)
+        b = band_of(rho, top_student)
         if not b or per_uni[un] >= 2 or len(out[b]) >= 12: continue
         per_uni[un] += 1
         info = uinfo.get(un) or uinfo.get(strip_paren(un))
@@ -268,8 +278,7 @@ def _engine(prov, subj_std, score, year, sel, rank=None, mclasses=None):
             "city": info[5] if info else None})
     top_fb = False
     if not any(out.values()):
-        # 位次极高(如 1–10):候选窗 eq*0.6~2.4 几乎无专业、且 ρ 多 <0.85 被判"深冲"剔除 → 常规档全空。
-        # 兜底:取该省该科目"最难进"的专业作为"冲"呈现,别让顶尖考生面对空白。
+        # 完全无匹配(数据缺失等):取该省该科目"最难进"的专业作为"冲"兜底,别让考生面对空白。
         eqv = eq.get(year) or (min(eq.values()) if eq else 1)
         fb = con.execute(f"""SELECT uni_name,major,min_score,min_rank,enroll_n,sel_req
             FROM admission_lines WHERE province=? AND year=? AND granularity='major'
@@ -296,6 +305,8 @@ def _engine(prov, subj_std, score, year, sel, rank=None, mclasses=None):
     notes = []
     if top_fb:
         notes.append("你的位次极高,常规冲稳保暂无匹配——下列为该省该科目最难进的顶尖专业(均作「冲」供参考)。")
+    elif top_student:
+        notes.append("你的位次很高,已优先呈现「最好的学校 + 最热门专业」(冲=够一够的顶尖专业,保=很稳的好学校)。")
     elif total < 12:
         notes.append("该省该分段专业级数据较薄,建议同时参考院校投档线")
     con.close()

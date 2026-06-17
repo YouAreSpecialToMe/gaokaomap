@@ -4,6 +4,7 @@
 (function (global) {
   var SUBJ_EQ = { "综合": ["综合"], "物理": ["物理", "理科"], "历史": ["历史", "文科"], "理科": ["理科", "物理"], "文科": ["文科", "历史"] };
   var BANDS = { "冲": [0.85, 1.05, 0.95], "稳": [1.05, 1.25, 1.15], "保": [1.25, 1.80, 1.45] };
+  var TOP_RANK = 100; // 位次≤此=顶尖考生:按「最好的学校+最热门专业」重建(比值模型在低位次会把够得着的热门误判出局)
   var TOK = { "物理": "物", "化学": "化", "生物": "生", "历史": "史", "地理": "地", "政治": "政", "技术": "技" };
   function normToks(t) { t = String(t); for (var k in TOK) t = t.split(k).join(TOK[k]); return new Set(t.match(/[物化生史地政技]/g) || []); }
   function selOk(req, sel) {
@@ -13,7 +14,13 @@
     if (/选\s*1|或/.test(r) || r.indexOf("/") >= 0) { for (var t of toks) if (sel.has(t)) return true; return false; }
     for (var t2 of toks) if (!sel.has(t2)) return false; return true;
   }
-  function bandOf(rho) { for (var b in BANDS) { var v = BANDS[b]; if (v[0] <= rho && rho < v[1]) return b; } return null; }
+  function bandOf(rho, top) { // 顶尖位次(top):取消冲下限/保上限 —— 够得着的最热门不再出局,很稳的好学校纳入保
+    if (rho < BANDS["冲"][0]) return top ? "冲" : null;
+    if (rho < BANDS["冲"][1]) return "冲";
+    if (rho < BANDS["稳"][1]) return "稳";
+    if (rho < BANDS["保"][1]) return "保";
+    return top ? "保" : null;
+  }
   var strip = function (s) { return String(s).replace(/[(（][^)）]*[)）]/g, "").trim(); };
   function rankTbl(slice, subj, year) {
     var cands = SUBJ_EQ[subj] || [subj];
@@ -42,10 +49,11 @@
       var ws = new Set(); opt.mclasses.forEach(function (mc) { if (mc in mcIx) ws.add(mcIx[mc]); });
       if (ws.size) mcWant = function (mi) { var arr = slice.mmc[mi]; if (!arr) return false; for (var z = 0; z < arr.length; z++) if (ws.has(arr[z])) return true; return false; };
     }
+    var topStudent = myRank <= TOP_RANK;                        // 顶尖位次:放宽候选窗(下探最热门、上探很稳的好学校)+ bandOf(top) 分档 + 同层次按最热门优先
     var A = slice.adm, n = A.r.length, cmap = {};
     [year, year - 1, year - 2].forEach(function (yr) {          // 必须按 year→y-2 降序(与服务端 dict 插入序一致),否则 cmap 键序不同 → 平局 tie-break 不同 → 个别项错位
       if (!(yr in eq)) return;
-      var y2 = yr % 100, a = eq[yr] * 0.6, b = eq[yr] * 2.4;
+      var y2 = yr % 100, a = topStudent ? 1 : eq[yr] * 0.6, b = topStudent ? Math.max(eq[yr] * 2.4, 5000) : eq[yr] * 2.4;
       for (var i = 0; i < n; i++) {
         if (A.y[i] !== y2 || !subjOk.has(A.j[i])) continue;
         var rr = A.r[i]; if (rr == null || rr < a || rr > b) continue;
@@ -74,7 +82,7 @@
         });
         var ws = 0, rs = 0;
         for (var si = 0; si < ser.length; si++) { var wt = ser[si][0] === year ? 3 : ser[si][0] === year - 1 ? 2 : 1; ws += wt; rs += ser[si][1] * wt; }
-        var grho = rs / ws * pfu, gb = bandOf(grho); if (!gb) continue;
+        var grho = rs / ws * pfu, gb = bandOf(grho, topStudent); if (!gb) continue;
         var gd = Math.abs(grho - BANDS[gb][2]);
         if (!best || gd < best.d || (gd === best.d && gr < best.r)) best = { rho: grho, idx: g[2], yr: anchorY, d: gd, r: gr };
       }
@@ -83,7 +91,7 @@
     var pres = function (un) { var f = SU[un] || uinfo[un] || SU[strip(un)] || uinfo[strip(un)]; return f ? [f.t === "985" ? 0 : f.t === "211" ? 1 : f.t === "dfc" ? 2 : 3, f.rank || 99999] : [3, 99999]; };
     items.sort(function (x, y) {
       var a = pres(x[1]), b = pres(y[1]); if (a[0] !== b[0]) return a[0] - b[0]; if (a[1] !== b[1]) return a[1] - b[1];
-      var dx = Math.abs(x[0] - BANDS[bandOf(x[0]) || "稳"][2]), dy = Math.abs(y[0] - BANDS[bandOf(y[0]) || "稳"][2]); if (dx !== dy) return dx - dy;
+      if (!topStudent) { var dx = Math.abs(x[0] - BANDS[bandOf(x[0]) || "稳"][2]), dy = Math.abs(y[0] - BANDS[bandOf(y[0]) || "稳"][2]); if (dx !== dy) return dx - dy; }   // 顶尖位次跳过贴合度,直接 min_rank(最热门)优先
       var rx = A.r[x[3]], ry = A.r[y[3]]; if (rx !== ry) return rx - ry;     // 确定性兜底序(与服务端一致):min_rank→校名→专业,免平局依赖扫描/切片序
       if (x[1] !== y[1]) return x[1] < y[1] ? -1 : 1;
       return x[2] < y[2] ? -1 : x[2] > y[2] ? 1 : 0;
@@ -92,12 +100,12 @@
     var mk = function (ix, rho, fr) { var f = ui(slice.unis[A.u[ix]]); return { uni: slice.unis[A.u[ix]], major: slice.majs[A.m[ix]], minScore: A.sc[ix] / 10, minRank: A.r[ix], rho: Math.round(rho * 1000) / 1000, year: fr, note: fr === year ? "" : "据" + fr, selReq: slice.sels[A.sl[ix]] || "", enroll: A.e[ix] || null, ll: f && f.ll && f.ll[0] ? f.ll : null, tier: f ? f.t : null, city: f ? f.c : null }; };
     var out = { "冲": [], "稳": [], "保": [] }, pu = {};
     for (var t = 0; t < items.length; t++) {
-      var it = items[t], rho = it[0], un = it[1], ix = it[3], bd = bandOf(rho);
+      var it = items[t], rho = it[0], un = it[1], ix = it[3], bd = bandOf(rho, topStudent);
       if (!bd || (pu[un] || 0) >= 2 || out[bd].length >= 12) continue;
       pu[un] = (pu[un] || 0) + 1;
       out[bd].push(mk(ix, rho, it[4]));
     }
-    var top_fb = false;                                          // 位次极高:常规三档全空 → 取该省该科最难进的顶尖专业作「冲」(对齐服务端兜底)
+    var top_fb = false;                                         // 完全无匹配(数据缺失等):取该省该科最难进的专业作「冲」兜底
     if (!out["冲"].length && !out["稳"].length && !out["保"].length) {
       var eqv = eq[year] || 1, fb = [];
       for (var i2 = 0; i2 < n; i2++) { if (A.y[i2] !== year % 100 || !subjOk.has(A.j[i2]) || A.r[i2] == null) continue; if (!selOk(slice.sels[A.sl[i2]], sel)) continue; if (mcWant && !mcWant(A.m[i2])) continue; fb.push(i2); }
@@ -111,6 +119,7 @@
     }
     var notes = [], tot = out["冲"].length + out["稳"].length + out["保"].length;
     if (top_fb) notes.push("你的位次极高,常规冲稳保暂无匹配——下列为该省该科目最难进的顶尖专业(均作「冲」供参考)");
+    else if (topStudent) notes.push("你的位次很高,已优先呈现「最好的学校 + 最热门专业」(冲=够一够的顶尖专业,保=很稳的好学校)");
     else if (tot < 12) notes.push("该省该分段专业级数据较薄,建议同时参考院校投档线");
     return { rank: myRank, eq: eq, bands: out, notes: notes };
   }

@@ -24,7 +24,7 @@ function Warn($m) { Write-Host "  !!  $m" -ForegroundColor Yellow }
 function Die($m)  { Write-Host "  XX  $m" -ForegroundColor Red; exit 1 }
 
 Write-Host "=== gaokaomap 部署 ===" -ForegroundColor Magenta
-Write-Host "本轮含:河流出境截断 / 工具栏+筛选 hover / 默认配乐 / 改名「高考志愿填报模拟器」/ 推荐大类按组分档(引擎)"
+Write-Host "本轮含:志愿表按省定制(P1-P4)/ 旗子层次叠放 / 双一流筛选每省Top2 / 收敛扇形 / 顶尖位次推荐(最好的学校+最热门专业,引擎改)"
 
 # ── 1) 拉取最新(快进;工作区脏则中止,避免覆盖手改)─────────────────────
 Step 1 "git pull --ff-only origin main"
@@ -40,9 +40,9 @@ Ok ("HEAD = " + (git rev-parse --short HEAD))
 Step 2 "校验关键改动已落地"
 # 本轮关键改动的标记;下次部署改成你那轮的标记即可,或整组删掉、只靠第 4 步冒烟兜底。
 $checks = [ordered]@{
-  'gk-engine.js'              = '按组分档'          # 客户端引擎:大类按组分档
-  'recommend.py'              = '按组分档'          # 服务端引擎:同构
-  'index.html'                = 'gk-engine\.js\?v=3' # 引擎缓存戳已自增(immutable 破缓存)
+  'gk-engine.js'              = 'TOP_RANK'         # 客户端引擎:顶尖位次路径(本轮)
+  'recommend.py'              = 'TOP_RANK'         # 服务端引擎:同构
+  'index.html'                = 'gk-engine\.js\?v=4' # 引擎缓存戳已自增(immutable 破缓存)
   'geo/ne_50m_rivers_cn.json' = $null               # 河流裁剪文件存在即可
 }
 foreach ($f in $checks.Keys) {
@@ -97,7 +97,7 @@ try {
 
 # ── 7) Cloudflare 缓存提示(盒子 token 无 purge 权限)───────────────────────
 Step 7 "缓存"
-Write-Host "  gk-engine.js?v=3 —— 版本戳已变,immutable 也会取新"
+Write-Host "  gk-engine.js?v=4 —— 版本戳已变,immutable 也会取新"
 Write-Host "  index.html      —— max-age=300,5 分钟内自动过期(无需 purge;想立刻看就硬刷新 Ctrl+Shift+R)"
 Write-Host "  geo/*_cn.json   —— 新文件名,无需 purge"
 Write-Host "`n部署完成。" -ForegroundColor Green
