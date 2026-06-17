@@ -1784,7 +1784,9 @@ function drawRankChart(data,userScore){
 function rebuildVizSubj(){
   const vp=document.getElementById("viz-prov"),vs=document.getElementById("viz-subj");
   const p=(META||[]).find(x=>x.province===vp.value);
-  vs.innerHTML=((p&&p.subjects)||["综合"]).map(x=>`<option>${x}</option>`).join("");
+  let subs=(p&&p.subjects)||["综合"];
+  if(COMP_REFORM.has(vp.value))subs=["综合"];        // 综合改革省强制只"综合"(同 fillProvSubj,纠正 meta)
+  vs.innerHTML=subs.map(x=>`<option>${x}</option>`).join("");
 }
 async function loadRank(){
   const prov=document.getElementById("viz-prov").value,subj=document.getElementById("viz-subj").value;
