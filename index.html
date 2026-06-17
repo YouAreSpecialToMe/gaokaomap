@@ -683,7 +683,7 @@
     <button class="ob-go" id="ob-go">填分数找院校</button>
     <button class="ob-skip" id="ob-skip">不测,直接看</button>
   </div>
-  <label class="ob-bgm" style="margin:12px 0 0;justify-content:center"><input type="checkbox" id="ob-bgm-chk"> 🎵 开启古典配乐</label>
+  <label class="ob-bgm" style="margin:12px 0 0;justify-content:center"><input type="checkbox" id="ob-bgm-chk" checked> 🎵 播放古典配乐</label>
 </div>
 <div class="loading" id="loading">正在铺开山河画卷⋯</div>
 <div class="loadbar" id="loadbar" aria-live="polite"><i class="lb-spin"></i><span>铺展山河 <b id="lb-pct">0</b>%</span><i class="lb-fill" id="lb-fill"></i></div>
@@ -2465,20 +2465,14 @@ function setBgm(on){bgmOn=on;musbtn.classList.toggle("on",on);
 musbtn.addEventListener("click",()=>setBgm(!bgmOn));
 document.addEventListener("visibilitychange",()=>{if(!bgmOn)return;
   if(document.hidden)BGM.pause();else BGM.play().catch(()=>{});});
-if(localStorage.getItem("gk_bgm")==="1"){               // 记忆上次开启:首个手势时恢复(浏览器要求)
+if(localStorage.getItem("gk_bgm")!=="0"){               // 默认开启:首个手势时起播(浏览器禁止无手势自动外放);仅显式静音(gk_bgm="0")才默认关
   musbtn.classList.add("on");
+  musbtn.setAttribute("aria-label","配乐:开(轻钢琴)— 点按静音");   // 视觉即"开",aria 同步(实际起播待首手势)
   const resume=()=>{setBgm(true);["pointerdown","keydown","touchstart"].forEach(e=>removeEventListener(e,resume));};
   ["pointerdown","keydown","touchstart"].forEach(e=>addEventListener(e,resume,{once:true,passive:true}));}
 // 首访引导:配乐无自动播放且按钮折叠进 ⚙,给一次轻提示(点=开+消失,×=不再提示)
-(function(){const tip=document.getElementById("bgm-tip");
-  // 让位首访引导:仅在引导已看过(gk_onboard)后,音乐轻提示才作为兜底出现(避免两个首访弹层叠)
-  if(RM||localStorage.getItem("gk_bgm")!=null||localStorage.getItem("gk_bgm_tip")==="1"||localStorage.getItem("gk_onboard")!=="1")return;
-  setTimeout(()=>tip.classList.add("show"),1800);
-  const done=()=>{tip.classList.remove("show");try{localStorage.setItem("gk_bgm_tip","1");}catch(e){}};
-  tip.addEventListener("click",e=>{
-    if(e.target.closest(".bgm-x")){done();try{localStorage.setItem("gk_bgm","0");}catch(e){}return;}
-    setBgm(true);done();});
-  setTimeout(()=>{if(tip.classList.contains("show"))done();},12000);})();
+// 配乐已改为默认开启(见上方 gk_bgm!=="0" 起播逻辑),原「开启古典配乐」首访 opt-in 轻提示已无意义,停用。
+// (#bgm-tip 节点保留于 DOM,但无人再给它 .show → 恒隐藏;其 CSS 也随之成为死样式,留之无害)
 // 首访引导:一次性欢迎卡,讲清 填分→点校→志愿表 三步漏斗(localStorage gk_onboard 只来一次;RM 跳过运镜不影响其显示)
 (function(){
   const mask=document.getElementById("ob-mask"),ob=document.getElementById("onboard");
@@ -2489,7 +2483,7 @@ if(localStorage.getItem("gk_bgm")==="1"){               // 记忆上次开启:�
   document.getElementById("ob-x").addEventListener("click",close);
   document.getElementById("ob-skip").addEventListener("click",close);
   mask.addEventListener("click",close);
-  document.getElementById("ob-bgm-chk").addEventListener("change",e=>{if(e.target.checked&&typeof setBgm==="function")setBgm(true);});
+  document.getElementById("ob-bgm-chk").addEventListener("change",e=>{if(typeof setBgm==="function")setBgm(e.target.checked);});  // 默认开,可双向切换(取消勾选=静音)
   document.getElementById("ob-quiz").addEventListener("click",()=>{   // 主 CTA:直接进测评(欢迎卡已表态,跳过面板里的「开始」),其间地图后台续传
     close();
     const aq=document.getElementById("act-quiz");if(aq)aq.click();
