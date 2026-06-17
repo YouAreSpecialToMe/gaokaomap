@@ -759,7 +759,7 @@
 </div>
 <!-- 引擎(~1MB)挪到 body 末尾:原本在 <head> 阻塞渲染,整页(含加载页)要等它下完才出;现在加载页先秒出山水底,引擎在其后台下载 -->
 <script src="vendor/maplibre-gl.js"></script>
-<script src="gk-engine.js"></script>
+<script src="gk-engine.js?v=2"></script>
 <script>
 let UNIS=[],DOTS=[],CITYIDX=[],PROVIDX=[],UINFO={};
 // 由各校所在城市聚合出"城市"索引(质心坐标 + 院校数),供搜索把城市作为独立结果
@@ -2075,6 +2075,8 @@ async function loadSlice(prov){
   catch(e){ _SLICE[prov]=null; }
   return _SLICE[prov];
 }
+// 引擎错误码 → 中文提示(below_floor/above_ceiling/rank_oob/no_rank)。非错误码(服务端兜底返回的已是中文 error)原样透传。
+function recErrMsg(e){return ({below_floor:"分数低于该省一分一段统计下限,无法换算位次",above_ceiling:"分数超出该省该年最高分,请核对分数",rank_oob:"位次超出该省考生范围,请核对",no_rank:"暂无该省一分一段数据,无法换算位次"})[e]||e;}
 async function runRecommend(){
   userTouched=true;
   const prov=document.getElementById("rp-prov").value,
@@ -2096,7 +2098,7 @@ async function runRecommend(){
       const qp=recMode==="rank"?`rank=${val}`:`score=${val}`;
       r=await (await fetch(`${API}/api/recommend?prov=${encodeURIComponent(prov)}&subj=${encodeURIComponent(subj)}&${qp}${sel?"&sel="+sel:""}`)).json();
     }
-    if(r.error){st.textContent="⚠️ "+r.error;document.getElementById("reclist").innerHTML="";return;}
+    if(r.error){st.textContent="⚠️ "+recErrMsg(r.error);document.getElementById("reclist").innerHTML="";return;}
     window.GK={rank:r.rank,prov,subj,score:recMode==="score"?+val:0,local:!!slice};   // 存考生位次(+来源),供点校"冲稳保"可视化
     st.textContent=`位次约 ${r.rank.toLocaleString()}(${prov}·${subj})${r.notes&&r.notes.length?" · "+r.notes[0]:""}`;
     renderRecResult(r,document.getElementById("reclist"));
@@ -2217,7 +2219,7 @@ async function qzRecommend(){
       const r=await (await fetch(`${API}/api/quiz/match?scores=${sc}&prov=${encodeURIComponent(prov)}&subj=${encodeURIComponent(subj)}&${qzMode}=${val}`)).json();
       rec=r.recommend; mc=r.matchClasses||[];
     }
-    if(!rec||rec.error){st.textContent="⚠️ "+((rec&&rec.error)||"暂无匹配");document.getElementById("qz-reclist").innerHTML="";return;}
+    if(!rec||rec.error){st.textContent="⚠️ "+((rec&&recErrMsg(rec.error))||"暂无匹配");document.getElementById("qz-reclist").innerHTML="";return;}
     const tot=["冲","稳","保"].reduce((nn,bb)=>nn+(rec.bands[bb]?rec.bands[bb].length:0),0);
     st.textContent=`位次约 ${rec.rank.toLocaleString()} · 限定你契合的 ${(mc||[]).join("/")}${tot<6?" · 此分段较薄,可参看「我的推荐」全部":""}`;
     renderRecResult(rec,document.getElementById("qz-reclist"));

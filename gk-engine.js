@@ -29,7 +29,9 @@
     var myRank;
     if (opt.rank) { myRank = opt.rank | 0; if (myRank < 1 || myRank > total * 1.1) return { error: "rank_oob" }; }
     else {
-      var sc = opt.score, lo = 0, hi = pts.length; while (lo < hi) { var m = (lo + hi) >> 1; if (pts[m][0] <= sc) lo = m + 1; else hi = m; }
+      var sc = opt.score;
+      if (rt.smax && sc > rt.smax + 30) return { error: "above_ceiling" };   // 超过本省该年最高分(+小余量)= 不可能分数(与服务端 above_ceiling 一致,免高分映射到 rank 1 乱推)
+      var lo = 0, hi = pts.length; while (lo < hi) { var m = (lo + hi) >> 1; if (pts[m][0] <= sc) lo = m + 1; else hi = m; }
       if (lo - 1 < 0) return { error: "below_floor" }; myRank = pts[lo - 1][1];
     }
     var cohort = {}, eq = {}; cohort[year] = total; eq[year] = myRank;
