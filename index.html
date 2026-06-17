@@ -1465,7 +1465,7 @@ function updateFlags(){
   if(filt&&z<5){const byP={};
     markers.forEach(m=>{if(m.el.style.display==="none")return;const p=m.u.p||"?";(byP[p]=byP[p]||[]).push(m);});
     fcap=new Set();Object.keys(byP).forEach(p=>{byP[p].sort((a,b)=>(a.u.rank||9999)-(b.u.rank||9999));byP[p].slice(0,FILTER_PROV_TOP).forEach(m=>fcap.add(m.el));});}
-  markers.forEach(({u,el})=>el.classList.toggle("show-flag",z>=5||!!u.top||(filt&&fcap&&fcap.has(el))||(!!u.rec&&recMode&&z>=4)));  // 推荐旗 z<4 收成点;分类筛选→概览每省最拔尖几所出旗、余留点,放大(z>=5)后视野内全出
+  markers.forEach(({u,el})=>el.classList.toggle("show-flag",z>=5||(!filt&&!!u.top)||(filt&&fcap&&fcap.has(el))||(!!u.rec&&recMode&&z>=4)));  // 推荐旗 z<4 收成点;分类筛选→概览每省最拔尖几所出旗(此时不再强显 u.top,免被筛掉的985仍占位扰乱错位),放大(z>=5)后视野内全出
   updateRecFlagZoom(z);
 }
 // 校徽懒注入:只给"已显形 + 视口内"的旗注入校徽 img(badge 带 sealSVG 兜底),每旗一次,
@@ -2041,7 +2041,7 @@ function declutterFlags(){
   if(document.body.classList.contains("rec-mode"))return;
   const vis=[];
   for(const m of markers){
-    if(!m.mounted||!m.el.classList.contains("show-flag"))continue;
+    if(!m.mounted||!m.el.classList.contains("show-flag")||m.el.style.display==="none")continue;   // 被筛掉(display:none)的不参与错位,免占位
     if(m.mk.getOffset().x!==0||m.mk.getOffset().y!==0)m.mk.setOffset([0,0]);   // 回真实坐标
     const st=m.el.style;                                                       // 先复位(竖直、默认高度)
     st.removeProperty("--bh");st.removeProperty("--plen");st.removeProperty("--lx");st.removeProperty("--lean");
@@ -2055,11 +2055,11 @@ function declutterFlags(){
   for(let i=0;i<vis.length;i++){
     if(used[i])continue;
     const cl=[vis[i]];used[i]=true;
-    for(let j=i+1;j<vis.length;j++)if(!used[j]&&Math.abs(vis[j].x-vis[i].x)<22&&Math.abs(vis[j].y-vis[i].y)<60){cl.push(vis[j]);used[j]=true;}
+    for(let j=i+1;j<vis.length;j++)if(!used[j]&&Math.abs(vis[j].x-vis[i].x)<16&&Math.abs(vis[j].y-vis[i].y)<34){cl.push(vis[j]);used[j]=true;}
     if(cl.length<2)continue;
     cl.sort((a,b)=>((a.m.u.rank||9999)-(b.m.u.rank||9999)));                    // 最好的居中作基,其余左右上方小幅扇开(斜杆回连真实点位)
-    cl.forEach((c,k)=>{if(!k)return;                                           // 牌子 64px 高、北京又在搜索栏正下方,竖排叠不下 → 改浅扇形:横向让位+略抬,留在搜索栏下方且互不压字
-      const tier=Math.ceil(k/2), side=(k%2)?1:-1, lx=side*(34+(tier-1)*30), bh=13+tier*15;
+    cl.forEach((c,k)=>{if(!k)return;                                           // 牌子 64px 高、北京又在搜索栏正下方,竖排叠不下 → 仅小幅横向让位+略抬(尽量少扇),最好的居中作基
+      const tier=Math.ceil(k/2), side=(k%2)?1:-1, lx=side*(20+(tier-1)*18), bh=12+tier*8;
       const st=c.m.el.style;
       st.setProperty("--lx",lx+"px");st.setProperty("--bh",bh+"px");
       st.setProperty("--plen",Math.round(Math.hypot(lx,bh))+"px");st.setProperty("--lean",Math.round(Math.atan2(lx,bh)*180/Math.PI)+"deg");
