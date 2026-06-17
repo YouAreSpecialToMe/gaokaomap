@@ -867,6 +867,7 @@ map.on("load",async()=>{
   const unisP=fetch("unis.json").then(r=>r.json()).catch(()=>[]);
   // ready 与 gj 并行预取(此前 ready 串行 await + no-store,每次都是一次跨洲往返);改为可缓存,首屏少一往返。
   const readyP=fetch("tiles/terrarium/ready").then(r=>r.ok?r.text():null).catch(()=>null);
+  const outlineP=fetch("geo/china-outline.json").then(r=>r.ok?r.json():null).catch(()=>null);   // dissolve 后的国界轮廓,纸色蒙版用它当洞(免省界 earcut 三角伪影)
   // 精致地形占位图【最先挂】——只依赖预载的 relief-cn2.webp,【不等】下面 geo/100000_full.json 那次跨境 fetch。
   // 旧序把它放在 gj await 之后,慢网下占位图被那一往返拖到几秒后才出(用户看到"先空/单绿 → 20s 后才出地形")。
   try{map.addSource("relief-cn",{type:"image",url:"assets/relief-cn2.webp",
@@ -939,11 +940,15 @@ map.on("load",async()=>{
     map.addLayer({id:"country-line",type:"line",source:"china",paint:{
       "line-color":"#8a6a3f","line-width":2,"line-opacity":.6}});
     try{
-      // 蒙版挖洞用详细省界(gj = 100000_full,与地形/边界/分省填色同源),而非简化国界
-      // 100000.json——后者在滇桂/北部湾一带切进真实边界内,纸色蒙版溢到陆地、且简化段是直线,
-      // 叠在分层设色上呈"白色透明三角"伪影(已定位:关蒙版即消失)。逐片取外环挖空。
+      // 纸色蒙版挖洞:用【dissolve 后的国界轮廓】(geo/china-outline.json,dissolve.py 把 34 省并成一体)。
+      // 旧法逐省取外环当洞 → 34 个省洞在共享省界处 earcut 三角化出"白色透明三角"伪影(江西-湖北-安徽
+      // 三省交界·庐山一带最明显)。dissolve 掉省界共边 → 陆地一个大环 + 几个大岛、洞彼此不接 → 无伪影。
+      // 取不到轮廓则回退逐省挖洞,并排除 100000_JD(九段线 dash —— 它是线标,不该当洞)。
+      const outline=await outlineP;
+      const maskFeats=(outline&&outline.features)?outline.features
+        :gj.features.filter(f=>(f.properties||{}).adcode!=="100000_JD");
       const holes=[];
-      for(const ft of gj.features){const g=ft&&ft.geometry;if(!g)continue;
+      for(const ft of maskFeats){const g=ft&&ft.geometry;if(!g)continue;
         const polys=g.type==="MultiPolygon"?g.coordinates:[g.coordinates];
         for(const poly of polys) if(poly&&poly[0]) holes.push(poly[0]);}
       map.addSource("mask",{type:"geojson",data:{type:"Feature",geometry:{type:"Polygon",
