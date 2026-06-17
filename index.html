@@ -297,6 +297,18 @@
   .fav-sync button:hover{background:#8c2f1b;color:#f7e8d6;border-color:#8c2f1b}
   .fav-sync .gks-on{color:#5a7d3a;font:600 12px "Kaiti SC","STKaiti",serif}
   .fav-sync .gks-note{margin-top:6px;color:#9a8757;font:400 10.5px/1.5 system-ui,sans-serif}
+  /* 彩蛋:每日幸运签 */
+  .luckbtn{position:absolute;left:18px;bottom:20px;z-index:8;cursor:pointer;border:1px solid #c5ab7c;border-radius:999px;
+    background:rgba(252,246,230,.95);color:#8c2f1b;font:600 13px "Kaiti SC","STKaiti",serif;letter-spacing:1px;padding:7px 13px;box-shadow:0 2px 8px rgba(80,55,20,.2)}
+  .luckbtn:hover{background:#8c2f1b;color:#f7e8d6;border-color:#8c2f1b}
+  .luckcard{position:absolute;left:18px;bottom:64px;z-index:9;width:228px;display:none;padding:16px 18px 18px;border-radius:13px;text-align:center;
+    background:linear-gradient(180deg,#fcf6e6,#f3ead5);border:1px solid var(--gold-soft);box-shadow:0 10px 28px rgba(80,55,20,.36);animation:cardIn .5s cubic-bezier(.22,1,.36,1)}
+  .luckcard.show{display:block}
+  .luckcard .x{position:absolute;top:7px;right:11px;cursor:pointer;color:#7d6536;font-size:14px;background:none;border:0}
+  .luck-date{font-size:11px;color:#9a8460;letter-spacing:1px}
+  .luck-seal{display:inline-block;margin:7px 0 11px;padding:3px 13px;border-radius:6px;background:#8c2f1b;color:#fbf0df;font:600 13px "Kaiti SC","STKaiti",serif;letter-spacing:3px}
+  .luck-idiom{font:700 27px "Kaiti SC","STKaiti","KaiTi",serif;color:#4a3414;letter-spacing:7px;text-indent:7px;margin-bottom:9px}
+  .luck-bless{font:400 13px "Kaiti SC","STKaiti",serif;color:#7d6536;line-height:1.65}
   .card-fav{margin-top:8px;border:1px solid #c5ab7c;background:#fdf8ea;color:#8c2f1b;border-radius:6px;
     padding:5px 13px;font:500 13px "Kaiti SC","STKaiti",serif;cursor:pointer;transition:all .2s}
   .card-fav.on{background:#8c2f1b;color:#f7e8d6;border-color:#8c2f1b}
@@ -599,6 +611,7 @@
     .actbtn{padding:8px 14px;font-size:12.5px}
     .favbtn{bottom:10px;right:10px;padding:7px 13px;font-size:13px}
     .toast{bottom:96px}
+    .luckbtn,.luckcard{display:none}   /* 每日签彩蛋仅桌面:移动端底部已挤(botbar 纵向 + 志愿表)*/
     .maplibregl-ctrl-top-right{transform:scale(.85);transform-origin:top right}
   }
   /* 工具条收纳:默认只显 视角/投影/更多,其余(画风/天气/地形/配乐)收进「更多」 */
@@ -737,6 +750,9 @@
   <div class="fav-sync" id="fav-sync"></div>
 </div>
 <div class="toast" id="toast"></div>
+<!-- 彩蛋:每日幸运签(高考吉祥话,按日期确定性抽取)-->
+<button class="luckbtn" id="luckbtn" aria-label="今日幸运签">🎋 今日签</button>
+<div class="luckcard" id="luckcard"><span class="x" id="luck-x" role="button" tabindex="0" aria-label="关闭">✕</span><div class="luck-date" id="luck-date"></div><div class="luck-seal" id="luck-lvl">上上签</div><div class="luck-idiom" id="luck-idiom"></div><div class="luck-bless" id="luck-bless"></div></div>
 <div class="botbar" id="botbar">
   <div class="region-dd" id="region-dd">
     <button type="button" class="region-trigger" id="region-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="按省份聚焦地图">
@@ -1477,7 +1493,12 @@ function filterBand(b){if(!DT)return;DT.band=(DT.band===b)?null:b;rerenderDT();}
 // 选校助手:合并 录取位次(近年)+ 招生计划/学费/选科。可点表头排序、按选科筛选、看 24→25 难度趋势;
 // 已在「我的推荐」填分时按你的位次标 冲/稳/保。状态存 DT,排序/筛选只重渲染 .dt-wrap。
 let DT=null;
-const _selShort=s=>{if(!s||/不限/.test(s))return'不限';s=String(s).replace(/[((].*$/,'').replace(/[选考科目要求::、\s]/g,'').replace(/和|或/g,'');return s.slice(0,6)||'不限';};
+const _SUBJ1=[['物理','物'],['化学','化'],['生物','生'],['地理','地'],['历史','史'],['技术','技'],['思想政治','政'],['政治','政']];  // 长名在前(思想政治先于政治)
+const _selShort=s=>{if(!s||/不限/.test(s))return'不限';                    // 统一缩写,不再 slice 截断(曾致 化学→化、思想政治→思 与 物理 不一致)
+  s=String(s).replace(/[((][^))]*[))]/g,'');                             // 去括号内容(保留括号后文字)
+  _SUBJ1.forEach(function(p){s=s.split(p[0]).join(p[1]);});              // 科目全称 → 1 字缩写
+  s=s.replace(/[选考科目要求::\s]/g,'').replace(/[和、,，;；]/g,'·').replace(/或/g,'/').replace(/·+/g,'·').replace(/^·|·$/g,'');
+  return s||'不限';};
 const _selType=s=>!s?'不限':/物理/.test(s)?'物理':/历史/.test(s)?'历史':'不限';
 const cnMoney=v=>{if(!v)return'—';if(v<10000)return v+'元';const wan=Math.floor(v/10000),rem=v%10000;   // 中式:<1万→元,≥1万→万
   return rem===0?wan+'万':rem%1000===0?wan+'万'+rem/1000:(v/10000).toFixed(1)+'万';};
@@ -2773,6 +2794,24 @@ function cardFavHTML(it){const k=favKey(it),on=favHas(k);
     }catch(e){signedIn=false;}
     render();
   })();
+})();
+// 彩蛋:每日幸运签(高考吉祥话)—— 按当天日期确定性抽一签,当日不变、次日换新
+(function(){
+  const SIGNS=[['金榜题名','愿你名字,落在录取榜最亮处。'],['旗开得胜','落笔即顺,首战告捷。'],['鲤跃龙门','千里江山,一跃而过。'],['蟾宫折桂','月中折桂,正是少年时。'],['一举高中','一笔一卷,皆如所愿。'],['马到成功','轻裘快马,直抵心之所向。'],['前程似锦','山河为路,前程如锦。'],['鹏程万里','扶摇直上,不负云霄。'],['笔下生花','下笔如有神,字字珠玑。'],['独占鳌头','万人之中,独占其首。'],['心想事成','所念皆得,所求皆愿。'],['稳操胜券','心如磐石,胜券在握。'],['步步高升','一步一阶,步步登高。'],['文曲高照','文曲星照,下笔有光。'],['题名雁塔','雁塔题名,姓字流芳。'],['乘风破浪','长风万里,直济沧海。']];
+  const LVL=['上上签','上签','大吉','上上签'];                            // 高考嘛,只给好签
+  const btn=document.getElementById('luckbtn'),card=document.getElementById('luckcard');
+  if(!btn||!card)return;
+  function today(){const d=new Date(),key=d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate(),h=(key*2654435761)>>>0;
+    return{s:SIGNS[h%SIGNS.length],l:LVL[(h>>>4)%LVL.length],md:(d.getMonth()+1)+'月'+d.getDate()+'日'};}
+  function reveal(){const t=today();
+    document.getElementById('luck-date').textContent=t.md+' · 今日签';
+    document.getElementById('luck-lvl').textContent=t.l;
+    document.getElementById('luck-idiom').textContent=t.s[0];
+    document.getElementById('luck-bless').textContent=t.s[1];
+    card.classList.add('show');try{hap();}catch(e){}}
+  btn.addEventListener('click',function(e){e.stopPropagation();card.classList.contains('show')?card.classList.remove('show'):reveal();});
+  document.getElementById('luck-x').addEventListener('click',function(){card.classList.remove('show');});
+  document.addEventListener('click',function(e){if(!card.contains(e.target)&&e.target!==btn)card.classList.remove('show');});
 })();
 // 移动端 ⚙ 设置菜单开合
 (function(){
