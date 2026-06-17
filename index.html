@@ -285,6 +285,12 @@
   .fav-actions button{flex:1;padding:7px;border:1px solid #c5ab7c;border-radius:6px;background:#fdf8ea;
     color:#6b5226;font:500 12px "Kaiti SC","STKaiti",serif;cursor:pointer;transition:all .15s}
   .fav-actions button:hover{background:#8c2f1b;color:#f7e8d6;border-color:#8c2f1b}
+  .fav-sync{margin-top:11px;padding-top:9px;border-top:1px dashed #d8c39a}
+  .fav-sync .gks-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .fav-sync button{padding:5px 9px;border:1px solid #c5ab7c;border-radius:6px;background:#fdf8ea;color:#4a3414;font:600 12px "Kaiti SC","STKaiti",serif;cursor:pointer;letter-spacing:1px}
+  .fav-sync button:hover{background:#8c2f1b;color:#f7e8d6;border-color:#8c2f1b}
+  .fav-sync .gks-on{color:#5a7d3a;font:600 12px "Kaiti SC","STKaiti",serif}
+  .fav-sync .gks-note{margin-top:6px;color:#9a8757;font:400 10.5px/1.5 system-ui,sans-serif}
   .card-fav{margin-top:8px;border:1px solid #c5ab7c;background:#fdf8ea;color:#8c2f1b;border-radius:6px;
     padding:5px 13px;font:500 13px "Kaiti SC","STKaiti",serif;cursor:pointer;transition:all .2s}
   .card-fav.on{background:#8c2f1b;color:#f7e8d6;border-color:#8c2f1b}
@@ -722,6 +728,7 @@
   <h3>我的志愿表</h3>
   <div id="fav-list"></div>
   <div class="fav-actions"><button id="fav-compare">对比</button><button id="fav-export">复制清单</button><button id="fav-clear">清空</button></div>
+  <div class="fav-sync" id="fav-sync"></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="botbar" id="botbar">
@@ -2659,6 +2666,81 @@ function cardFavHTML(it){const k=favKey(it),on=favHas(k);
     navigator.clipboard.writeText(out.join("\n")).then(()=>toast("已复制 "+FAV.length+" 条到剪贴板"),()=>toast("复制失败,请手动选择"));
   });
   favRender();
+})();
+// ---------- 云同步:登录(AgentFeed)后把 志愿表 + 测评 存到账号;匿名态零存 ----------
+// 同域复用 next-auth 会话(cookie),挂在 gk_fav(志愿表)/ gk_profile(测评)两个 localStorage 键上;
+// 后端 /api/gaokao/profile(GET 401=未登录 / PUT 整存 / DELETE 清除)。显式同步,不自动上传。
+(function(){
+  const box=document.getElementById("fav-sync"); if(!box)return;
+  const EP="/api/gaokao/profile";                                   // 同域 Next.js 路由(非 ${API} 的只读服务)
+  const LOGIN="/auth/signin?callbackUrl="+encodeURIComponent(location.href);
+  let signedIn=false, cloud=null;
+  // 恢复云端后(reload 前已写好 localStorage),回填推荐表单 省份/科类/分数 —— 尽力而为
+  try{const f=sessionStorage.getItem("gk_restore_form");
+    if(f){sessionStorage.removeItem("gk_restore_form");const o=JSON.parse(f)||{};
+      const set=(id,v)=>{const el=document.getElementById(id);if(el&&v!=null&&v!=="")el.value=v;};
+      set("rp-prov",o.province);set("rp-subj",o.track);set("rp-score",o.score);}
+  }catch(e){}
+  function snapshot(){
+    let fav=[],prof=null;
+    try{fav=JSON.parse(localStorage.getItem("gk_fav")||"[]");}catch(e){}
+    try{prof=JSON.parse(localStorage.getItem("gk_profile")||"null");}catch(e){}
+    const gv=id=>{const el=document.getElementById(id);return el&&el.value?String(el.value).trim():"";};
+    const sc=parseInt(gv("rp-score"),10);
+    return {wishlist:Array.isArray(fav)?fav:[], quiz:prof||undefined,
+            province:gv("rp-prov")||null, track:gv("rp-subj")||null,
+            score:Number.isFinite(sc)?sc:null};
+  }
+  const hasData=p=>!!(p&&(((p.wishlist||[]).length)||p.quiz||p.province||p.score));
+  function render(){
+    if(!signedIn){
+      box.innerHTML='<div class="gks-row"><button id="gks-login">☁ 登录以保存进度</button></div>'+
+        '<div class="gks-note">用 AgentFeed 账号把志愿表 / 测评存下来,换设备也能恢复。匿名使用不保存任何数据。</div>';
+      const b=document.getElementById("gks-login"); if(b)b.onclick=()=>{location.href=LOGIN;};
+      return;
+    }
+    box.innerHTML='<div class="gks-row"><span class="gks-on">☁ 已登录</span>'+
+      '<button id="gks-save">保存到云端</button>'+
+      (hasData(cloud)?'<button id="gks-load">恢复云端</button><button id="gks-clear">清除云端</button>':'')+
+      '</div><div class="gks-note">保存即同意将你的志愿表、测评、省份与分数存入账号,可随时「清除云端」。</div>';
+    const sv=document.getElementById("gks-save"); if(sv)sv.onclick=push;
+    const ld=document.getElementById("gks-load"); if(ld)ld.onclick=pull;
+    const cl=document.getElementById("gks-clear"); if(cl)cl.onclick=clear;
+  }
+  async function push(){
+    try{
+      const r=await fetch(EP,{method:"PUT",credentials:"include",
+        headers:{"Content-Type":"application/json"},body:JSON.stringify(snapshot())});
+      if(r.status===401){signedIn=false;render();toast("登录已过期,请重新登录");return;}
+      if(!r.ok){toast("保存失败,请重试");return;}
+      const d=await r.json().catch(()=>({})); cloud=d.profile||snapshot(); render(); toast("已保存到云端");
+    }catch(e){toast("网络异常,保存失败");}
+  }
+  async function pull(){
+    if(!hasData(cloud))return;
+    if(!confirm("用云端数据覆盖当前志愿表 / 测评?本地未保存的改动会丢失。"))return;
+    try{
+      if(Array.isArray(cloud.wishlist))localStorage.setItem("gk_fav",JSON.stringify(cloud.wishlist));
+      if(cloud.quiz)localStorage.setItem("gk_profile",JSON.stringify(cloud.quiz));
+      sessionStorage.setItem("gk_restore_form",JSON.stringify({province:cloud.province||"",track:cloud.track||"",score:cloud.score||""}));
+      location.reload();
+    }catch(e){toast("恢复失败,请重试");}
+  }
+  async function clear(){
+    if(!confirm("清除云端保存的高考数据?本地志愿表不受影响。"))return;
+    try{
+      const r=await fetch(EP,{method:"DELETE",credentials:"include"});
+      if(!r.ok&&r.status!==401){toast("清除失败,请重试");return;}
+      cloud=null;render();toast("已清除云端数据");
+    }catch(e){toast("网络异常");}
+  }
+  (async function(){
+    try{const r=await fetch(EP,{credentials:"include"});
+      if(r.ok){signedIn=true;const d=await r.json().catch(()=>({}));cloud=d.profile||null;}
+      else signedIn=false;
+    }catch(e){signedIn=false;}
+    render();
+  })();
 })();
 // 移动端 ⚙ 设置菜单开合
 (function(){
