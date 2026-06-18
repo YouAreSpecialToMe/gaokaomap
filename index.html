@@ -2638,8 +2638,10 @@ if(localStorage.getItem("gk_bgm")!=="0"){               // 默认开启:首个�
 (function(){
   const mask=document.getElementById("ob-mask"),ob=document.getElementById("onboard");
   if(!ob)return;
-  let seen=false;try{seen=localStorage.getItem("gk_onboard")==="1";}catch(e){}
-  const close=()=>{ob.classList.remove("show");mask.classList.remove("show");try{localStorage.setItem("gk_onboard","1");}catch(e){}};
+  try{const p=new URLSearchParams(location.search).get("intro");if(p==="1")localStorage.setItem("gk_alwaysintro","1");else if(p==="0")localStorage.removeItem("gk_alwaysintro");}catch(e){}   // 录屏/演示:?intro=1 记到本机→以后每次打开都弹引导卡;?intro=0 取消(只影响本机)
+  let always=false;try{always=localStorage.getItem("gk_alwaysintro")==="1";}catch(e){}
+  let seen=false;try{seen=!always&&localStorage.getItem("gk_onboard")==="1";}catch(e){}
+  const close=()=>{ob.classList.remove("show");mask.classList.remove("show");try{if(!always)localStorage.setItem("gk_onboard","1");}catch(e){}};
   if(!seen)setTimeout(()=>{mask.classList.add("show");ob.classList.add("show");},1400);   // 等开场运镜/loading 淡出
   document.getElementById("ob-x").addEventListener("click",close);
   document.getElementById("ob-skip").addEventListener("click",close);
@@ -2656,18 +2658,6 @@ if(localStorage.getItem("gk_bgm")!=="0"){               // 默认开启:首个�
     if(rec&&rec.style.display!=="block"&&actRec)actRec.click();    // 复用 act-rec 开面板(applyFilter+syncActs)
     const inp=document.getElementById("rp-score");if(inp)setTimeout(()=>inp.focus(),350);
   });
-})();
-// 演示开关:访问一次 ?quiz=1 记到本机,以后每次打开自动弹「专业测评」;?quiz=0 取消。只影响本机,不强加真实用户。
-(function(){
-  let q=null;try{q=new URLSearchParams(location.search).get("quiz");}catch(e){}
-  try{if(q==="1")localStorage.setItem("gk_autoquiz","1");else if(q==="0")localStorage.removeItem("gk_autoquiz");}catch(e){}
-  let on=false;try{on=localStorage.getItem("gk_autoquiz")==="1";}catch(e){}
-  if(!on)return;
-  setTimeout(()=>{
-    const ob=document.getElementById("onboard");if(ob&&ob.classList.contains("show")){const s=document.getElementById("ob-skip");if(s)s.click();}  // 演示要测评:首访卡在显示就先收掉
-    const qp=document.getElementById("quizpanel"),aq=document.getElementById("act-quiz");
-    if(qp&&qp.style.display!=="block"&&aq)aq.click();
-  },1500);
 })();
 // ---------- 学校搜索(全 1598 所:校名/简称/城市 即时联想)----------
 (function(){
