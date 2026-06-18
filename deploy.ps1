@@ -58,12 +58,24 @@ Step 3 "切片无需重建"
 Ok "skip export-slices.py(仅当 gaokao.db 数据更新时才需:$Py export-slices.py)"
 
 # ── 4) 服务端引擎冒烟(关键闸门):30 省跑 recommend,断言无 error + 冲稳保健康 ─
-Step 4 "$Py scripts/smoke.py(30 省服务端冒烟 —— 按组分档后必须过)"
-& $Py scripts/smoke.py
+Step 4 "scripts/smoke.py(30 省服务端冒烟 —— 按组分档后必须过)"
+# PYTHONPATH=仓库根:smoke.py 里 `from recommend import ...`,而 recommend.py 在根目录;
+#   直接 `python scripts/smoke.py` 会把 scripts/ 当 sys.path[0] → ModuleNotFoundError 误判中止。
+# -X utf8:smoke 要打印省份名(中文),非 UTF-8 控制台(cp936/cp1252)会 UnicodeEncodeError。
+$env:PYTHONPATH = $PSScriptRoot + [IO.Path]::PathSeparator + $env:PYTHONPATH
+& $Py -X utf8 scripts/smoke.py | Tee-Object -Variable smokeOut
 if ($LASTEXITCODE -ne 0) {
-  Die "冒烟未通过 → 已中止,app.py 未重启,线上仍跑旧逻辑(安全)。排查 recommend.py 后重试"
+  Die "冒烟脚本崩溃(import/DB 等)→ 已中止,app.py 未重启,线上仍跑旧逻辑(安全)。排查后重试"
 }
-Ok "30 省冒烟通过"
+# smoke.py 只「打印」健康/薄/失败、不 sys.exit;这里解析末行汇总,失败>0 才真正算闸门没过。
+$sum = $smokeOut | Select-String -Pattern '健康\s+(\d+)\s*\|\s*薄\s+(\d+)\s*\|\s*失败\s+(\d+)' | Select-Object -Last 1
+if (-not $sum) { Die "读不到冒烟汇总行(健康|薄|失败)—— 中止,人工核查 smoke 输出" }
+$okN   = [int]$sum.Matches[0].Groups[1].Value
+$thinN = [int]$sum.Matches[0].Groups[2].Value
+$failN = [int]$sum.Matches[0].Groups[3].Value
+if ($failN -gt 0) { Die "冒烟有 $failN 个分段『失败(0 条)』→ 中止,app.py 未重启,线上仍跑旧逻辑(安全)。排查 recommend.py 后重试" }
+if ($thinN -gt 0) { Warn "冒烟有 $thinN 个『薄(1-9 条)』分段 —— 放量前人工看一眼" }
+Ok "30 省冒烟通过(健康 $okN | 薄 $thinN | 失败 $failN)"
 
 # ── 5) 重启 app.py(它 import recommend.py:旧进程仍是旧逻辑 + lru_cache,必须重启)──
 #    ↓↓↓↓↓ 按你盒子的实际运行方式调整本段 ↓↓↓↓↓
@@ -71,14 +83,22 @@ Ok "30 省冒烟通过"
 #    请改成对应的 restart(例:nssm restart gaokaomap)。
 Step 5 "重启 app.py 端口 $Port"
 $killed = 0
+$exe = $null
 Get-CimInstance Win32_Process -Filter "Name='python.exe' OR Name='pythonw.exe'" -ErrorAction SilentlyContinue |
   Where-Object { $_.CommandLine -and $_.CommandLine -match 'app\.py' } |
-  ForEach-Object { Write-Host "  停止旧进程 PID $($_.ProcessId)"; Stop-Process -Id $_.ProcessId -Force; $killed++ }
+  ForEach-Object {
+    if (-not $exe) { $exe = $_.ExecutablePath }   # 复用正在跑的解释器,免得 PATH 上的 python 与盒子实际不是同一个
+    Write-Host "  停止旧进程 PID $($_.ProcessId)  ($($_.ExecutablePath))"
+    Stop-Process -Id $_.ProcessId -Force; $killed++
+  }
 if ($killed -eq 0) { Warn "没找到在跑的 app.py 进程(可能由服务/计划任务托管)——若是,请改用你的 restart 命令并跳过下面的 Start-Process" }
+if (-not $exe) { $exe = $Py }                     # 冷启动兜底:用 -Py 参数(默认 python)
 Start-Sleep -Seconds 1
-Start-Process -FilePath $Py -ArgumentList "app.py $Port" -WindowStyle Hidden
+# -X utf8 必须带:app.py 有中文 I/O,非 UTF-8 默认在盒子上会乱码/报错(与既有启动方式一致);
+# -WorkingDirectory:确保 app.py 找得到 slices/ geo/ 等相对路径文件。
+Start-Process -FilePath $exe -ArgumentList '-X', 'utf8', 'app.py', "$Port" -WorkingDirectory $PSScriptRoot -WindowStyle Hidden
 Start-Sleep -Seconds 3
-Ok "app.py 已尝试重启"
+Ok "app.py 已尝试重启($exe -X utf8 app.py $Port)"
 #    ↑↑↑↑↑ 按你盒子的实际运行方式调整本段 ↑↑↑↑↑
 
 # ── 6) 上线自检:本地直连 app.py,确认已起好 + 接口正常 ───────────────────
