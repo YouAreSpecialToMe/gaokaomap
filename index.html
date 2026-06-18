@@ -126,6 +126,10 @@
   .t211 .banner,.t211 .pole{background:#96660f;color:#f7e8d6}
   .tdfc .banner,.tdfc .pole{background:#564a85;color:#ece9f7}
   .t985 .dot{background:#c34a26}.t211 .dot{background:#c08a2a}.tdfc .dot{background:#8077c9}
+  /* 其他(非 985/211/双一流,即普通本科 ben):素灰「其他」旗 —— 原本 .tben 无 banner/pole/dot 底色,
+     推荐结果里的普通本科旗子(makeTempFlag 的 .umk.tben)透明/隐形、选中也是透明牌;补上实底,与红/金/紫三档区分 */
+  .tben .banner,.tben .pole{background:#6b6357;color:#f2ece0}
+  .tben .dot{background:#8f8676}
   /* 重叠时按层次叠放:985>211>双一流>本科。hover-z(40+)仍能把被压的旗抬起来点,选中(80)最高 */
   .umk.tben{z-index:11}.umk.tdfc{z-index:12}.umk.t211{z-index:13}.umk.t985{z-index:14}
   /* z-index 由 hover-z(updateFlagZ)按光标距离动态排序,叠压旗子最近者浮顶可点 */
@@ -1629,6 +1633,7 @@ function sortDT(k){if(!DT)return;if(DT.sort.k===k)DT.sort.d*=-1;else DT.sort={k,
 function filterSel(s){if(!DT)return;DT.sel=(s&&DT.sel!==s)?s:null;rerenderDT();}
 function dtExpand(){if(!DT)return;DT.expanded=!DT.expanded;rerenderDT();}
 function showDetail(u,prov){
+  if(touring){hideDetail();return;}                     // 巡游时默认关闭选校助手(只飞行+小卡,不弹大看板)
   if(innerWidth<=1200){hideDetail();return;}            // 窄屏空间不足,看板不显示(小卡已含简表)
   bandFilter=null;
   const t=/985/.test(u.tier)?"985":/211/.test(u.tier)?"211":/双一流/.test(u.tier)?"dfc":"ben";
@@ -2977,7 +2982,7 @@ document.getElementById("stylebtn").addEventListener("click",()=>{
 tourbtn.addEventListener("click",()=>{
   userTouched=true;
   if(touring){stopTour();return;}
-  touring=true;tourbtn.textContent="停 止 巡 游";
+  touring=true;tourbtn.textContent="停 止 巡 游";hideDetail();   // 巡游开始即关掉选校助手
   let i=0;
   const step=()=>{
     if(!touring)return;
@@ -2986,7 +2991,7 @@ tourbtn.addEventListener("click",()=>{
       stopTour();card.style.display="none";return;
     }
     const u=RECS[i];
-    const pad=innerWidth>1200?{left:900,top:100,right:40,bottom:50}   // 与 focusSchool 一致:把学校让到面板右侧空白区
+    const pad=innerWidth>1200?{left:400,top:100,right:40,bottom:50}   // 巡游已关掉选校助手:左侧只留小卡(left:72 宽270)的空间,不再按看板宽度(原 900)把学校甩到最右、留大片空白
        :innerWidth>640 ?{left:330,top:90,right:30,bottom:40}
                        :{top:60,bottom:Math.round(innerHeight*0.5),left:20,right:20};
     if(u.ll&&u.ll[0])map.flyTo({center:u.ll,zoom:10,pitch:45,bearing:0,padding:pad,duration:2600,curve:1.5,essential:true});   // 飞到校园所在城市级、正北、适中俯角(原 zoom7/俯角63/摆头 太远太晃)
