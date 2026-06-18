@@ -1700,14 +1700,14 @@ async function loadTrend(name){
   }catch(e){if(!uLocal)el.innerHTML="";}                       // API 失败:本地表已在则降级保留,否则清空
 }
 // 点校聚焦:把所选学校平滑带到画面中央(避开左侧卡片留白),让中间有内容、卡片与地图相连。
-// 不缩小(zoom 取 max),太远则拉近到城市级;卡片侧留 padding 使学校落在卡片右侧的空白区。
+// 不缩小(zoom 取 max),拉近到校园级(~11,看得见校园周边/邻校);卡片侧留 padding 使学校落在卡片右侧空白区。
 function focusSchool(ll){
   if(!ll||!ll[0])return;userTouched=true;hap();
-  const tz=Math.max(map.getZoom(),6.8),
+  const tz=Math.max(map.getZoom(),11),                          // 至少到校园级:从全国点开也直接放大到看得见周边
     pad=innerWidth>1200?{left:900,top:100,right:40,bottom:50}   // 让出左卡片 + 中间选校助手
        :innerWidth>640 ?{left:330,top:90,right:30,bottom:40}
                        :{top:60,bottom:Math.round(innerHeight*0.5),left:20,right:20};
-  map.flyTo({center:ll,zoom:tz,padding:pad,duration:1100,curve:1.4,essential:true});
+  map.flyTo({center:ll,zoom:tz,padding:pad,duration:1600,curve:1.5,essential:true});
 }
 function showCard(u){
   const tierTxt={"985":"985 · 双一流","211":"211 · 双一流",dfc:"双一流",ben:(u.tp||"本科")}[u.t];
