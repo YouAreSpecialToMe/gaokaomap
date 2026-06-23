@@ -3,14 +3,14 @@
 
 GET /api/meta                         省份×科类×可用年份
 GET /api/recommend?prov=&subj=&score=&year=&sel=物,化
-GET /api/uni?name=浙江大学&prov=浙江   院校画像+学科评估+本省近三年线
+GET /api/uni?name=浙江大学&prov=浙江   院校画像+学科评估+本省近四年线
 """
 import json, os, re, sqlite3, sys, urllib.parse
 from functools import lru_cache
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from recommend import engine, DB, ALIAS, SUBJ_EQ, get_uinfo, effective_rank_year, CURRENT_YEAR
+from recommend import engine, DB, ALIAS, SUBJ_EQ, get_uinfo, effective_rank_year, CURRENT_YEAR, connect
 import quiz_data as QZ
 from bisect import bisect_right
 
@@ -59,7 +59,9 @@ def quiz_unis(mclass, prov, subj, score):
     return out
 
 def db():
-    con = sqlite3.connect(DB, timeout=30)
+    # 用 recommend 的 immutable 只读连接(带 3GB mmap):本 API 全是只读查询,
+    # 与引擎同口径,避免可写连接,并复用整库 mmap 加速重复读(原来是裸 sqlite3.connect,无 mmap)。
+    con = connect()
     con.row_factory = sqlite3.Row
     return con
 
@@ -90,15 +92,23 @@ def uni_card(name, prov):
     ev = [{"discipline": r["discipline"], "grade": r["grade"]} for r in con.execute(
         """SELECT discipline,grade FROM subject_eval WHERE uni_id=?
            ORDER BY CASE grade WHEN 'A+' THEN 0 WHEN 'A' THEN 1 WHEN 'A-' THEN 2
-           WHEN 'B+' THEN 3 ELSE 4 END LIMIT 6""", (u["id"],))]
+           WHEN 'B+' THEN 3 WHEN 'B' THEN 4 WHEN 'B-' THEN 5 WHEN 'C+' THEN 6
+           WHEN 'C' THEN 7 ELSE 8 END LIMIT 100""", (u["id"],))]   # 全量学科评估(供院校对比 head-to-head;卡片端自行截断)
     lines = []
     plans = {}
     if prov:
         lines = [dict(r) for r in con.execute(
             """SELECT year,subject_std subj,granularity,major,min_score,min_rank
                FROM admission_lines WHERE uni_name IN (?,?) AND province=?
-                 AND year>=2023 AND min_rank IS NOT NULL
-               ORDER BY year DESC, min_rank LIMIT 400""", (name, strip, prov))]
+                 AND year>=2022 AND min_rank IS NOT NULL
+               ORDER BY year DESC, min_rank LIMIT 700""", (name, strip, prov))]
+        # 给每条线打上「招生专业类」mclass:一次查 uni_majors 建映射(避免逐行子查询);大类招生则专业名本身即类
+        mcmap = {}
+        for r in con.execute("SELECT major,mclass FROM uni_majors WHERE uni_name IN (?,?)", (name, strip)):
+            if r["mclass"]:
+                mcmap.setdefault(r["major"], r["mclass"])
+        for l in lines:
+            l["mclass"] = mcmap.get(l["major"]) or (l["major"] if str(l["major"]).endswith("类") else None)
         py = con.execute("SELECT MAX(year) FROM enrollment_plans WHERE uni_name IN (?,?) AND province=?",
                          (name, strip, prov)).fetchone()[0]
         if py:
