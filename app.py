@@ -5,7 +5,7 @@ GET /api/meta                         省份×科类×可用年份
 GET /api/recommend?prov=&subj=&score=&year=&sel=物,化
 GET /api/uni?name=浙江大学&prov=浙江   院校画像+学科评估+本省近四年线
 """
-import json, mimetypes, os, re, sqlite3, sys, urllib.parse
+import gzip, json, mimetypes, os, re, sqlite3, sys, urllib.parse
 mimetypes.add_type("image/webp", ".webp")   # Windows Python's mimetypes lacks webp -> would serve octet-stream; needed for the relief placeholder, 校徽 logos, and self-hosted webp DEM tiles
 from functools import lru_cache
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -14,6 +14,21 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from recommend import engine, DB, ALIAS, SUBJ_EQ, get_uinfo, connect, warm, effective_rank_year, CURRENT_YEAR, ensure_indexes
 import quiz_data as QZ
 from bisect import bisect_right
+
+# ── gzip for the reverse-proxy leg ─────────────────────────────────────────
+# Cloudflare already gzips to browsers, but on a cache MISS the cloudflared tunnel
+# pulls the response from this box UNCOMPRESSED -- a cold province slice is ~7MB
+# raw (四川) and crosses to CF every time an edge colo lacks it. Gzipping here cuts
+# that leg ~11x (7MB -> ~640KB), so cold/first loads are faster and the tunnel
+# isn't saturated during the gaokao-season peak. Immutable static is gzipped once
+# and memoized (the box is CPU-idle, RAM-rich); the short-lived HTML shell and the
+# JSON API are gzipped per response (cheap). Already-compressed assets (webp/png
+# logos, webp DEM tiles) are never re-gzipped -- wasted CPU, and it can grow them.
+_GZIP_EXT = {".json", ".js", ".css", ".svg", ".html", ".txt", ".map", ".geojson", ".csv"}
+_GZ_CACHE = {}   # realpath -> (mtime_ns, size, gzipped); bounded by the finite static asset set
+
+def _gz(b):
+    return gzip.compress(b, 6)
 
 def rank_of(prov, subj_std, score, year=None):
     con = db()
@@ -176,6 +191,10 @@ class H(BaseHTTPRequestHandler):
         # touch this single-process server (the main lever for high concurrency).
         if cache and code == 200:
             self.send_header("Cache-Control", f"public, max-age=600, s-maxage={cache}")
+        if len(body) >= 1024 and "gzip" in self.headers.get("Accept-Encoding", ""):
+            body = _gz(body)
+            self.send_header("Content-Encoding", "gzip")
+            self.send_header("Vary", "Accept-Encoding")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -190,14 +209,36 @@ class H(BaseHTTPRequestHandler):
         if not f.startswith(self.WEB) or not os.path.isfile(f):
             return self._send({"error": "not found"}, 404)
         ctype = mimetypes.guess_type(f)[0] or "application/octet-stream"
-        body = open(f, "rb").read()
+        is_html = path in ("/", "/index.html") or path.endswith(".html")
+        want_gz = (os.path.splitext(f)[1].lower() in _GZIP_EXT
+                   and "gzip" in self.headers.get("Accept-Encoding", ""))
+        enc = None
+        if want_gz and not is_html:
+            # Immutable asset: serve gzip from memory (gzip-on-miss) so a 7MB slice
+            # isn't re-read+re-compressed every hit. Keyed on mtime+size so a
+            # re-exported slice (export-slices.py) refreshes the cache automatically.
+            st = os.stat(f)
+            if st.st_size >= 1024:
+                c = _GZ_CACHE.get(f)
+                if (not c) or c[0] != st.st_mtime_ns or c[1] != st.st_size:
+                    c = (st.st_mtime_ns, st.st_size, _gz(open(f, "rb").read()))
+                    _GZ_CACHE[f] = c
+                body, enc = c[2], "gzip"
+            else:
+                body = open(f, "rb").read()
+        else:
+            body = open(f, "rb").read()
+            if want_gz and len(body) >= 1024:   # the HTML shell: small + short-lived, gzip fresh
+                body, enc = _gz(body), "gzip"
         self.send_response(200)
         self.send_header("Content-Type", ctype + ("; charset=utf-8" if ctype.startswith("text") or ctype.endswith("json") else ""))
+        if enc:
+            self.send_header("Content-Encoding", enc)
+            self.send_header("Vary", "Accept-Encoding")
         self.send_header("Content-Length", str(len(body)))
         # Everything static except the HTML shell is immutable demo data (the
         # ~1MB maplibre bundle, geo GeoJSON, unis.json, terrain symbols) → cache
         # hard so Cloudflare/browsers keep it; only index.html stays short-lived.
-        is_html = path in ("/", "/index.html") or path.endswith(".html")
         self.send_header("Cache-Control", "max-age=300" if is_html else "max-age=31536000, immutable")
         self.end_headers()
         self.wfile.write(body)
