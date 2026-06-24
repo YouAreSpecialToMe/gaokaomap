@@ -971,7 +971,7 @@ document.addEventListener("keydown",e=>{
   map.getCanvas().addEventListener(ev,()=>{userTouched=true},{passive:true}));
 const markers=[];
 map.on("load",async()=>{
-  const unisP=fetch("unis.json").then(r=>r.json()).catch(()=>[]);
+  const unisP=fetch("unis.json?v=1").then(r=>r.json()).catch(()=>[]);   // ?v 缓存戳:unis.json immutable 长缓存,内容变须 bump 才经 Cloudflare/浏览器取新(v1=2026-06-24 去重新疆2条+修厚博学院坐标 f9b650d)
   // ready 与 gj 并行预取(此前 ready 串行 await + no-store,每次都是一次跨洲往返);改为可缓存,首屏少一往返。
   const readyP=fetch("tiles/terrarium/ready").then(r=>r.ok?r.text():null).catch(()=>null);
   const outlineP=fetch("geo/china-outline.json").then(r=>r.ok?r.json():null).catch(()=>null);   // dissolve 后的国界轮廓,纸色蒙版用它当洞(免省界 earcut 三角伪影)
