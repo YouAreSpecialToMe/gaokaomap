@@ -19,7 +19,11 @@ NORM = {"物理类": "物理", "历史类": "历史"}   # 一分一段表用「�
 con = sqlite3.connect(DB); con.row_factory = sqlite3.Row
 _strip = lambda s: re.sub(r"[(（][^)）]*[)）]", "", s or "").strip()
 def _tier(r): return "985" if r["is_985"] else "211" if r["is_211"] else "dfc" if r["is_dfc"] else "ben"
-UNI_ALL = {r["name"]: r for r in con.execute("SELECT name,lng,lat,is_985,is_211,is_dfc,city,rank FROM universities")}
+UNI_ALL = {r["name"]: r for r in con.execute("SELECT name,lng,lat,is_985,is_211,is_dfc,city,rank,province FROM universities")}
+try:   # 软科专业评级(校,专业)→ 等级;ruanke_match 不存在(未导入排名)则空,切片不带 mg
+    RKG = {(r[0], r[1]): r[2] for r in con.execute("SELECT uni_name,major,grade FROM ruanke_match")}
+except Exception:
+    RKG = {}
 
 
 def export(prov):
@@ -46,9 +50,12 @@ def export(prov):
         return d[v]
     col = {k: [] for k in "umrescljy"}  # u m r(ank) e(nroll) s(core) c(=sel) l(unused) j y → 见下
     A = {"u": [], "m": [], "r": [], "sc": [], "e": [], "sl": [], "j": [], "y": [], "bt": []}  # bt=1 → 专科批(位次为专科批内排名,与本科一分一段不同基准)
+    mg = {}   # "uidx,midx" → 软科评级(只存有评级的,省体积;客户端按 校×专业 查)
     for x in rows:
-        A["u"].append(idx(x["u"], unis, ui))
-        A["m"].append(idx(x["m"], majs, mi))
+        uidx = idx(x["u"], unis, ui); A["u"].append(uidx)
+        midx = idx(x["m"], majs, mi); A["m"].append(midx)
+        _g = RKG.get((x["u"], x["m"]))
+        if _g: mg[f"{uidx},{midx}"] = _g
         A["r"].append(x["r"])
         A["sc"].append(round((x["ms"] or 0) * 10))
         A["e"].append(x["e"] or 0)
@@ -85,10 +92,10 @@ def export(prov):
     for un in unis:
         r = UNI_ALL.get(un) or UNI_ALL.get(_strip(un))
         if r:
-            uinfo[un] = {"t": _tier(r), "rank": r["rank"], "ll": [r["lng"], r["lat"]] if r["lng"] else None, "c": r["city"]}
+            uinfo[un] = {"t": _tier(r), "rank": r["rank"], "ll": [r["lng"], r["lat"]] if r["lng"] else None, "c": r["city"], "p": r["province"]}
     slice = {"prov": prov, "subj": subj, "years": yrs, "unis": unis, "majs": majs,
              "sels": sels, "subjs": subjs, "adm": A, "rank": rk, "plan": pl,
-             "mcls": mcls_names, "mmc": mmc, "uinfo": uinfo}
+             "mcls": mcls_names, "mmc": mmc, "uinfo": uinfo, "mg": mg}
     os.makedirs(OUT, exist_ok=True)
     js = json.dumps(slice, ensure_ascii=False, separators=(",", ":"))
     open(os.path.join(OUT, prov + ".json"), "w", encoding="utf-8").write(js)

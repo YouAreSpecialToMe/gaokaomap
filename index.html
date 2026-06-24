@@ -207,6 +207,26 @@
   .recform button:not(.rfm):hover{background:#a13a22}
   .rfsel{display:flex;gap:8px;flex-wrap:wrap;font-size:12px;color:#6b5226}
   .rfsel label{display:flex;align-items:center;gap:2px;cursor:pointer}
+  .rfmore{align-self:flex-start;background:none;border:none;color:#8c6a2e;font-size:12px;cursor:pointer;padding:1px 0;text-decoration:underline dotted;font-family:inherit}
+  .rfmore.on{color:#8c2f1b}
+  .rfadv{display:flex;flex-direction:column;gap:6px;padding:8px 9px;background:rgba(189,154,85,.08);border:1px solid var(--gold-soft);border-radius:9px}
+  .rfadv-l{font-size:11.5px;color:#6b5226;font-weight:600;letter-spacing:1px}
+  .rfadv-l b{font-weight:400;color:#8c2f1b;letter-spacing:0}
+  .rfquick{display:flex;flex-wrap:wrap;gap:4px}
+  .rfquick button{padding:2px 8px;border:1px solid #c5ab7c;border-radius:9px;background:#faf3e6;color:#6b5226;font-size:11px;cursor:pointer;font-family:inherit}
+  .rfquick button:hover{background:#efe2c9}
+  .rfchips{display:flex;flex-wrap:wrap;gap:3px}
+  .rgc{padding:2px 6px;border:1px solid #d3bd93;border-radius:8px;font-size:11px;color:#6b5226;cursor:pointer;background:#fffdf8;line-height:1.55;user-select:none}
+  .rgc:hover{border-color:var(--zhu)}
+  .rgc.on{background:#8c2f1b;color:#f7e8d6;border-color:#8c2f1b}
+  .rfmcsel{display:flex;flex-wrap:wrap;gap:3px}
+  .rfmcsel:empty{display:none}
+  .mcc{padding:2px 6px;border-radius:8px;font-size:11px;background:#8c2f1b;color:#f7e8d6;cursor:pointer;line-height:1.55}
+  .rfmcbox{position:relative}
+  .rfmcbox input{width:100%;box-sizing:border-box}
+  .rfmclist{position:absolute;left:0;right:0;top:calc(100% + 2px);z-index:9;max-height:158px;overflow:auto;background:#fffdf8;border:1px solid var(--gold-soft);border-radius:8px;box-shadow:0 6px 18px rgba(80,55,20,.18)}
+  .rfmclist div{padding:5px 9px;font-size:12px;color:#5a4420;cursor:pointer}
+  .rfmclist div:hover{background:#f0e4cd}
   .rfmode{display:flex;border:1px solid #c5ab7c;border-radius:6px;overflow:hidden;margin-bottom:2px}
   .rfm{flex:1;padding:6px 0;border:0;background:#fdf8ea;color:#9a8460;
     font:500 12.5px "Kaiti SC","STKaiti",serif;letter-spacing:1px;cursor:pointer;transition:background .2s,color .2s}
@@ -780,6 +800,15 @@
       <label><input type="checkbox" value="政">政</label><label><input type="checkbox" value="地">地</label>
       <label><input type="checkbox" value="物">物</label><label><input type="checkbox" value="史">史</label>
     </div>
+    <button type="button" class="rfmore" id="rp-more">＋ 限定地区 / 专业(可选)</button>
+    <div class="rfadv" id="rp-adv" hidden>
+      <div class="rfadv-l">限定地区<b id="rp-rg-c"></b></div>
+      <div class="rfquick" id="rp-rg-quick"></div>
+      <div class="rfchips" id="rp-rg-chips"></div>
+      <div class="rfadv-l">限定专业<b id="rp-mc-c"></b></div>
+      <div class="rfmcsel" id="rp-mc-sel"></div>
+      <div class="rfmcbox"><input id="rp-mc-q" placeholder="搜专业类,如 计算机 / 临床医学" autocomplete="off"><div class="rfmclist" id="rp-mc-list" hidden></div></div>
+    </div>
   </div>
   <p class="sub" id="rp-status">选择省份科类,输入分数或位次</p>
   <div id="reclist"></div>
@@ -838,7 +867,7 @@
 </div>
 <!-- 引擎(~1MB)挪到 body 末尾:原本在 <head> 阻塞渲染,整页(含加载页)要等它下完才出;现在加载页先秒出山水底,引擎在其后台下载 -->
 <script src="vendor/maplibre-gl.js"></script>
-<script src="gk-engine.js?v=6"></script>
+<script src="gk-engine.js?v=7"></script>
 <script>
 let UNIS=[],DOTS=[],CITYIDX=[],PROVIDX=[],UINFO={};
 // 由各校所在城市聚合出"城市"索引(质心坐标 + 院校数),供搜索把城市作为独立结果
@@ -1562,6 +1591,7 @@ const bandOfRank=r=>{if(!DT||!DT.haveRank||!r)return null;const rho=r/DT.rank;re
 // 大类多招生组(如 工科试验班 202–7296)按「最易组」(可够得着的那组)定档,与「我的推荐」按组分档一致;
 // 否则按最难组(lo)会把整条大类一律标"冲",与推荐里的"保"自相矛盾。单组专业 lo==hi,无变化。
 const bandRow=r=>(r&&r.zk)?null:bandOfRank(r&&r.easiest);
+function rkgBadge(g){if(!g)return'';const c={'A+':'#9c2f1b','A':'#b07a12','B+':'#7a8a6a','B':'#9a9a8a'}[g]||'#9a9a8a';return `<span class="rkg" style="display:inline-block;font-size:9px;font-weight:700;color:${c};border:1px solid ${c}66;border-radius:3px;padding:0 3px;line-height:1.5;vertical-align:middle;margin-right:3px;flex:none" title="软科2025中国大学专业排名 ${g}">软${g}</span>`;}
 function detailTable(u,prov){
   const lines=u.lines||[],plans=u.plans||{},name=u.name;
   // 同一专业同年常有多个专业组,各有位次线 → 收成区间 [lo 最难组, hi 最易组],而非任取一条(曾致左卡/右表对不上)
@@ -1573,7 +1603,7 @@ function detailTable(u,prov){
   const yrs=[...new Set(lines.filter(l=>l.granularity==="major"&&l.min_rank).map(l=>l.year))].sort((a,b)=>b-a).slice(0,4);
   const rows=Object.entries(m).map(([mj,Y])=>{const p=matchPlan(plans,mj);
     const my=Object.keys(Y).map(Number).sort((a,b)=>b-a),lat=Y[my[0]]||{};
-    const r={mj,latest:lat.lo||0,easiest:lat.hi||lat.lo||0,yv:yrs.map(y=>Y[y]||null),
+    const r={mj,grade:(u.grades||{})[mj]||"",latest:lat.lo||0,easiest:lat.hi||lat.lo||0,yv:yrs.map(y=>Y[y]||null),
       plan:p&&p.n?p.n:0,tuition:p&&p.tuition?p.tuition:0,sel:_selShort(p&&p.sel),selT:_selType(p&&p.sel),zk:!!zkOf[mj]};
     yrs.forEach((y,i)=>r['y'+i]=(r.yv[i]?r.yv[i].lo:0));   // y0..y3 供表头排序
     return r;}).filter(r=>r.latest);
@@ -1617,7 +1647,7 @@ function tableHTML(){
   let h=`<table class="dtab"><thead><tr>${TH('mj','专业')}`+yrs.map((y,i)=>TH('y'+i,String(y))).join('')+`${TH('plan','计划')}${TH('tuition','学费')}<th>选科</th></tr></thead><tbody>`;
   for(const r of show){const b=bandRow(r),bw=(20+(1-(r.latest-mn)/rng)*80).toFixed(0);
     let tr='';if(r.y0&&r.y1){const up=r.y0<r.y1;tr=` <span class="dtrend ${up?'up':'dn'}" title="较 ${yrs[1]} ${up?'位次上升 · 变难':'位次下降 · 变易'}">${up?'▲':'▼'}</span>`;}
-    h+=`<tr style="${b?`border-left:3px solid ${BCOL[b]}`:''}"><td class="mjc" title="${r.mj}"><i class="dbar" style="width:${bw}%"></i><span class="mjn">${r.mj}${b?` <span style="color:${BCOL[b]};font-size:10px">${b}</span>`:''}${r.zk?` <span style="color:#6f8a5a;font-size:10px;border:1px solid #cfe0bf;border-radius:3px;padding:0 3px">专科批</span>`:''}</span></td>`
+    h+=`<tr style="${b?`border-left:3px solid ${BCOL[b]}`:''}"><td class="mjc" title="${r.mj}"><i class="dbar" style="width:${bw}%"></i><span class="mjn">${rkgBadge(r.grade)}${r.mj}${b?` <span style="color:${BCOL[b]};font-size:10px">${b}</span>`:''}${r.zk?` <span style="color:#6f8a5a;font-size:10px;border:1px solid #cfe0bf;border-radius:3px;padding:0 3px">专科批</span>`:''}</span></td>`
       +yrs.map((y,i)=>{const v=r.yv[i];
         if(!v)return `<td class="num"><span class="dim">—</span>${i?'':tr}</td>`;
         const disp=i===0?cellR(v.lo,v.hi)                                     // 最新年:多专业组直接显区间
@@ -1660,18 +1690,19 @@ function localUni(name,prov,slice){
   const SU=slice.uinfo||{},f=SU[name]||UINFO[name]||SU[strip(name)]||UINFO[strip(name)];
   let ui=slice.unis.indexOf(name);if(ui<0)ui=slice.unis.indexOf(strip(name));
   if(ui<0)return null;                                       // 切片无此校 → 回退 API
-  const A=slice.adm,lines=[],lastSel={};
+  const A=slice.adm,MG=slice.mg||{},lines=[],lastSel={},grades={};
   for(let i=0;i<A.u.length;i++){
     if(A.u[i]!==ui)continue;
     const mj=slice.majs[A.m[i]],yr=2000+A.y[i];
     const mc=(slice.mmc[A.m[i]]||[]).map(k=>slice.mcls[k])[0]||(mj.slice(-1)==="类"?mj:null);
     lines.push({granularity:"major",year:yr,major:mj,min_score:A.sc[i]/10,min_rank:A.r[i],mclass:mc,batch:(A.bt&&A.bt[i])?"专科批":"本科批"});
     const c=lastSel[mj];if(!c||yr>c.y)lastSel[mj]={y:yr,sel:slice.sels[A.sl[i]]||""};   // 选科取最新年(切片 adm)
+    const _g=MG[ui+","+A.m[i]];if(_g)grades[mj]=_g;   // 软科专业评级(切片 mg:校×专业→等级)
   }
   if(!lines.length)return null;
   const plans={};for(const mj in lastSel)plans[mj]={sel:lastSel[mj].sel};   // 选科即时;计划/学费 留空待 API
   const tier=f?({"985":"985","211":"211","dfc":"双一流"})[f.t]||"":"";
-  return {name,province:prov,city:(f&&f.c)||"",tier,rank:f&&f.rank,ll:(f&&f.ll)||null,lines,plans,_local:true};
+  return {name,province:prov,city:(f&&f.c)||"",tier,rank:f&&f.rank,ll:(f&&f.ll)||null,lines,plans,grades,_local:true};
 }
 async function loadTrend(name){
   const el=document.getElementById("card-trend");if(!el)return;
@@ -2234,7 +2265,7 @@ async function showUniCard(name){
 let _SLICE={};   // 分省切片缓存(列存),客户端冲稳保引擎用;选省即拉、缓存复用,无切片/失败回退 API
 async function loadSlice(prov){
   if(prov in _SLICE) return _SLICE[prov];
-  try{ _SLICE[prov]=await (await fetch(`slices/${encodeURIComponent(prov)}.json?v=4`)).json(); }   // ?v 缓存戳:切片 immutable 长缓存,内容变(schema 或数据)须 bump 才经 Cloudflare 生效(盒子 token 无 purge 权限)。v4:华科/中科大/哈工大本部/人大 2025 官方专业级回填(11省→30省)
+  try{ _SLICE[prov]=await (await fetch(`slices/${encodeURIComponent(prov)}.json?v=5`)).json(); }   // ?v 缓存戳:切片 immutable 长缓存,内容变(schema 或数据)须 bump 才经 Cloudflare 生效(盒子 token 无 purge 权限)。v4:华科/中科大/哈工大本部/人大 2025 官方专业级回填(11省→30省)
   catch(e){ _SLICE[prov]=null; }
   return _SLICE[prov];
 }
@@ -2251,15 +2282,16 @@ async function runRecommend(){
   if(recMode==="rank"){if(!Number.isFinite(n)||n<1){st.textContent="请输入有效位次(正整数)";return;}}
   else if(!Number.isFinite(n)||n<100||n>900){st.textContent="请输入有效分数(约 100–750)";return;}
   const sel=[...document.querySelectorAll("#rp-sel input:checked")].map(i=>i.value).join(",");
+  const _F=window.rpFilters?window.rpFilters():null;   // 地区/专业筛选(空=不限)
   st.textContent="测算中…";
   try{
     let r;
     const slice=(typeof GKEngine!=="undefined")?await loadSlice(prov):null;
     if(slice){                                                  // 本地优先:切片在手,客户端引擎即时算(免跨境往返)
-      r=GKEngine.recommend(slice,UINFO,{subj,score:recMode==="score"?n:undefined,rank:recMode==="rank"?n:undefined,sel:sel?new Set(sel.split(",")):null});
+      r=GKEngine.recommend(slice,UINFO,{subj,score:recMode==="score"?n:undefined,rank:recMode==="rank"?n:undefined,sel:sel?new Set(sel.split(",")):null,regions:_F&&_F.regions.length?_F.regions:null,mclasses:_F&&_F.mclasses.length?_F.mclasses:null});
     }else{                                                      // 兜底:无切片(或加载失败)回退服务端 API
       const qp=recMode==="rank"?`rank=${val}`:`score=${val}`;
-      r=await (await fetch(`${API}/api/recommend?prov=${encodeURIComponent(prov)}&subj=${encodeURIComponent(subj)}&${qp}${sel?"&sel="+sel:""}`)).json();
+      r=await (await fetch(`${API}/api/recommend?prov=${encodeURIComponent(prov)}&subj=${encodeURIComponent(subj)}&${qp}${sel?"&sel="+sel:""}${_F&&_F.regions.length?"&regions="+encodeURIComponent(_F.regions.join(",")):""}${_F&&_F.mclasses.length?"&mclasses="+encodeURIComponent(_F.mclasses.join(",")):""}`)).json();
     }
     if(r.error){st.textContent="⚠️ "+recErrMsg(r.error);document.getElementById("reclist").innerHTML="";return;}
     window.GK={rank:r.rank,prov,subj,score:recMode==="score"?+val:0,local:!!slice};   // 存考生位次(+来源),供点校"冲稳保"可视化
@@ -2279,7 +2311,7 @@ function renderRecResult(r,listEl){
       RECS.push({n:it.uni,ll:it.ll,band:b});
       const fit={n:it.uni,major:it.major,band:b,t:it.tier,ll:it.ll},k=favKey(fit);
       html+=`<div class="recrow" data-uni="${it.uni}" data-ll="${it.ll||''}">
-        <span class="rb ${b}">${b}</span>${it.uni.slice(0,9)}·${it.major.slice(0,8)}
+        <span class="rb ${b}">${b}</span>${it.uni.slice(0,9)}·${it.major.slice(0,8)}${rkgBadge(it.grade)}
         <span class="pr">${it.minRank.toLocaleString()}${it.note?`<small>${it.note}</small>`:""}</span>
         <button class="rec-fav${favHas(k)?" on":""}" data-k="${k}" data-it='${JSON.stringify(fit).replace(/'/g,"&#39;")}' onclick="event.stopPropagation();cardFavClick(this)" title="加入志愿表">★</button></div>`;
     });
@@ -2448,6 +2480,33 @@ cv.addEventListener("wheel",_nudgeQ,{passive:true});
 document.getElementById("qz-start").addEventListener("click",qzStart);
 document.getElementById("rp-go").addEventListener("click",runRecommend);
 document.getElementById("rp-score").addEventListener("keydown",e=>{if(e.key==="Enter")runRecommend();});
+// 地区 + 专业筛选(我的推荐):省份多选 + 专业类搜索多选 → regions/mclasses 传引擎(空=不限)
+(function(){
+  const PROVS="北京 天津 河北 山西 内蒙古 辽宁 吉林 黑龙江 上海 江苏 浙江 安徽 福建 江西 山东 河南 湖北 湖南 广东 广西 海南 重庆 四川 贵州 云南 西藏 陕西 甘肃 青海 宁夏 新疆".split(" ");
+  const QUICK=[["长三角","上海 江苏 浙江 安徽"],["京津冀","北京 天津 河北"],["大湾区","广东"],["成渝","四川 重庆"]];
+  const MC=new Set(); let MCLS=[];
+  const $=id=>document.getElementById(id); if(!$("rp-rg-chips"))return;
+  $("rp-rg-chips").innerHTML=PROVS.map(p=>`<span class="rgc" data-p="${p}">${p}</span>`).join("");
+  $("rp-rg-quick").innerHTML=QUICK.map((q,i)=>`<button type="button" data-i="${i}">${q[0]}</button>`).join("")+`<button type="button" data-i="x">清空</button>`;
+  const rgN=()=>{const n=document.querySelectorAll("#rp-rg-chips .rgc.on").length;$("rp-rg-c").textContent=n?` · 已选 ${n} 省`:"";};
+  $("rp-rg-chips").addEventListener("click",e=>{const c=e.target.closest(".rgc");if(c){c.classList.toggle("on");rgN();}});
+  $("rp-rg-quick").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
+    document.querySelectorAll("#rp-rg-chips .rgc").forEach(c=>c.classList.remove("on"));
+    if(b.dataset.i!=="x")QUICK[+b.dataset.i][1].split(" ").forEach(p=>{const c=document.querySelector(`#rp-rg-chips .rgc[data-p="${p}"]`);if(c)c.classList.add("on");});
+    rgN();});
+  const mcRender=()=>{$("rp-mc-sel").innerHTML=[...MC].map(m=>`<span class="mcc" data-m="${m}">${m} ✕</span>`).join("");$("rp-mc-c").textContent=MC.size?` · 已选 ${MC.size} 类`:"";};
+  $("rp-mc-sel").addEventListener("click",e=>{const c=e.target.closest(".mcc");if(c){MC.delete(c.dataset.m);mcRender();}});
+  const loadMcls=async()=>{try{const s=await loadSlice($("rp-prov").value);MCLS=(s.mcls||[]).slice().sort((a,b)=>a.localeCompare(b,"zh"));}catch(e){MCLS=[];}};
+  $("rp-prov").addEventListener("change",()=>{MCLS=[];});
+  $("rp-mc-q").addEventListener("input",async e=>{if(!MCLS.length)await loadMcls();const q=e.target.value.trim(),L=$("rp-mc-list");
+    if(!q){L.hidden=true;return;}
+    const hit=MCLS.filter(m=>m.indexOf(q)>=0&&!MC.has(m)).slice(0,10);
+    L.innerHTML=hit.length?hit.map(m=>`<div data-m="${m}">${m}</div>`).join(""):`<div style="cursor:default;color:#9a8a6a">无匹配专业类</div>`;L.hidden=false;});
+  $("rp-mc-q").addEventListener("blur",()=>setTimeout(()=>{const L=$("rp-mc-list");if(L)L.hidden=true;},180));
+  $("rp-mc-list").addEventListener("mousedown",e=>{const d=e.target.closest("div[data-m]");if(!d)return;MC.add(d.dataset.m);mcRender();$("rp-mc-q").value="";$("rp-mc-list").hidden=true;});
+  $("rp-more").addEventListener("click",()=>{const a=$("rp-adv"),open=a.hidden;a.hidden=!open;$("rp-more").classList.toggle("on",open);if(open&&!MCLS.length)loadMcls();});
+  window.rpFilters=()=>({regions:[...document.querySelectorAll("#rp-rg-chips .rgc.on")].map(c=>c.dataset.p),mclasses:[...MC]});
+})();
 document.querySelectorAll("#rp-mode .rfm").forEach(b=>b.addEventListener("click",()=>{
   recMode=b.dataset.m;
   document.querySelectorAll("#rp-mode .rfm").forEach(x=>x.classList.toggle("on",x===b));

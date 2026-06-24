@@ -49,6 +49,8 @@
       var ws = new Set(); opt.mclasses.forEach(function (mc) { if (mc in mcIx) ws.add(mcIx[mc]); });
       if (ws.size) mcWant = function (mi) { var arr = slice.mmc[mi]; if (!arr) return false; for (var z = 0; z < arr.length; z++) if (ws.has(arr[z])) return true; return false; };
     }
+    var regionOk = null;   // 地区筛选:只推所选省份的学校(uinfo.p = 学校所在省)
+    if (opt.regions && opt.regions.length) { var wantP = {}; for (var rp = 0; rp < opt.regions.length; rp++) wantP[opt.regions[rp]] = 1; regionOk = function (uIdx) { var f = SU[slice.unis[uIdx]] || uinfo[slice.unis[uIdx]]; return !!(f && f.p && wantP[f.p]); }; }
     var topStudent = myRank <= Math.max(TOP_RANK_FLOOR, Math.round(total * TOP_FRAC));   // 顶尖位次(本省该科前~0.01%,至少前20):放宽候选窗+bandOf(top)分档+同层次按最热门优先
     var A = slice.adm, n = A.r.length, cmap = {};
     [year, year - 1, year - 2].forEach(function (yr) {          // 必须按 year→y-2 降序(与服务端 dict 插入序一致),否则 cmap 键序不同 → 平局 tie-break 不同 → 个别项错位
@@ -59,6 +61,7 @@
         var rr = A.r[i]; if (rr == null || rr < a || rr > b) continue;
         if (!selOk(slice.sels[A.sl[i]], sel)) continue;
         if (mcWant && !mcWant(A.m[i])) continue;
+        if (regionOk && !regionOk(A.u[i])) continue;
         var k = A.u[i] + "|" + A.m[i];
         (cmap[k] = cmap[k] || []).push([yr, rr / eq[yr], i]);
       }
