@@ -2677,8 +2677,9 @@ if(localStorage.getItem("gk_bgm")!=="0"){               // 默认开启:首个�
     const out=[];
     // 省份:命中即「聚焦全省」结果,排最前(精确 125 压过城市 120 / 院校 100);兼容「河南」与「河南省」
     const sp=s=>nm(s).replace(/(省|市|自治区|壮族自治区|回族自治区|维吾尔自治区|特别行政区)$/,""),qb=sp(q);
+    let provHit=null;                                  // 精确命中某省 → 该省全部学校都进结果(按档次排),不止校名带省名的几所
     for(const p of PROVIDX){const pb=sp(p.n);let sc=-1;
-      if(qb&&pb===qb)sc=125;else if(qb&&pb.startsWith(qb))sc=92;else if(qb&&pb.includes(qb))sc=40;
+      if(qb&&pb===qb){sc=125;provHit=qb;}else if(qb&&pb.startsWith(qb))sc=92;else if(qb&&pb.includes(qb))sc=40;
       if(sc>=0)out.push([sc+Math.min(p.cnt,40)/80,p]);}
     // 城市:命中即作为独立结果,排在同名院校之前
     for(const c of CITYIDX){
@@ -2695,10 +2696,11 @@ if(localStorage.getItem("gk_bgm")!=="0"){               // 默认开启:首个�
       else if(n.startsWith(q)||s.startsWith(q))sc=80;
       else if(n.includes(q)||s.includes(q))sc=60;
       else if(c.includes(q))sc=28;
+      if(provHit&&sp(u.p)===qb)sc=55;                  // 省份浏览:该省学校一律纳入并「按档次排序」(忽略校名是否含省名,否则江苏大学等会盖过南大/东南),靠 TIER_W+rank 决定先后
       if(sc>=0)out.push([sc+(TIER_W[u.t]||0)-(u.rank||1500)/200000,u]);
     }
     out.sort((a,b)=>b[0]-a[0]);
-    return out.slice(0,9).map(x=>x[1]);
+    return out.slice(0,provHit?160:9).map(x=>x[1]);    // 省份命中:列全省(结果框可滚动);普通词仍限 9 条
   }
   const tierTxt=t=>t==="985"?"985":t==="211"?"211":t==="dfc"?"双一流":"本科";
   function render(list){
