@@ -12,7 +12,7 @@
 import pandas as pd, sqlite3, re, argparse, os
 
 MAP = {'年份': 'year', '生源地': 'province', '科类': 'subject', '计划类别': 'enroll_type', '批次': 'batch',
-       '选科': 'sel_req', '院校代码': 'uni_code', '院校名称': 'uni_name', '专业代码': 'major_code',
+       '选科': 'sel_req', '选科要求': 'sel_req', '院校代码': 'uni_code', '院校名称': 'uni_name', '专业代码': 'major_code',
        '专业名称': 'major', '专业备注': 'major_note', '计划人数': 'plan_n', '学制': 'years', '学费': 'tuition'}
 OWNER = re.compile(r'[\[【（(](公办|民办|中外合作办学|内地与港澳台合作办学|境外合作办学|独立学院|军事)[\]】）)]')
 def strip_owner(n): return OWNER.sub('', str(n)).strip()
