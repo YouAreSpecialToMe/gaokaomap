@@ -8,6 +8,8 @@ slices/ 走 .gitignore(盒子/dev 生成),与 DEM 瓦片同思路。
 import sqlite3, json, os, sys, gzip, re
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+from recommend import benke_line_score   # 本科线分数(与服务端同源)→ 切片预算成位次,保证客户端==服务端
 DB = os.environ.get("GK_DB") or next((p for p in [
     os.path.join(HERE, "gaokao-data", "gaokao.db"),
     "/Users/zhangxiansheng/projects/agentfeed/demos/gaokao-data/gaokao.db",
@@ -93,9 +95,26 @@ def export(prov):
         r = UNI_ALL.get(un) or UNI_ALL.get(_strip(un))
         if r:
             uinfo[un] = {"t": _tier(r), "rank": r["rank"], "ll": [r["lng"], r["lat"]] if r["lng"] else None, "c": r["city"], "p": r["province"]}
+    # 本科线位次(每科):低于此位次=没上本科线 → 客户端引擎放开专科(与服务端 below_line 同源、同函数算本科线分数)
+    bl = {}
+    for sj, yd in rk.items():
+        py = yrs[0]
+        if py not in yd:
+            continue
+        bls = benke_line_score(con, prov, sj, py)
+        if bls is None:
+            continue
+        br = None
+        for smin, cr in yd[py]["pts"]:   # pts 按 score_min 升序;取 ≤本科线分 的最大段位次(= bisect_right-1,与服务端一致)
+            if smin <= bls:
+                br = cr
+            else:
+                break
+        if br is not None:
+            bl[sj] = br
     slice = {"prov": prov, "subj": subj, "years": yrs, "unis": unis, "majs": majs,
              "sels": sels, "subjs": subjs, "adm": A, "rank": rk, "plan": pl,
-             "mcls": mcls_names, "mmc": mmc, "uinfo": uinfo, "mg": mg}
+             "mcls": mcls_names, "mmc": mmc, "uinfo": uinfo, "mg": mg, "bl": bl}
     os.makedirs(OUT, exist_ok=True)
     js = json.dumps(slice, ensure_ascii=False, separators=(",", ":"))
     open(os.path.join(OUT, prov + ".json"), "w", encoding="utf-8").write(js)

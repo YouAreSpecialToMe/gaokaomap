@@ -42,6 +42,9 @@
       if (lo - 1 < 0) return { error: "below_floor" }; myRank = pts[lo - 1][1];
     }
     if (opt.score != null) myRank = effR(myRank, opt.score);   // 封顶段:用分数把你的位次细分(否则前105名全=105、彼此分不出)
+    var blRank = null;                                          // 本科线位次(切片 bl,按 SUBJ_EQ 解析,与 rankTbl 同口径)→ 没上线放开专科,与服务端 below_line 同源
+    if (slice.bl) { var blc = SUBJ_EQ[subj] || [subj]; for (var bli = 0; bli < blc.length; bli++) if (slice.bl[blc[bli]] != null) { blRank = slice.bl[blc[bli]]; break; } }
+    var belowLine = blRank != null && myRank > blRank;          // 位次比本科线位次更靠后 = 没上本科线
     var cohort = {}, eq = {}; cohort[year] = total; eq[year] = myRank;
     [year - 1, year - 2].forEach(function (yr) { var t = rankTbl(slice, subj, yr); if (t) { var c = 0; for (var j = 0; j < t.pts.length; j++) if (t.pts[j][1] > c) c = t.pts[j][1]; cohort[yr] = c; eq[yr] = Math.max(1, Math.round(myRank * c / total)); } });
     var pf = function (un) { var p = slice.plan[un] || slice.plan[strip(un)]; if (!p || !p[year] || !p[year - 1]) return 1; return Math.pow(Math.max(0.7, Math.min(1.4, p[year] / p[year - 1])), 0.2); };
@@ -61,7 +64,8 @@
       var y2 = yr % 100, a = topStudent ? 1 : Math.floor(eq[yr] * 0.6), b = topStudent ? Math.max(Math.floor(eq[yr] * 2.4), 5000) : Math.floor(eq[yr] * 2.4);   // floor 对齐服务端 int(eq*0.6/2.4),否则边界位次的候选在/不在不一致 → 按组分档分叉
       for (var i = 0; i < n; i++) {
         if (A.y[i] !== y2 || !subjOk.has(A.j[i])) continue;
-        if ((A.bt && A.bt[i]) || (slice.majs[A.m[i]] || "").indexOf("预科") >= 0) continue;   // 专科批/预科不混入本科冲稳保
+        if ((slice.majs[A.m[i]] || "").indexOf("预科") >= 0) continue;   // 预科永远排除(985/211 预科徽章泄漏)
+        if (!belowLine && A.bt && A.bt[i]) continue;                     // 专科/高职仅在上了本科线时排除——低于线者反而需要专科
         var rr = A.r[i]; if (rr == null || rr < a || rr > b) continue;
         if (!selOk(slice.sels[A.sl[i]], sel)) continue;
         if (mcWant && !mcWant(A.m[i])) continue;
@@ -115,7 +119,7 @@
     var top_fb = false;                                         // 完全无匹配(数据缺失等):取该省该科最难进的专业作「冲」兜底
     if (!out["冲"].length && !out["稳"].length && !out["保"].length) {
       var eqv = eq[year] || 1, fb = [];
-      for (var i2 = 0; i2 < n; i2++) { if (A.y[i2] !== year % 100 || !subjOk.has(A.j[i2]) || A.r[i2] == null) continue; if ((A.bt && A.bt[i2]) || (slice.majs[A.m[i2]] || "").indexOf("预科") >= 0) continue; if (!selOk(slice.sels[A.sl[i2]], sel)) continue; if (mcWant && !mcWant(A.m[i2])) continue; fb.push(i2); }
+      for (var i2 = 0; i2 < n; i2++) { if (A.y[i2] !== year % 100 || !subjOk.has(A.j[i2]) || A.r[i2] == null) continue; if ((slice.majs[A.m[i2]] || "").indexOf("预科") >= 0) continue; if (!belowLine && A.bt && A.bt[i2]) continue; if (!selOk(slice.sels[A.sl[i2]], sel)) continue; if (mcWant && !mcWant(A.m[i2])) continue; fb.push(i2); }
       fb.sort(function (a, b) { return A.r[a] - A.r[b]; });
       var fbu = {};
       for (var g = 0; g < fb.length && out["冲"].length < 12; g++) {

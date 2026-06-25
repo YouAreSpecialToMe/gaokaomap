@@ -101,6 +101,27 @@ def effective_rank_year(con, prov, subj_std, target=None):
             return row[0]
     return None
 
+BL_SUBJ = {"物理": ("首选物理", "理科", "物理"), "理科": ("首选物理", "理科", "物理"),
+           "历史": ("首选历史", "文科", "历史"), "文科": ("首选历史", "文科", "历史"),
+           "综合": ("综合",)}   # batch_lines.subject 用 首选物理/首选历史/文科/理科/综合,映射自引擎 subj_std
+BENKE_BATCHES = ("本科批", "本科一批", "本科二批", "普通类一段", "本科一段", "平行录取一段")  # 取其中最低分=本科线(本二/本科批/普通类一段)
+
+def benke_line_score(con, prov, subj_std, year):
+    """该省该科该年「本科批次控制线」分数(取最低的本科批线;无该年则回退到 ≤year 的最新年——
+    本科线逐年稳定可作代理)。缺失返回 None → 退化为旧的『始终排除专科』行为。低于此线的考生上
+    不了任何本科,应推荐专科。客户端切片由 export-slices 调用本函数预算成位次,保证客户端==服务端。"""
+    aliases = BL_SUBJ.get(subj_std, (subj_std,))
+    qp = ",".join("?" * len(aliases)); bp = ",".join("?" * len(BENKE_BATCHES))
+    yr = con.execute(f"""SELECT MAX(year) FROM batch_lines
+        WHERE province=? AND subject IN ({qp}) AND batch IN ({bp}) AND year<=?""",
+        (prov, *aliases, *BENKE_BATCHES, year)).fetchone()
+    if not yr or yr[0] is None:
+        return None
+    row = con.execute(f"""SELECT MIN(score) FROM batch_lines
+        WHERE province=? AND subject IN ({qp}) AND batch IN ({bp}) AND year=?""",
+        (prov, *aliases, *BENKE_BATCHES, yr[0])).fetchone()
+    return row[0] if row and row[0] is not None else None
+
 @lru_cache(maxsize=8)
 def get_uinfo():
     con = connect()
@@ -179,6 +200,19 @@ def _engine(prov, subj_std, score, year, sel, rank=None, mclasses=None):
             return {"error": "分数低于该省统计下限", "degrade": "below_floor"}
         my_rank = tbl[i][1]
         my_rank = eff_rank(my_rank, score)                 # 封顶段:用分数细分你的位次(否则前105名全=floor、彼此分不出)
+    # 本科线(批次控制线)→位次:低于本科线者上不了本科,应看专科(其唯一现实选项),不该被推荐够不到的本科。
+    # 一律按位次判定(分数只用来查位次→位次输入模式同样适用);本科线分数经同一一分一段(tbl)换算成位次。
+    _bl_score = benke_line_score(con, prov, subj_std, year)
+    _benke_rank = None
+    if _bl_score is not None:
+        _bi = bisect_right(scores, _bl_score) - 1
+        if _bi >= 0:
+            _benke_rank = tbl[_bi][1]
+    below_line = _benke_rank is not None and my_rank > _benke_rank   # 你的位次比本科线位次更靠后 = 没上本科线
+    # 预科永远排除(985/211 预科徽章会泄漏);专科/高职仅在「上了本科线」时排除——低于线者反而需要专科
+    benke_clause = " AND COALESCE(major,'') NOT LIKE '%预科%'"
+    if not below_line:
+        benke_clause += " AND COALESCE(batch,'') NOT LIKE '%专科%' AND COALESCE(batch,'') NOT LIKE '%高职%'"
     cohort = {year: total}
     eq = {year: my_rank}
     for yr in (year - 1, year - 2):
@@ -208,8 +242,7 @@ def _engine(prov, subj_std, score, year, sel, rank=None, mclasses=None):
         hi_w = max(int(eq[yr] * 2.4), 5000) if top_student else int(eq[yr] * 2.4)
         rows = con.execute(f"""SELECT uni_name,major,min_score,min_rank,enroll_n,sel_req
             FROM admission_lines
-            WHERE province=? AND year=? AND granularity='major'
-              AND COALESCE(batch,'') NOT LIKE '%专科%' AND COALESCE(batch,'') NOT LIKE '%高职%' AND COALESCE(major,'') NOT LIKE '%预科%'
+            WHERE province=? AND year=? AND granularity='major'{benke_clause}
               AND subject_std IN (?,?) AND min_rank IS NOT NULL
               AND min_rank BETWEEN ? AND ?{mcls_clause}""",
             (prov, yr, *(SUBJ_EQ.get(subj_std, (subj_std,)) + (subj_std,))[:2],
@@ -288,8 +321,7 @@ def _engine(prov, subj_std, score, year, sel, rank=None, mclasses=None):
         # 完全无匹配(数据缺失等):取该省该科目"最难进"的专业作为"冲"兜底,别让考生面对空白。
         eqv = eq.get(year) or (min(eq.values()) if eq else 1)
         fb = con.execute(f"""SELECT uni_name,major,min_score,min_rank,enroll_n,sel_req
-            FROM admission_lines WHERE province=? AND year=? AND granularity='major'
-              AND COALESCE(batch,'') NOT LIKE '%专科%' AND COALESCE(batch,'') NOT LIKE '%高职%' AND COALESCE(major,'') NOT LIKE '%预科%'
+            FROM admission_lines WHERE province=? AND year=? AND granularity='major'{benke_clause}
               AND subject_std IN (?,?) AND min_rank IS NOT NULL{mcls_clause}
             ORDER BY min_rank ASC LIMIT 80""",
             (prov, year, *(SUBJ_EQ.get(subj_std, (subj_std,)) + (subj_std,))[:2], *mcls_params)).fetchall()
