@@ -649,9 +649,9 @@
     #search{top:62px;left:12px;right:12px;width:auto;transform:none}
     .toolbar{display:none;top:108px}
     body.cfg-open .toolbar{display:flex}
-    .card,.recpanel,.quizpanel,.favpanel{left:0;right:0;bottom:0;top:auto;width:auto;max-width:none;
-      border-radius:16px 16px 0 0;max-height:74vh;box-sizing:border-box;animation:sheetUp .35s cubic-bezier(.22,1,.36,1)}
-    #recpanel{width:auto}
+    .card,.recpanel,.quizpanel,.favpanel{position:fixed;left:0;right:0;bottom:0;top:auto;width:auto;max-width:none;
+      border-radius:16px 16px 0 0;max-height:80dvh;box-sizing:border-box;animation:sheetUp .35s cubic-bezier(.22,1,.36,1)}   /* fixed→钉视口底(原 absolute 锚到溢出的页面底,被顶出屏外);80dvh 限可视高 + 内部滚 → 顶部切换/省份科类 + 底部结果都够得到 */
+    #recpanel{width:auto;max-height:80dvh}
     @keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
     .botbar{bottom:10px;gap:8px;max-width:96vw;flex-direction:column}
     .seg{max-width:96vw;overflow-x:auto;-webkit-overflow-scrolling:touch}
@@ -2280,6 +2280,12 @@ async function runRecommend(){
         st=document.getElementById("rp-status");
   if(!val){st.textContent=recMode==="rank"?"请输入位次":"请输入分数";return;}
   const n=Number(val);                                       // 拦明显不可能的输入(如 10000 分),精确上限由引擎按省判
+  let autoRank=false;
+  if(recMode==="score"&&Number.isFinite(n)&&n>750){          // 分数框填了明显是位次的大数 → 自动切「位次」模式(不清空输入);省得移动端够不到切换钮也能用
+    recMode="rank";autoRank=true;
+    document.querySelectorAll("#rp-mode .rfm").forEach(x=>x.classList.toggle("on",x.dataset.m==="rank"));
+    const inp=document.getElementById("rp-score");inp.min=1;inp.removeAttribute("max");inp.placeholder="全省位次,如 50000";
+  }
   if(recMode==="rank"){if(!Number.isFinite(n)||n<1){st.textContent="请输入有效位次(正整数)";return;}}
   else if(!Number.isFinite(n)||n<100||n>900){st.textContent="请输入有效分数(约 100–750)";return;}
   const sel=[...document.querySelectorAll("#rp-sel input:checked")].map(i=>i.value).join(",");
@@ -2296,7 +2302,7 @@ async function runRecommend(){
     }
     if(r.error){st.textContent="⚠️ "+recErrMsg(r.error);document.getElementById("reclist").innerHTML="";return;}
     window.GK={rank:r.rank,prov,subj,score:recMode==="score"?+val:0,local:!!slice};   // 存考生位次(+来源),供点校"冲稳保"可视化
-    st.textContent=`位次约 ${r.rank.toLocaleString()}(${prov}·${subj})${r.notes&&r.notes.length?" · "+r.notes[0]:""}`;
+    st.textContent=`${autoRank?"数值较大,已按位次 · ":""}位次约 ${r.rank.toLocaleString()}(${prov}·${subj})${r.notes&&r.notes.length?" · "+r.notes[0]:""}`;
     renderRecResult(r,document.getElementById("reclist"));
     document.getElementById("tourbtn").style.display=RECS.length?"block":"none";
     map.flyTo({center:[112,32],zoom:4.3,pitch:50,bearing:-8,duration:1600,curve:1.42});
