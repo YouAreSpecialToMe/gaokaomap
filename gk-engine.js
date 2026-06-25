@@ -33,12 +33,15 @@
     var subj = opt.subj || slice.subj, sel = opt.sel || null, cands = SUBJ_EQ[subj] || [subj], year = slice.years[0];
     var rt = rankTbl(slice, subj, year); if (!rt) return { error: "no_rank" };
     var pts = rt.pts, total = 0; for (var i = 0; i < pts.length; i++) if (pts[i][1] > total) total = pts[i][1];
+    var floor = pts[pts.length - 1][1], topMin = pts[pts.length - 1][0], effR;   // 顶部封顶段(海南综合等省官方把高分并成一段,如「前105名」)→ 段内退回用分数细分位次,免冲稳保把好学校全压成「冲」误判
+    if (floor > 10) { for (var ff = pts.length - 1; ff >= 0 && pts[ff][1] === floor; ff--) topMin = pts[ff][0]; effR = function (rk, sx) { return rk === floor && sx != null ? Math.max(1, floor - Math.round(sx - topMin)) : rk; }; } else effR = function (rk) { return rk; };
     var myRank;
     if (opt.rank) { myRank = opt.rank | 0; if (myRank < 1 || myRank > total * 1.1) return { error: "rank_oob" }; }
     else {
       var sc = opt.score, lo = 0, hi = pts.length; while (lo < hi) { var m = (lo + hi) >> 1; if (pts[m][0] <= sc) lo = m + 1; else hi = m; }
       if (lo - 1 < 0) return { error: "below_floor" }; myRank = pts[lo - 1][1];
     }
+    if (opt.score != null) myRank = effR(myRank, opt.score);   // 封顶段:用分数把你的位次细分(否则前105名全=105、彼此分不出)
     var cohort = {}, eq = {}; cohort[year] = total; eq[year] = myRank;
     [year - 1, year - 2].forEach(function (yr) { var t = rankTbl(slice, subj, yr); if (t) { var c = 0; for (var j = 0; j < t.pts.length; j++) if (t.pts[j][1] > c) c = t.pts[j][1]; cohort[yr] = c; eq[yr] = Math.max(1, Math.round(myRank * c / total)); } });
     var pf = function (un) { var p = slice.plan[un] || slice.plan[strip(un)]; if (!p || !p[year] || !p[year - 1]) return 1; return Math.pow(Math.max(0.7, Math.min(1.4, p[year] / p[year - 1])), 0.2); };
@@ -63,7 +66,7 @@
         if (mcWant && !mcWant(A.m[i])) continue;
         if (regionOk && !regionOk(A.u[i])) continue;
         var k = A.u[i] + "|" + A.m[i];
-        (cmap[k] = cmap[k] || []).push([yr, rr / eq[yr], i]);
+        (cmap[k] = cmap[k] || []).push([yr, (yr === year ? effR(rr, A.sc[i] / 10) : rr) / eq[yr], i]);
       }
     });
     var items = [];
@@ -95,7 +98,7 @@
     items.sort(function (x, y) {
       var a = pres(x[1]), b = pres(y[1]); if (a[0] !== b[0]) return a[0] - b[0]; if (a[1] !== b[1]) return a[1] - b[1];
       if (!topStudent) { var dx = Math.abs(x[0] - BANDS[bandOf(x[0]) || "稳"][2]), dy = Math.abs(y[0] - BANDS[bandOf(y[0]) || "稳"][2]); if (dx !== dy) return dx - dy; }   // 顶尖位次跳过贴合度,直接 min_rank(最热门)优先
-      var rx = A.r[x[3]], ry = A.r[y[3]]; if (rx !== ry) return rx - ry;     // 确定性兜底序(与服务端一致):min_rank→校名→专业,免平局依赖扫描/切片序
+      var rx = effR(A.r[x[3]], A.sc[x[3]] / 10), ry = effR(A.r[y[3]], A.sc[y[3]] / 10); if (rx !== ry) return rx - ry;     // 确定性兜底序(与服务端一致):min_rank(封顶段用分数细分)→校名→专业,免平局依赖扫描/切片序
       if (x[1] !== y[1]) return x[1] < y[1] ? -1 : 1;
       return x[2] < y[2] ? -1 : x[2] > y[2] ? 1 : 0;
     });
