@@ -209,6 +209,7 @@ def _engine(prov, subj_std, score, year, sel, rank=None, mclasses=None):
         rows = con.execute(f"""SELECT uni_name,major,min_score,min_rank,enroll_n,sel_req
             FROM admission_lines
             WHERE province=? AND year=? AND granularity='major'
+              AND COALESCE(batch,'') NOT LIKE '%专科%' AND COALESCE(batch,'') NOT LIKE '%高职%' AND COALESCE(major,'') NOT LIKE '%预科%'
               AND subject_std IN (?,?) AND min_rank IS NOT NULL
               AND min_rank BETWEEN ? AND ?{mcls_clause}""",
             (prov, yr, *(SUBJ_EQ.get(subj_std, (subj_std,)) + (subj_std,))[:2],
@@ -288,6 +289,7 @@ def _engine(prov, subj_std, score, year, sel, rank=None, mclasses=None):
         eqv = eq.get(year) or (min(eq.values()) if eq else 1)
         fb = con.execute(f"""SELECT uni_name,major,min_score,min_rank,enroll_n,sel_req
             FROM admission_lines WHERE province=? AND year=? AND granularity='major'
+              AND COALESCE(batch,'') NOT LIKE '%专科%' AND COALESCE(batch,'') NOT LIKE '%高职%' AND COALESCE(major,'') NOT LIKE '%预科%'
               AND subject_std IN (?,?) AND min_rank IS NOT NULL{mcls_clause}
             ORDER BY min_rank ASC LIMIT 80""",
             (prov, year, *(SUBJ_EQ.get(subj_std, (subj_std,)) + (subj_std,))[:2], *mcls_params)).fetchall()

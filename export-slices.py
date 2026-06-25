@@ -62,7 +62,7 @@ def export(prov):
         A["sl"].append(idx(x["s"], sels, si))
         A["j"].append(idx(x["j"], subjs, ji))
         A["y"].append(x["y"] % 100)
-        A["bt"].append(1 if (x["bt"] and "专科" in x["bt"]) else 0)   # 专科批标记 → 客户端引擎/选校助手按专科单列,不混入本科冲稳保
+        A["bt"].append(1 if (x["bt"] and ("专科" in x["bt"] or "高职" in x["bt"])) else 0)   # 专科批标记(含"高职高专批"——其无"专科"字样)→ 客户端引擎/选校助手按专科单列,不混入本科冲稳保
     # rank_tables(score→rank):{subjIdx:{year:{smax,pts:[[smin,cr]...]}}}
     rk = {}
     for r in con.execute(f"""SELECT subject sj,year y,score_min smin,score_max smax,cum_rank cr
