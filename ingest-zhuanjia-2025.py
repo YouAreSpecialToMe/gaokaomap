@@ -60,7 +60,12 @@ def read_rows(path, province, new_src):
                     _f(g(row, '最低分1', '最低分')), mr, _f(g(row, '平均分1', '平均分')),
                     _i(g(row, '平均位次1', '平均位次')), _f(g(row, '最高分1', '最高分')),
                     _i(g(row, '录取人数1', '录取人数')), new_src, kl))
-    return out
+    seen, ded = set(), []                                    # 去全同重复行(军校提前批等同校同专业同分多行)
+    for r in out:
+        k = (r[0], r[8], r[5], r[4], r[11], r[12], r[9])     # uni,major,subject,batch,min_score,min_rank,note
+        if k in seen: continue
+        seen.add(k); ded.append(r)
+    return ded
 
 
 def main():
@@ -97,7 +102,7 @@ def main():
     json.dump(dump, open(bak, 'w', encoding='utf-8'), ensure_ascii=False)
     print(f"已备份 {len(dump):,} 条旧 v2 行 → {bak}")
     c.execute("BEGIN")
-    c.execute("DELETE FROM admission_lines WHERE province=? AND year=2025 AND granularity='major' AND source=?", (prov, replace_src))
+    c.execute("DELETE FROM admission_lines WHERE province=? AND year=2025 AND granularity='major' AND source IN (?,?)", (prov, replace_src, new_src))  # 同删 new_src → 幂等,防并发/重跑叠加重复
     c.executemany(f"INSERT INTO admission_lines ({','.join(COLS)}) VALUES({','.join('?' * len(COLS))})", keep)
     c.commit()
     after = c.execute("SELECT count(*) FROM admission_lines WHERE province=? AND year=2025 "
