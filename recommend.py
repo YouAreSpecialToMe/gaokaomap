@@ -156,6 +156,10 @@ def _engine(prov, subj_std, score, year, sel, rank=None, mclasses=None):
     tbl = rank_table(year)
     scores = [t[0] for t in tbl]
     total = max(c for _, c in tbl)                         # 该省该科考生总数(最大累计位次)
+    floor = tbl[-1][1]                                     # 最小累计位次(最高分段);顶部被官方并段(如海南综合前105名一段)时 >10
+    top_min = next((s for s, c in tbl if c == floor), tbl[-1][0])   # 该封顶段的最低分
+    def eff_rank(rk, sx):                                  # 封顶段内退回用分数细分位次,免冲稳保把好学校误判为冲(与 gk-engine.js effR 对齐)
+        return max(1, floor - round(sx - top_min)) if (floor > 10 and rk == floor and sx is not None) else rk
     if rank:
         my_rank = int(rank)
         if my_rank < 1 or my_rank > total * 1.1:          # 位次不能超出考生总数(留 10% 余量)
@@ -174,6 +178,7 @@ def _engine(prov, subj_std, score, year, sel, rank=None, mclasses=None):
         if i < 0:
             return {"error": "分数低于该省统计下限", "degrade": "below_floor"}
         my_rank = tbl[i][1]
+        my_rank = eff_rank(my_rank, score)                 # 封顶段:用分数细分你的位次(否则前105名全=floor、彼此分不出)
     cohort = {year: total}
     eq = {year: my_rank}
     for yr in (year - 1, year - 2):
@@ -210,7 +215,8 @@ def _engine(prov, subj_std, score, year, sel, rank=None, mclasses=None):
              lo_w, hi_w, *mcls_params)).fetchall()
         for r in rows:
             if not sel_ok(r["sel_req"], sel): continue
-            cands[(r["uni_name"], r["major"])].append((yr, r["min_rank"] / eq[yr], dict(r)))
+            mr_eff = eff_rank(r["min_rank"], r["min_score"]) if yr == year else r["min_rank"]   # 当年封顶段录取位次也按分数细分
+            cands[(r["uni_name"], r["major"])].append((yr, mr_eff / eq[yr], dict(r)))
 
     items = []
     # 大类多招生组同名(如 浙大「工科试验班」9 组,位次 202–7296)→ 按「组」分档而非合并:
@@ -254,11 +260,11 @@ def _engine(prov, subj_std, score, year, sel, rank=None, mclasses=None):
         if not i: return (3, 99999)
         return (0 if i[2] else 1 if i[3] else 2 if i[4] else 3, i[6] or 99999)
     if top_student:   # 顶尖位次:同层次内按"最热门(min_rank 最小)"优先,把最好的专业顶上来(而非贴合度)
-        items.sort(key=lambda x: (_prestige(x[2]), x[4]["min_rank"], x[2], x[3]))
+        items.sort(key=lambda x: (_prestige(x[2]), eff_rank(x[4]["min_rank"], x[4]["min_score"]), x[2], x[3]))
     else:
         items.sort(key=lambda x: (_prestige(x[2]),
                                   abs(x[0] - BANDS.get(band_of(x[0]) or "稳", (0, 0, 1.18))[2]),
-                                  x[4]["min_rank"], x[2], x[3]))   # 确定性兜底序(min_rank→校名→专业):免平局依赖 SQL 扫描序,与客户端切片对齐
+                                  eff_rank(x[4]["min_rank"], x[4]["min_score"]), x[2], x[3]))   # 确定性兜底序(min_rank 封顶段按分数细分→校名→专业):免平局依赖 SQL 扫描序,与客户端切片对齐
 
     out = {b: [] for b in BANDS}
     per_uni = defaultdict(int)
