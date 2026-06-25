@@ -202,15 +202,17 @@
   .recform select{appearance:none;-webkit-appearance:none;cursor:pointer;padding-right:26px;
     background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'><path d='M1 1l4 4 4-4' fill='none' stroke='%238a6a3f' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>"),linear-gradient(180deg,var(--paper-a),var(--paper-b));
     background-repeat:no-repeat,no-repeat;background-position:right 9px center,center;background-size:10px,auto}
-  .recform button:not(.rfm){padding:6px 14px;border:none;border-radius:6px;background:#8c2f1b;color:#f7e8d6;
-    font:500 13px "Kaiti SC","STKaiti",serif;letter-spacing:2px;cursor:pointer}   /* :not(.rfm) —— 否则红底会盖掉切换的未选态(本是 .rfm 浅底) */
-  .recform button:not(.rfm):hover{background:#a13a22}
+  .recform button:not(.rfm):not(.rfclr){padding:6px 14px;border:none;border-radius:6px;background:#8c2f1b;color:#f7e8d6;
+    font:500 13px "Kaiti SC","STKaiti",serif;letter-spacing:2px;cursor:pointer}   /* 排除 .rfm(切换未选态浅底)与 .rfclr(清空=浅色链接) */
+  .recform button:not(.rfm):not(.rfclr):hover{background:#a13a22}
   .rfsel{display:flex;gap:8px;flex-wrap:wrap;font-size:12px;color:#6b5226}
   .rfsel label{display:flex;align-items:center;gap:2px;cursor:pointer}
-  .rfmore{align-self:flex-start;background:none;border:none;color:#8c6a2e;font-size:12px;cursor:pointer;padding:1px 0;text-decoration:underline dotted;font-family:inherit}
+  .rfmore{align-self:flex-start;background:none;border:none;color:#8c6a2e;font-size:12px;cursor:pointer;padding:1px 0;text-decoration:none;font-family:inherit}
   .rfmore.on{color:#8c2f1b}
   .rfadv{display:flex;flex-direction:column;gap:6px;padding:8px 9px;background:rgba(189,154,85,.08);border:1px solid var(--gold-soft);border-radius:9px}
-  .rfadv-l{font-size:11.5px;color:#6b5226;font-weight:600;letter-spacing:1px}
+  .rfadv-l{display:flex;align-items:center;gap:4px;font-size:11.5px;color:#6b5226;font-weight:600;letter-spacing:1px}
+  .rfclr{margin-left:auto;background:none;border:none;color:#a86650;font-size:11px;font-weight:400;letter-spacing:0;cursor:pointer;text-decoration:underline;font-family:inherit;padding:0}
+  .rfclr:hover{color:#8c2f1b}
   .rfadv-l b{font-weight:400;color:#8c2f1b;letter-spacing:0}
   .rfquick{display:flex;flex-wrap:wrap;gap:4px}
   .rfquick button{padding:2px 8px;border:1px solid #c5ab7c;border-radius:9px;background:#faf3e6;color:#6b5226;font-size:11px;cursor:pointer;font-family:inherit}
@@ -802,8 +804,7 @@
     </div>
     <button type="button" class="rfmore" id="rp-more">＋ 限定地区 / 专业(可选)</button>
     <div class="rfadv" id="rp-adv" hidden>
-      <div class="rfadv-l">限定地区<b id="rp-rg-c"></b></div>
-      <div class="rfquick" id="rp-rg-quick"></div>
+      <div class="rfadv-l">限定地区<b id="rp-rg-c"></b><button type="button" id="rp-rg-clr" class="rfclr" hidden>清空</button></div>
       <div class="rfchips" id="rp-rg-chips"></div>
       <div class="rfadv-l">限定专业<b id="rp-mc-c"></b></div>
       <div class="rfmcsel" id="rp-mc-sel"></div>
@@ -2483,17 +2484,12 @@ document.getElementById("rp-score").addEventListener("keydown",e=>{if(e.key==="E
 // 地区 + 专业筛选(我的推荐):省份多选 + 专业类搜索多选 → regions/mclasses 传引擎(空=不限)
 (function(){
   const PROVS="北京 天津 河北 山西 内蒙古 辽宁 吉林 黑龙江 上海 江苏 浙江 安徽 福建 江西 山东 河南 湖北 湖南 广东 广西 海南 重庆 四川 贵州 云南 西藏 陕西 甘肃 青海 宁夏 新疆".split(" ");
-  const QUICK=[["长三角","上海 江苏 浙江 安徽"],["京津冀","北京 天津 河北"],["大湾区","广东"],["成渝","四川 重庆"]];
   const MC=new Set(); let MCLS=[];
   const $=id=>document.getElementById(id); if(!$("rp-rg-chips"))return;
   $("rp-rg-chips").innerHTML=PROVS.map(p=>`<span class="rgc" data-p="${p}">${p}</span>`).join("");
-  $("rp-rg-quick").innerHTML=QUICK.map((q,i)=>`<button type="button" data-i="${i}">${q[0]}</button>`).join("")+`<button type="button" data-i="x">清空</button>`;
-  const rgN=()=>{const n=document.querySelectorAll("#rp-rg-chips .rgc.on").length;$("rp-rg-c").textContent=n?` · 已选 ${n} 省`:"";};
+  const rgN=()=>{const n=document.querySelectorAll("#rp-rg-chips .rgc.on").length;$("rp-rg-c").textContent=n?` · 已选 ${n} 省`:"";$("rp-rg-clr").hidden=!n;};
   $("rp-rg-chips").addEventListener("click",e=>{const c=e.target.closest(".rgc");if(c){c.classList.toggle("on");rgN();}});
-  $("rp-rg-quick").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
-    document.querySelectorAll("#rp-rg-chips .rgc").forEach(c=>c.classList.remove("on"));
-    if(b.dataset.i!=="x")QUICK[+b.dataset.i][1].split(" ").forEach(p=>{const c=document.querySelector(`#rp-rg-chips .rgc[data-p="${p}"]`);if(c)c.classList.add("on");});
-    rgN();});
+  $("rp-rg-clr").addEventListener("click",()=>{document.querySelectorAll("#rp-rg-chips .rgc.on").forEach(c=>c.classList.remove("on"));rgN();});
   const mcRender=()=>{$("rp-mc-sel").innerHTML=[...MC].map(m=>`<span class="mcc" data-m="${m}">${m} ✕</span>`).join("");$("rp-mc-c").textContent=MC.size?` · 已选 ${MC.size} 类`:"";};
   $("rp-mc-sel").addEventListener("click",e=>{const c=e.target.closest(".mcc");if(c){MC.delete(c.dataset.m);mcRender();}});
   const loadMcls=async()=>{try{const s=await loadSlice($("rp-prov").value);MCLS=(s.mcls||[]).slice().sort((a,b)=>a.localeCompare(b,"zh"));}catch(e){MCLS=[];}};
