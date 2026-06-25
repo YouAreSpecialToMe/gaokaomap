@@ -2265,7 +2265,7 @@ async function showUniCard(name){
 let _SLICE={};   // 分省切片缓存(列存),客户端冲稳保引擎用;选省即拉、缓存复用,无切片/失败回退 API
 async function loadSlice(prov){
   if(prov in _SLICE) return _SLICE[prov];
-  try{ _SLICE[prov]=await (await fetch(`slices/${encodeURIComponent(prov)}.json?v=9`)).json(); }   // ?v 缓存戳:切片 immutable 长缓存,内容变(schema 或数据)须 bump 才经 Cloudflare 生效(盒子 token 无 purge 权限)。v4:华科/中科大/哈工大本部/人大 2025 官方专业级回填(11省→30省);v5:加 mg/uinfo.p schema(数据空);v6:软科专业评级 mg + 校友会 universities.rank 清洗入库(§D,2026-06-24);v7:2026 一分一段入库(上海/内蒙古/天津/黑龙江 出分日,该4省 years→[2026,2025,2024]);v8:§E 2026 招生计划入库8省→enrollment_plans(沪/蒙/黑切片 plan 带2026=plan_factor生效;其余省预入库待一分一段);v9:§F 安徽2025专业级补全(专家版替薄v2源,18k→40k,仅安徽切片变)
+  try{ _SLICE[prov]=await (await fetch(`slices/${encodeURIComponent(prov)}.json?v=10`)).json(); }   // ?v 缓存戳:切片 immutable 长缓存,内容变(schema 或数据)须 bump 才经 Cloudflare 生效(盒子 token 无 purge 权限)。v4:华科/中科大/哈工大本部/人大 2025 官方专业级回填(11省→30省);v5:加 mg/uinfo.p schema(数据空);v6:软科专业评级 mg + 校友会 universities.rank 清洗入库(§D,2026-06-24);v7:2026 一分一段入库(上海/内蒙古/天津/黑龙江 出分日,该4省 years→[2026,2025,2024]);v8:§E 2026 招生计划入库8省→enrollment_plans(沪/蒙/黑切片 plan 带2026=plan_factor生效;其余省预入库待一分一段);v9:§F 安徽2025专业级补全(专家版替薄v2源,18k→40k);v10:§F 缺口省补全再8省(江西/湖北/广西/湖南/广东/海南/黑龙江/新疆 2025专业线补满,9真缺省清零)+§E 湖北/湖南 2026计划(gk-engine?v=8 是§G海南封顶段位次修复)
   catch(e){ _SLICE[prov]=null; }
   return _SLICE[prov];
 }
