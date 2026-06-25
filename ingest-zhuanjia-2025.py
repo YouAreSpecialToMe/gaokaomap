@@ -37,25 +37,29 @@ def read_rows(path, province, new_src):
     rows = list(openpyxl.load_workbook(path, read_only=True, data_only=True).worksheets[0].iter_rows(values_only=True))
     hi = next(i for i, row in enumerate(rows[:6])
               if row and any(str(v).strip() == '院校名称' for v in row if v)
-              and any(str(v).strip() == '最低位次' for v in row if v))
+              and any(str(v).strip() in ('最低位次', '最低位次1') for v in row if v))
     hdr = [str(v).strip() if v is not None else '' for v in rows[hi]]
     col = {}
     for i, name in enumerate(hdr):
         if name and name not in col: col[name] = i          # 首个同名列 = 2025 段
-    def g(row, name):
-        i = col.get(name); return row[i] if i is not None and i < len(row) else None
+    def g(row, *names):                                      # 录取列两种命名:无后缀(安徽)/带 *1 后缀(浙鄂);取首个命中
+        for name in names:
+            i = col.get(name)
+            if i is not None and i < len(row): return row[i]
+        return None
     out = []
     for row in rows[hi + 1:]:
         uni = str(g(row, '院校名称') or '').strip()
-        mr = _i(g(row, '最低位次'))                          # 无位次的引擎用不上,丢
+        mr = _i(g(row, '最低位次1', '最低位次'))               # 无位次的引擎用不上,丢
         if not uni or mr is None: continue
         kl = str(g(row, '科类') or '').strip()
         out.append((uni, str(g(row, '院校代码') or '').strip(), province, 2025, str(g(row, '批次') or '').strip(),
                     (kl + '类') if kl in ('物理', '历史') else kl, 'major',
                     str(g(row, '专业代码') or '').strip(), str(g(row, '专业名称') or '').strip(),
                     (str(g(row, '专业备注') or '').strip() or None), (str(g(row, '选科要求') or '').strip() or None),
-                    _f(g(row, '最低分')), mr, _f(g(row, '平均分')), _i(g(row, '平均位次')), _f(g(row, '最高分')),
-                    _i(g(row, '录取人数')), new_src, kl))
+                    _f(g(row, '最低分1', '最低分')), mr, _f(g(row, '平均分1', '平均分')),
+                    _i(g(row, '平均位次1', '平均位次')), _f(g(row, '最高分1', '最高分')),
+                    _i(g(row, '录取人数1', '录取人数')), new_src, kl))
     return out
 
 
