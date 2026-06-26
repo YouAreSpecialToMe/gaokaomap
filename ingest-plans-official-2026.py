@@ -23,12 +23,13 @@ def strip_loc(n):
         m=re.search(r'[（(]([^（）()]+)[）)]\s*$',n)
         if m and m.group(1) in PROV: n=n[:m.start()].strip()
     return n
-def derive_subj(sk,bn,default):
+def derive_subj(sk,bn,default,keep=False):
     bn=str(bn or '')
     if any(k in bn for k in ['艺术','艺考','体育']): return None
     if sk is not None and not(isinstance(sk,float) and pd.isna(sk)):
         s=str(sk)
         if any(k in s for k in ART): return None
+        if keep: return s.strip()                  # 老高考省保留原科类(文科/理科),不转历史/物理
         if '综合' in s or '不分' in s: return '综合'
         if '物理' in s or '理科' in s: return '物理'
         if '历史' in s or '文科' in s: return '历史'
@@ -46,11 +47,11 @@ def load(path):
 ap=argparse.ArgumentParser()
 ap.add_argument('--province',required=True); ap.add_argument('--year',type=int,default=2026)
 ap.add_argument('--db',required=True); ap.add_argument('--source',default='guanfang-2026-plan')
-ap.add_argument('--default-subject',default=None); ap.add_argument('--strip-province',action='store_true'); ap.add_argument('--dry',action='store_true'); ap.add_argument('files',nargs='+')
+ap.add_argument('--default-subject',default=None); ap.add_argument('--strip-province',action='store_true'); ap.add_argument('--keep-subject',action='store_true'); ap.add_argument('--dry',action='store_true'); ap.add_argument('files',nargs='+')
 a=ap.parse_args()
 STRIP_PROV=a.strip_province
 df=pd.concat([load(f) for f in a.files],ignore_index=True); n0=len(df)
-df['subject']=df.apply(lambda r:derive_subj(r['subject'],r['batch'],a.default_subject),axis=1)
+df['subject']=df.apply(lambda r:derive_subj(r['subject'],r['batch'],a.default_subject,a.keep_subject),axis=1)
 df=df[df['subject'].notna()].copy()
 df['uni_name']=df['uni_name'].map(strip_loc)
 df['plan_n']=pd.to_numeric(df['plan_n'],errors='coerce'); df=df[df['plan_n'].notna()]
